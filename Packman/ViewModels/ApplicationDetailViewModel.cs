@@ -43,8 +43,30 @@ public sealed class ApplicationDetailViewModel : ObservableObject
             OnPropertyChanged(nameof(Detail));
             OnPropertyChanged(nameof(HasInstall));
             OnPropertyChanged(nameof(HasUninstall));
+            OnPropertyChanged(nameof(HeaderMeta));
+            OnPropertyChanged(nameof(CategoryText));
+            OnPropertyChanged(nameof(OwnerText));
+            OnPropertyChanged(nameof(StatsEmptyText));
         }
     }
+
+    /// <summary>Header subtitle, e.g. "Contoso · 4.2.0 · System context · Win32"; blank parts are left out.</summary>
+    public string HeaderMeta => string.Join(" · ",
+        new[] { Detail.Publisher, Detail.Version, $"{Detail.InstallContext} context", "Win32" }.Where(p => !string.IsNullOrWhiteSpace(p)));
+
+    public string CategoryText => string.IsNullOrWhiteSpace(Detail.Category) ? "None" : Detail.Category;
+    public string OwnerText => string.IsNullOrWhiteSpace(Detail.Owner) ? "Not set" : Detail.Owner;
+
+    // ── Connection: every write to Intune needs a session; signed out, the page is read-only ──
+    public bool IsSignedIn => AppServices.Auth.IsSignedIn;
+
+    /// <summary>Called by the view when the sign-in state changes.</summary>
+    public void RaiseConnectionChanged() =>
+        RaiseAll(nameof(IsSignedIn), nameof(CanRepublish), nameof(CanAddAssignment));
+
+    private DateTime? _loadedAt;
+    /// <summary>When the detail was last loaded from Intune; shown when the figures may be stale.</summary>
+    public string LastSyncedText => _loadedAt is { } t ? $"Last synced {t:g}" : "";
 
     // ── Tabs: Overview / Package / Deployment ──
     private string _tab = "overview";
@@ -89,6 +111,7 @@ public sealed class ApplicationDetailViewModel : ObservableObject
             OnPropertyChanged(nameof(SourceHintText));
             OnPropertyChanged(nameof(SourceHintOk));
             OnPropertyChanged(nameof(CanUpdatePackage));
+            OnPropertyChanged(nameof(CanRepublish));
         }
     }
     public bool HasSource => !string.IsNullOrEmpty(_sourcePath);
@@ -113,8 +136,14 @@ public sealed class ApplicationDetailViewModel : ObservableObject
     public int SumNotApplicable => Detail.Statistics?.NotApplicable ?? 0;
     public int SumRemaining => SumNotInstalled + SumNotApplicable;
 
+    /// <summary>Shown instead of the counts when there are none to show.</summary>
+    public string StatsEmptyText =>
+        IsLoading ? "Loading deployment status…"
+        : Detail.Statistics != null ? "No devices have reported for this app yet."
+        : "Deployment status has not been loaded.";
+
     private bool _isLoading;
-    public bool IsLoading { get => _isLoading; private set => Set(ref _isLoading, value); }
+    public bool IsLoading { get => _isLoading; private set => Set(ref _isLoading, value, [nameof(StatsEmptyText)]); }
 
     private string _statusText = "";
     public string StatusText { get => _statusText; private set => Set(ref _statusText, value); }
@@ -126,6 +155,8 @@ public sealed class ApplicationDetailViewModel : ObservableObject
         try
         {
             Detail = await _apps.GetApplicationDetailAsync(Detail.Id);
+            _loadedAt = DateTime.Now;
+            OnPropertyChanged(nameof(LastSyncedText));
             RebuildDetection();
             RaiseDerived();
             await LocateSourceAsync();
@@ -159,6 +190,9 @@ public sealed class ApplicationDetailViewModel : ObservableObject
     /// <summary>The share folder has to be resolved before the package can be rebuilt.</summary>
     public bool CanUpdatePackage => HasSource && !IsUpdating;
 
+    /// <summary>Republish also needs a session: the new content is uploaded to Intune.</summary>
+    public bool CanRepublish => CanUpdatePackage && IsSignedIn;
+
     private CancellationTokenSource? _updateCts;
 
     private bool _isUpdating;
@@ -169,6 +203,7 @@ public sealed class ApplicationDetailViewModel : ObservableObject
         {
             if (!Set(ref _isUpdating, value)) return;
             OnPropertyChanged(nameof(CanUpdatePackage));
+            OnPropertyChanged(nameof(CanRepublish));
         }
     }
 
@@ -272,10 +307,13 @@ public sealed class ApplicationDetailViewModel : ObservableObject
         }
     }
 
+    /// <summary>Opens the app's blade in the Intune admin center. The Applications list uses it too.</summary>
+    public static void OpenInIntune(string appId) =>
+        Process.Start(new ProcessStartInfo($"https://intune.microsoft.com/#view/Microsoft_Intune_Apps/SettingsMenu/~/0/appId/{appId}") { UseShellExecute = true });
+
     public void OpenInIntune()
     {
-        var url = $"https://intune.microsoft.com/#view/Microsoft_Intune_Apps/SettingsMenu/~/0/appId/{Detail.Id}";
-        try { Process.Start(new ProcessStartInfo(url) { UseShellExecute = true }); }
+        try { OpenInIntune(Detail.Id); }
         catch (Exception ex) { StatusText = $"Could not open browser: {ex.Message}"; }
     }
 
@@ -379,7 +417,7 @@ public sealed class ApplicationDetailViewModel : ObservableObject
     public bool HasGroupResults => _groupSearchBox.HasResults;
 
     private EntraGroup? _selectedGroup;
-    public bool CanAddAssignment => _selectedGroup != null;
+    public bool CanAddAssignment => _selectedGroup != null && IsSignedIn;
 
     public void SelectGroupResult(EntraGroup group)
     {
