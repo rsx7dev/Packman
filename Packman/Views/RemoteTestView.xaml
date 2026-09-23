@@ -3,27 +3,91 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:controls="clr-namespace:Packman.Views.Controls"
              xmlns:views="clr-namespace:Packman.Views"
              xmlns:vm="clr-namespace:Packman.ViewModels"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:RemoteTestViewModel}"
              FontFamily="{StaticResource UIFontFamily}">
 
-    <Grid Margin="26,20,26,26">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+    <controls:PageFrame Title="Remote test" Subtitle="Test a PSADT package on a remote Windows device">
+        <controls:PageFrame.Footer>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
 
-        <StackPanel Grid.Row="0">
-            <TextBlock Text="Remote Test" Style="{StaticResource H1}"/>
-            <TextBlock Text="Deploy a package built earlier to a test machine and watch the result"
-                       Style="{StaticResource SubText}" Margin="0,5,0,0"/>
-        </StackPanel>
+                <!-- Last install/uninstall result; before a run and while one runs, the live status. -->
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding LastRunSucceeded}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <Border Width="28" Height="28" CornerRadius="14" BorderThickness="1">
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Background" Value="{DynamicResource OkSoftBrush}"/>
+                                <Setter Property="BorderBrush" Value="{DynamicResource OkLineBrush}"/>
+                                <Setter Property="TextElement.Foreground" Value="{DynamicResource OkBrush}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding LastRunSucceeded}" Value="False">
+                                        <Setter Property="Background" Value="{DynamicResource BadSoftBrush}"/>
+                                        <Setter Property="BorderBrush" Value="{DynamicResource BadLineBrush}"/>
+                                        <Setter Property="TextElement.Foreground" Value="{DynamicResource BadBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
+                        <controls:LineIcon Width="14" Height="14" HorizontalAlignment="Center">
+                            <controls:LineIcon.Style>
+                                <Style TargetType="controls:LineIcon" BasedOn="{StaticResource {x:Type controls:LineIcon}}">
+                                    <Setter Property="Data" Value="{DynamicResource IconCheck}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding LastRunSucceeded}" Value="False">
+                                            <Setter Property="Data" Value="{DynamicResource IconX}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </controls:LineIcon.Style>
+                        </controls:LineIcon>
+                    </Border>
+                    <TextBlock Text="{Binding LastRunSummary}" Margin="12,0,0,0" VerticalAlignment="Center"
+                               FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}"
+                               AutomationProperties.LiveSetting="Polite"/>
+                </StackPanel>
+                <TextBlock VerticalAlignment="Center" AutomationProperties.LiveSetting="Polite">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource SubText}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding LastRunSucceeded}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                    <Run Text="Status: "/><Run Text="{Binding StatusText, Mode=OneWay}" Foreground="{DynamicResource TextBrush}"/>
+                </TextBlock>
 
-        <ScrollViewer Grid.Row="1" Margin="0,22,0,0"
-                      VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <views:StepTest/>
-        </ScrollViewer>
-    </Grid>
+                <TextBlock Grid.Column="1" Style="{StaticResource FooterHint}" Margin="18,0"
+                           Text="Tests run on the device only. Nothing is uploaded to Intune."/>
+
+                <Button Grid.Column="2" Style="{StaticResource GhostButton}" Content="Clear output"
+                        Command="{Binding ClearLogCommand}"/>
+            </Grid>
+        </controls:PageFrame.Footer>
+
+        <controls:PageFrame.Rail>
+            <controls:RemoteTestRail/>
+        </controls:PageFrame.Rail>
+
+        <views:StepTest/>
+    </controls:PageFrame>
 </UserControl>

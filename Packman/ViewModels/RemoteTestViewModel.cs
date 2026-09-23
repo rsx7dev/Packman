@@ -49,6 +49,8 @@ public sealed class RemoteTestViewModel : ObservableObject
     private bool _isOnline;
     private string _statusText = "no target selected";
     private int? _copyPercent;
+    private bool? _lastRunSucceeded;
+    private string _lastRunSummary = "";
     private DetectionRule? _discoveredRule;
     private string _discoveredSummary = "";
     private int _contextVersion;
@@ -271,6 +273,12 @@ public sealed class RemoteTestViewModel : ObservableObject
 
     public bool IsCopying => _copyPercent.HasValue;
 
+    /// <summary>Outcome of the last install or uninstall; null before a run and while one runs.</summary>
+    public bool? LastRunSucceeded { get => _lastRunSucceeded; private set => Set(ref _lastRunSucceeded, value); }
+
+    /// <summary>"Install succeeded", "Uninstall failed (exit 1603)"; empty when there is no result.</summary>
+    public string LastRunSummary { get => _lastRunSummary; private set => Set(ref _lastRunSummary, value); }
+
     // ── Discovered detection ───────────────────────────────────────────
     public bool HasDiscoveredRule => _discoveredRule != null;
     public string DiscoveredSummary { get => _discoveredSummary; private set => Set(ref _discoveredSummary, value); }
@@ -328,6 +336,8 @@ public sealed class RemoteTestViewModel : ObservableObject
         OnPropertyChanged(nameof(HasDiscoveredRule));
 
         IsRunning = true;
+        LastRunSucceeded = null;
+        LastRunSummary = "";
         StatusText = $"{deploymentType.ToLowerInvariant()} running…";
         _flushTimer.Start();
         var context = CaptureDetectionContext();
@@ -364,6 +374,8 @@ public sealed class RemoteTestViewModel : ObservableObject
             Append("========================================");
             Flush();
             StatusText = success ? $"{deploymentType.ToLowerInvariant()} succeeded (exit {exitCode})" : $"{deploymentType.ToLowerInvariant()} failed (exit {exitCode})";
+            LastRunSucceeded = success;
+            LastRunSummary = success ? $"{deploymentType} succeeded" : $"{deploymentType} failed (exit {exitCode})";
 
             // Keep the operation busy through follow-up discovery so another action
             // cannot uninstall the app or change the target during this delay.
