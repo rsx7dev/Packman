@@ -1,0 +1,146 @@
+<UserControl x:Class="Packman.Views.Controls.WizardRail"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Packman.Views.Controls"
+             xmlns:services="clr-namespace:Packman.Services"
+             FontFamily="{StaticResource UIFontFamily}">
+    <!-- Inspector beside the Create wizard, one panel per step. DataContext: MainViewModel.
+         It shows what the form beside it doesn't: where the package lands, what was read
+         from the installer, and what still stands between this package and Intune. -->
+    <UserControl.Resources>
+        <!-- "Sign in" under an unconnected Intune line. -->
+        <DataTemplate x:Key="SignInLink">
+            <Button Style="{StaticResource LinkButton}" Content="Sign in" HorizontalAlignment="Left" Margin="30,0,0,0"
+                    Command="{x:Static services:AppNavigation.OpenSettings}"/>
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid>
+        <!-- ═══ Step 1: Package preview ═══ -->
+        <StackPanel Visibility="{Binding Steps[0].IsCurrent, Converter={StaticResource BoolToVis}}">
+            <TextBlock Text="Package preview" Style="{StaticResource RailTitle}"/>
+
+            <!-- Create new -->
+            <StackPanel Visibility="{Binding IsUpgradeMode, Converter={StaticResource InverseBoolToVis}}">
+                <controls:AppIdentity Margin="0,18,0,8"
+                                      Title="{Binding CreatePackage.PreviewTitle}"
+                                      Subtitle="{Binding CreatePackage.Manufacturer}"
+                                      Meta="{Binding CreatePackage.PreviewMeta}"
+                                      IconPath="{Binding CreatePackage.ExtractedIconPath}"/>
+                <ContentControl Style="{StaticResource KvRow}" Tag="Type" Content="PSADT v4 · Win32"/>
+                <ContentControl Style="{StaticResource KvRow}" Tag="Installer" Content="{Binding CreatePackage.InstallerType}"/>
+                <ContentControl Style="{StaticResource KvRowMono}" Tag="Product code" Content="{Binding CreatePackage.ProductCode}"
+                                Visibility="{Binding CreatePackage.HasProductCode, Converter={StaticResource BoolToVis}}"/>
+                <ContentControl Style="{StaticResource KvRowMono}" Tag="Package folder" Content="{Binding PackageFolderPreview}"/>
+            </StackPanel>
+
+            <!-- Upgrade existing -->
+            <StackPanel Visibility="{Binding IsUpgradeMode, Converter={StaticResource BoolToVis}}">
+                <controls:AppIdentity Margin="0,18,0,8"
+                                      Title="{Binding Upgrade.PackageDisplayName}"
+                                      Subtitle="{Binding Upgrade.PackageDisplayContext}"
+                                      Meta="{Binding Upgrade.PackageDisplayVersion}"/>
+                <ContentControl Style="{StaticResource KvRow}" Tag="Type" Content="PSADT v4 · Win32 upgrade"/>
+                <ContentControl Style="{StaticResource KvRowMono}" Tag="New version" Content="{Binding Upgrade.NewVersion}"/>
+                <ContentControl Style="{StaticResource KvRowMono}" Tag="Existing package" Content="{Binding Upgrade.ExistingPackagePath}"/>
+                <TextBlock Text="The script, Files and edits carry over. Only the named installer is replaced."
+                           Style="{StaticResource SubText}" FontSize="12" TextWrapping="Wrap" Margin="0,10,0,0"/>
+            </StackPanel>
+
+            <TextBlock Text="Before publishing" Style="{StaticResource H3}" Margin="0,26,0,2"/>
+            <controls:StatusRow Label="Installer"
+                                Kind="{Binding CreatePackage.HasSourceFile, Converter={StaticResource BoolToText}, ConverterParameter='ok|pending'}"
+                                Value="{Binding CreatePackage.HasSourceFile, Converter={StaticResource BoolToText}, ConverterParameter='Ready|Choose a file'}"
+                                Visibility="{Binding IsUpgradeMode, Converter={StaticResource InverseBoolToVis}}"/>
+            <controls:StatusRow Label="Output share"
+                                Kind="{Binding OutputShareReady, Converter={StaticResource BoolToText}, ConverterParameter='ok|warn'}"
+                                Value="{Binding OutputShareReady, Converter={StaticResource BoolToText}, ConverterParameter='Ready|Set in Settings'}"/>
+            <controls:StatusRow Label="PSADT template"
+                                Kind="{Binding TemplateReady, Converter={StaticResource BoolToText}, ConverterParameter='ok|warn'}"
+                                Value="{Binding TemplateReady, Converter={StaticResource BoolToText}, ConverterParameter='Ready|Set in Settings'}"/>
+            <controls:StatusRow Label="Intune connection" Value="{Binding ConnectionLabel}"
+                                Kind="{Binding IsConnected, Converter={StaticResource BoolToText}, ConverterParameter='ok|pending'}"
+                                Detail="{Binding IsConnected, Converter={StaticResource BoolToText}, ConverterParameter='|Needed at step 3'}"/>
+            <ContentControl ContentTemplate="{StaticResource SignInLink}" Focusable="False"
+                            Visibility="{Binding IsConnected, Converter={StaticResource InverseBoolToVis}}"/>
+
+            <!-- EXE only: the generated script cannot know the vendor's silent switches. -->
+            <Border Style="{StaticResource CalloutWarn}" Margin="0,20,0,0"
+                    Visibility="{Binding CreatePackage.IsExeInstaller, Converter={StaticResource BoolToVis}}">
+                <DockPanel>
+                    <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconAlert}" Foreground="{DynamicResource WarnBrush}"
+                                       VerticalAlignment="Top" Margin="0,1,10,0"/>
+                    <TextBlock TextWrapping="Wrap" FontSize="12.5" LineHeight="18"
+                               Text="EXE installers need their real silent switches. After generating, open Edit script and set them before you test."/>
+                </DockPanel>
+            </Border>
+        </StackPanel>
+
+        <!-- ═══ Step 2: Deployment preview ═══ -->
+        <StackPanel Visibility="{Binding Steps[1].IsCurrent, Converter={StaticResource BoolToVis}}">
+            <TextBlock Text="Deployment preview" Style="{StaticResource RailTitle}"/>
+            <controls:AppIdentity Margin="0,18,0,8"
+                                  Title="{Binding CreatePackage.PreviewTitle}"
+                                  Subtitle="{Binding CreatePackage.Manufacturer}"
+                                  Meta="{Binding CreatePackage.PreviewMeta}"
+                                  IconPath="{Binding CreatePackage.ExtractedIconPath}"/>
+            <ContentControl Style="{StaticResource KvRow}" Tag="Type" Content="PSADT v4 · Win32"/>
+            <ContentControl Style="{StaticResource KvRow}" Tag="Detection" Content="{Binding Upload.DetectionMethodLabel}"/>
+            <ContentControl Style="{StaticResource KvRow}" Tag="Deploy mode" Content="{Binding Upload.SelectedDeployMode}"/>
+            <ContentControl Style="{StaticResource KvRow}" Tag="Supersedes" Content="{Binding CreatePackage.PredecessorAppId}"
+                            Visibility="{Binding Upload.HasSupersedence, Converter={StaticResource BoolToVis}}"/>
+
+            <TextBlock Text="Before publishing" Style="{StaticResource H3}" Margin="0,26,0,2"/>
+            <controls:StatusRow Label="Commands" Value="{Binding Upload.CommandsState}"
+                                Kind="{Binding Upload.CommandsReady, Converter={StaticResource BoolToText}, ConverterParameter='ok|warn'}"/>
+            <controls:StatusRow Label="Detection" Value="{Binding Upload.DetectionState}" Detail="{Binding Upload.DetectionIssue}"
+                                Kind="{Binding Upload.DetectionReady, Converter={StaticResource BoolToText}, ConverterParameter='ok|warn'}"/>
+            <controls:StatusRow Label="Requirements" Value="{Binding Upload.SelectedOperatingSystem}" Kind="ok"/>
+            <controls:StatusRow Label="Assignment" Value="{Binding Upload.AssignmentState}" Detail="{Binding Upload.AssignmentDetail}"
+                                Kind="{Binding Upload.HasAssignment, Converter={StaticResource BoolToText}, ConverterParameter='ok|info'}"/>
+            <controls:StatusRow Label="Intune connection" Value="{Binding ConnectionLabel}"
+                                Kind="{Binding IsConnected, Converter={StaticResource BoolToText}, ConverterParameter='ok|pending'}"
+                                Detail="{Binding IsConnected, Converter={StaticResource BoolToText}, ConverterParameter='|Needed at step 3'}"/>
+            <ContentControl ContentTemplate="{StaticResource SignInLink}" Focusable="False"
+                            Visibility="{Binding IsConnected, Converter={StaticResource InverseBoolToVis}}"/>
+        </StackPanel>
+
+        <!-- ═══ Step 3: Publish readiness ═══ -->
+        <StackPanel Visibility="{Binding Steps[2].IsCurrent, Converter={StaticResource BoolToVis}}">
+            <TextBlock Text="Publish readiness" Style="{StaticResource RailTitle}" Margin="0,0,0,8"/>
+            <controls:StatusRow Label="Package" Value="{Binding HasPackage, Converter={StaticResource BoolToText}, ConverterParameter='Ready|Not generated'}"
+                                Kind="{Binding HasPackage, Converter={StaticResource BoolToText}, ConverterParameter='ok|bad'}"/>
+            <controls:StatusRow Label="Commands" Value="{Binding Upload.CommandsState}"
+                                Kind="{Binding Upload.CommandsReady, Converter={StaticResource BoolToText}, ConverterParameter='ok|warn'}"/>
+            <controls:StatusRow Label="Detection" Value="{Binding Upload.DetectionState}" Detail="{Binding Upload.DetectionIssue}"
+                                Kind="{Binding Upload.DetectionReady, Converter={StaticResource BoolToText}, ConverterParameter='ok|warn'}"/>
+            <controls:StatusRow Label="Assignment" Value="{Binding Upload.AssignmentState}" Detail="{Binding Upload.AssignmentDetail}"
+                                Kind="{Binding Upload.HasAssignment, Converter={StaticResource BoolToText}, ConverterParameter='ok|info'}"/>
+            <controls:StatusRow Label="Intune connection" Value="{Binding ConnectionLabel}"
+                                Kind="{Binding IsConnected, Converter={StaticResource BoolToText}, ConverterParameter='ok|pending'}"/>
+
+            <ContentControl Style="{StaticResource KvRow}" Tag="Tenant" Margin="0,12,0,0">
+                <ContentControl.Content>
+                    <TextBlock TextWrapping="Wrap" TextAlignment="Right"
+                               Text="{Binding TenantName, FallbackValue='Not signed in', TargetNullValue='Not signed in'}"/>
+                </ContentControl.Content>
+            </ContentControl>
+
+            <!-- Publishing needs a tenant. App registration connects on its own when the
+                 publish starts, so the callout only shows for interactive sign-in. -->
+            <Border Style="{StaticResource Callout}" Margin="0,20,0,0"
+                    Visibility="{Binding Upload.ShowSignInCallout, Converter={StaticResource BoolToVis}}">
+                <DockPanel>
+                    <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconInfo}" Foreground="{DynamicResource AccentTextBrush}"
+                                       VerticalAlignment="Top" Margin="0,1,10,0"/>
+                    <StackPanel>
+                        <TextBlock TextWrapping="Wrap" FontSize="12.5" LineHeight="18"
+                                   Text="Connect to Microsoft Intune to publish this package and create the assignment."/>
+                        <Button Style="{StaticResource LinkButton}" Content="Sign in" HorizontalAlignment="Left" Margin="0,6,0,0"
+                                Command="{x:Static services:AppNavigation.OpenSettings}"/>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+        </StackPanel>
+    </Grid>
+</UserControl>

@@ -22,6 +22,8 @@
             <helpers:CountToStarConverter x:Key="CountToStar"/>
             <helpers:InverseBoolConverter x:Key="InverseBool"/>
             <helpers:InverseBoolToVisibilityConverter x:Key="InverseBoolToVis"/>
+            <helpers:BoolToStringConverter x:Key="BoolToText"/>
+            <helpers:NonEmptyToVisibilityConverter x:Key="NonEmptyToVis"/>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

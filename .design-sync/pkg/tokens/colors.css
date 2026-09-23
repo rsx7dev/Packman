@@ -16,6 +16,7 @@
   --pm-shell:          #202020;                    /* ShellColor */
   --pm-surface:        rgb(32 32 32 / 0.851);      /* SurfaceColor */
   --pm-flyout:         #2C2C2C;                    /* FlyoutColor */
+  --pm-panel:          rgb(42 42 42 / 0.922);      /* PanelColor */
   --pm-card:           rgb(255 255 255 / 0.059);   /* CardColor */
   --pm-card-2:         rgb(255 255 255 / 0.039);   /* Card2Color */
   --pm-rail:           rgb(255 255 255 / 0.039);   /* RailColor */
@@ -70,6 +71,7 @@
   --pm-shell:          #F3F3F3;                    /* ShellColor */
   --pm-surface:        rgb(249 249 249 / 0.851);   /* SurfaceColor */
   --pm-flyout:         #F9F9F9;                    /* FlyoutColor */
+  --pm-panel:          rgb(255 255 255 / 0.969);   /* PanelColor */
   --pm-card:           rgb(255 255 255 / 0.702);   /* CardColor */
   --pm-card-2:         rgb(255 255 255 / 0.502);   /* Card2Color */
   --pm-rail:           rgb(255 255 255 / 0.4);     /* RailColor */

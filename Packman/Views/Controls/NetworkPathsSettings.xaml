@@ -2,10 +2,7 @@
     <Border Background="Transparent" BorderThickness="0" Padding="0">
         <StackPanel>
             <!-- Card header -->
-            <StackPanel Margin="0,0,0,14">
-                <controls:SectionHeader Title="Network paths"/>
-                <TextBlock Text="File share locations for package output and PSADT template" Style="{StaticResource SubText}" Margin="0,8,0,0" TextWrapping="Wrap"/>
-            </StackPanel>
+            <controls:SectionHeader Title="Network paths" Caption="File share locations for package output, the PSADT template and IntuneWinAppUtil." Margin="0,0,0,20"/>
             <!-- Intune Applications output path -->
             <TextBlock Text="Intune Applications Path" Style="{StaticResource FieldLabel}"/>
             <Grid Margin="0,7,0,0">

@@ -2,13 +2,10 @@
     <Border Background="Transparent" BorderThickness="0" Padding="0">
         <StackPanel>
             <!-- Card header -->
-            <StackPanel Margin="0,0,0,14">
-                <controls:SectionHeader Title="Intune defaults"/>
-                <TextBlock Text="App details, requirements and return codes applied to every package unless changed on the Create Package page" Style="{StaticResource SubText}" Margin="0,8,0,0" TextWrapping="Wrap"/>
-            </StackPanel>
+            <controls:SectionHeader Title="Intune defaults" Caption="App details, requirements and return codes applied to every package unless changed on the Create package page." Margin="0,0,0,20"/>
             <!-- ── App details ────────────────────────────────── -->
-            <TextBlock Text="App details" FontSize="13.5" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}"/>
-            <TextBlock Text="Sent with every Win32 app created in Intune" FontSize="12" Foreground="{DynamicResource MutedBrush}" Margin="0,2,0,12"/>
+            <TextBlock Text="App details" Style="{StaticResource H3}"/>
+            <TextBlock Text="Sent with every Win32 app created in Intune" Style="{StaticResource SubText}" Margin="0,3,0,12"/>
             <TextBlock Text="App title template" Style="{StaticResource FieldLabel}"/>
             <TextBox AutomationProperties.Name="App title template" Style="{StaticResource TextField}" Margin="0,7,0,0" FontFamily="{StaticResource MonoFontFamily}" Text="{Binding DisplayNameTemplate, UpdateSourceTrigger=PropertyChanged}" local:PlaceholderText.Text="%vendor% %appName% %appVersion%"/>
             <TextBlock FontSize="12" Foreground="{DynamicResource MutedBrush}" Margin="0,8,0,0" TextWrapping="Wrap">

@@ -5,328 +5,405 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:vm="clr-namespace:Packman.ViewModels"
              xmlns:local="clr-namespace:Packman"
+             xmlns:views="clr-namespace:Packman.Views"
+             xmlns:controls="clr-namespace:Packman.Views.Controls"
+             xmlns:services="clr-namespace:Packman.Services"
+             xmlns:sys="clr-namespace:System;assembly=System.Runtime"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:ApplicationDetailViewModel}"
              FontFamily="{StaticResource UIFontFamily}">
 
-    <Grid>
-    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-        <StackPanel Margin="26,20,26,26">
+    <UserControl.Resources>
+        <!-- Read-only fact: label column + value, for the two-column information grid. -->
+        <Style x:Key="Fact" TargetType="ContentControl">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Margin" Value="0,0,0,12"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContentControl">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="130"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="{TemplateBinding Tag}" FontSize="13" Foreground="{DynamicResource Muted2Brush}"
+                                       TextWrapping="Wrap" Margin="0,0,12,0"/>
+                            <ContentPresenter Grid.Column="1" TextElement.Foreground="{DynamicResource TextBrush}" TextElement.FontSize="13">
+                                <ContentPresenter.Resources>
+                                    <DataTemplate DataType="{x:Type sys:String}">
+                                        <TextBlock Text="{Binding}" TextWrapping="Wrap"/>
+                                    </DataTemplate>
+                                </ContentPresenter.Resources>
+                            </ContentPresenter>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
 
-            <!-- Breadcrumb: Applications / {category} -->
-            <Button Style="{StaticResource Breadcrumb}" Click="Back_Click" Margin="0,0,0,14">
-                <StackPanel Orientation="Horizontal">
-                    <Viewbox Width="14" Height="14" Margin="0,0,5,0">
-                        <Path Data="{StaticResource IconChevL}" Stroke="{DynamicResource MutedBrush}" StrokeThickness="2.2" Style="{StaticResource Icon}"/>
-                    </Viewbox>
-                    <TextBlock Text="Applications" VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding Detail.Category, StringFormat=' / {0}'}" VerticalAlignment="Center"
-                               Foreground="{DynamicResource Muted2Brush}" FontWeight="SemiBold">
-                        <TextBlock.Style>
-                            <Style TargetType="TextBlock">
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Detail.Category}" Value="">
-                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </TextBlock.Style>
-                    </TextBlock>
+        <!-- Table column head inside a section. -->
+        <Style x:Key="TableHead" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{DynamicResource Muted2Brush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Requirement tile label + value. -->
+        <Style x:Key="ReqLabel" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{DynamicResource Muted2Brush}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <Style x:Key="ReqValue" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="Margin" Value="0,4,0,0"/>
+        </Style>
+
+        <!-- Mono field in the inline rule editor. -->
+        <Style x:Key="RuleField" TargetType="TextBox" BasedOn="{StaticResource TextField}">
+            <Setter Property="Height" Value="36"/>
+            <Setter Property="FontFamily" Value="{StaticResource MonoFontFamily}"/>
+            <Setter Property="FontSize" Value="12.5"/>
+        </Style>
+
+        <!-- "Saved to Intune immediately" note next to edit controls. -->
+        <Style x:Key="WriteNote" TargetType="DockPanel">
+            <Setter Property="Margin" Value="0,12,0,0"/>
+            <Setter Property="TextElement.Foreground" Value="{DynamicResource Muted2Brush}"/>
+        </Style>
+    </UserControl.Resources>
+
+    <controls:PageFrame Title="{Binding Detail.DisplayName}" Subtitle="{Binding HeaderMeta}" IsBodyScrollable="False">
+
+        <controls:PageFrame.Breadcrumb>
+            <StackPanel Orientation="Horizontal">
+                <Button Style="{StaticResource Breadcrumb}" Content="Applications" FontFamily="{StaticResource UIFontFamily}"
+                        FontSize="13" Click="Back_Click"/>
+                <TextBlock Text="  /  " VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding Detail.DisplayName}" VerticalAlignment="Center" Foreground="{DynamicResource Text2Brush}"
+                           TextTrimming="CharacterEllipsis" MaxWidth="420"/>
+            </StackPanel>
+        </controls:PageFrame.Breadcrumb>
+
+        <controls:PageFrame.Leading>
+            <controls:AppIdentity Title="{Binding Detail.DisplayName}" TileSize="64" IsTileOnly="True"/>
+        </controls:PageFrame.Leading>
+
+        <controls:PageFrame.HeaderActions>
+            <StackPanel Orientation="Horizontal">
+                <Button Style="{StaticResource PrimaryButton}" Click="Update_Click" IsEnabled="{Binding CanRepublish}"
+                        ToolTipService.ShowOnDisabled="True"
+                        ToolTip="Rebuild content for this same Intune app. Needs the package folder on the share and a sign-in. For a new app version with supersedence, use Create package, Upgrade existing.">
+                    <StackPanel Orientation="Horizontal">
+                        <controls:LineIcon Data="{DynamicResource IconUpload}"/>
+                        <TextBlock Text="Republish content" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource GhostButton}" Margin="10,0,0,0" Click="EditScript_Click"
+                        IsEnabled="{Binding HasSource}" ToolTipService.ShowOnDisabled="True"
+                        ToolTip="Open the PSADT script from the source share">
+                    <StackPanel Orientation="Horizontal">
+                        <controls:LineIcon Data="{DynamicResource IconCode}"/>
+                        <TextBlock Text="Edit script" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </controls:PageFrame.HeaderActions>
+
+        <controls:PageFrame.HeaderBottom>
+            <StackPanel Orientation="Horizontal" Margin="-10,0,0,0">
+                <RadioButton Style="{StaticResource PageTab}" Content="Overview"
+                             IsChecked="{Binding Tab, Mode=TwoWay, Converter={StaticResource StringMatch}, ConverterParameter=overview}"/>
+                <RadioButton Style="{StaticResource PageTab}" Content="Package"
+                             IsChecked="{Binding Tab, Mode=TwoWay, Converter={StaticResource StringMatch}, ConverterParameter=package}"/>
+                <RadioButton Style="{StaticResource PageTab}" Content="Deployment"
+                             IsChecked="{Binding Tab, Mode=TwoWay, Converter={StaticResource StringMatch}, ConverterParameter=deployment}"/>
+            </StackPanel>
+        </controls:PageFrame.HeaderBottom>
+
+        <!-- ═══════ Rail: deployment status and Intune publishing, on every tab ═══════ -->
+        <controls:PageFrame.Rail>
+            <StackPanel>
+                <TextBlock Text="Deployment status" Style="{StaticResource RailTitle}"/>
+
+                <StackPanel Margin="0,14,0,0" Visibility="{Binding HasSummary, Converter={StaticResource BoolToVis}}">
+                    <Border Height="6" CornerRadius="3" Background="{DynamicResource Line2Brush}" ClipToBounds="True" Margin="0,0,0,4">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="{Binding SumInstalled, Converter={StaticResource CountToStar}}"/>
+                                <ColumnDefinition Width="{Binding SumPending, Converter={StaticResource CountToStar}}"/>
+                                <ColumnDefinition Width="{Binding SumFailed, Converter={StaticResource CountToStar}}"/>
+                                <ColumnDefinition Width="{Binding SumRemaining, Converter={StaticResource CountToStar}}"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Background="{DynamicResource OkBrush}"/>
+                            <Border Grid.Column="1" Background="{DynamicResource WarnBrush}"/>
+                            <Border Grid.Column="2" Background="{DynamicResource BadBrush}"/>
+                        </Grid>
+                    </Border>
+                    <ContentControl Style="{StaticResource KvRow}" Tag="Targeted" Content="{Binding TargetedDevicesText}"/>
+                    <ContentControl Style="{StaticResource KvRow}" Tag="Installed" Content="{Binding SumInstalled}"/>
+                    <ContentControl Style="{StaticResource KvRow}" Tag="Pending" Content="{Binding SumPending}"/>
+                    <ContentControl Style="{StaticResource KvRow}" Tag="Failed" Content="{Binding SumFailed}"/>
+                    <ContentControl Style="{StaticResource KvRow}" Tag="Not installed" Content="{Binding SumNotInstalled}"/>
+                    <ContentControl Style="{StaticResource KvRow}" Tag="Not applicable" Content="{Binding SumNotApplicable}"/>
                 </StackPanel>
-            </Button>
+                <TextBlock Text="{Binding StatsEmptyText}" Style="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,12,0,0"
+                           Visibility="{Binding HasSummary, Converter={StaticResource InverseBoolToVis}}"/>
 
-            <!-- Header -->
-            <Grid Margin="0,0,0,20">
-                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-
-                <Border Grid.Column="0" Width="58" Height="58" CornerRadius="4" VerticalAlignment="Center"
-                        Background="{Binding Detail.TileColor, Converter={StaticResource HexToBrush}}">
-                    <TextBlock Text="{Binding Detail.Initial}" Foreground="White" FontWeight="SemiBold" FontSize="26"
-                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                </Border>
-
-                <StackPanel Grid.Column="1" Margin="16,0,0,0" VerticalAlignment="Center">
-                    <TextBlock Text="{Binding Detail.DisplayName}" Style="{StaticResource H1}" FontSize="24" VerticalAlignment="Center"
-                               TextTrimming="CharacterEllipsis" ToolTip="{Binding Detail.DisplayName}"/>
-                    <TextBlock Text="{Binding Detail.SubLine}" FontSize="13" Foreground="{DynamicResource MutedBrush}" Margin="0,5,0,0"
-                               TextTrimming="CharacterEllipsis"/>
-                </StackPanel>
-
-                <StackPanel Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Margin="16,16,0,0" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Style="{StaticResource GhostButton}" Margin="0,0,9,0" Click="Update_Click"
-                            IsEnabled="{Binding CanUpdatePackage}"
-                            ToolTip="Rebuild content for this same Intune app. For a new app version with supersedence, use Create package → Upgrade existing.">
-                        <StackPanel Orientation="Horizontal">
-                            <Viewbox Width="15" Height="15"><Path Data="{StaticResource IconRefresh}" Stroke="{DynamicResource MutedBrush}" StrokeThickness="1.9" Style="{StaticResource Icon}"/></Viewbox>
-                            <TextBlock Text="Republish content" Margin="7,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Style="{StaticResource GhostButton}" Click="EditScript_Click"
-                            IsEnabled="{Binding HasSource}" ToolTip="Open the PSADT script from the source share">
-                        <StackPanel Orientation="Horizontal">
-                            <Viewbox Width="15" Height="15"><Path Data="{StaticResource IconCode}" Stroke="{DynamicResource MutedBrush}" StrokeThickness="1.9" Style="{StaticResource Icon}"/></Viewbox>
-                            <TextBlock Text="Edit script" Margin="7,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Button>
-                </StackPanel>
-            </Grid>
-
-            <!-- Tabs: Overview / Package / Deployment -->
-            <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1" Margin="0,0,0,20">
-                <StackPanel Orientation="Horizontal">
-                    <RadioButton Style="{StaticResource DetailTab}" Content="Overview"
-                                 IsChecked="{Binding Tab, Mode=TwoWay, Converter={StaticResource StringMatch}, ConverterParameter=overview}"/>
-                    <RadioButton Style="{StaticResource DetailTab}" Content="Package"
-                                 IsChecked="{Binding Tab, Mode=TwoWay, Converter={StaticResource StringMatch}, ConverterParameter=package}"/>
-                    <RadioButton Style="{StaticResource DetailTab}" Content="Deployment"
-                                 IsChecked="{Binding Tab, Mode=TwoWay, Converter={StaticResource StringMatch}, ConverterParameter=deployment}"/>
-                </StackPanel>
-            </Border>
-
-            <!-- Body grid -->
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="22"/>
-                    <ColumnDefinition Width="270"/>
-                </Grid.ColumnDefinitions>
-
-                <!-- Main column -->
-                <StackPanel Grid.Column="0">
-
-                    <!-- ═══════ OVERVIEW: identity → audience → location ═══════ -->
-                    <StackPanel Visibility="{Binding IsOverview, Converter={StaticResource BoolToVis}}">
-                        <Border Style="{StaticResource Card}">
+                <!-- Signed out: the figures are a snapshot and nothing can be written. -->
+                <StackPanel Margin="0,14,0,0" Visibility="{Binding IsSignedIn, Converter={StaticResource InverseBoolToVis}}">
+                    <TextBlock Text="{Binding LastSyncedText}" Style="{StaticResource SubText}" Margin="0,0,0,10"
+                               Visibility="{Binding LastSyncedText, Converter={StaticResource NonEmptyToVis}}"/>
+                    <Border Style="{StaticResource Callout}">
+                        <DockPanel>
+                            <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconInfo}" VerticalAlignment="Top"
+                                               Margin="0,2,10,0" Foreground="{DynamicResource AccentTextBrush}"/>
                             <StackPanel>
-                                <TextBlock Text="Application information" Style="{StaticResource H2}" Margin="0,0,0,16"/>
-                                <Grid>
+                                <TextBlock Text="Not connected. Figures are from the last sync. Sign in to make changes."
+                                           FontSize="13" TextWrapping="Wrap"/>
+                                <Button Style="{StaticResource LinkButton}" Content="Sign in" HorizontalAlignment="Left" Margin="-2,6,0,0"
+                                        Command="{x:Static services:AppNavigation.OpenSettings}"/>
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+                </StackPanel>
+
+                <Border Style="{StaticResource SectionRule}" Margin="0,24"/>
+
+                <TextBlock Text="Intune publishing" Style="{StaticResource RailTitle}"/>
+                <StackPanel Margin="0,10,0,0">
+                    <controls:StatusRow Label="State" Value="{Binding Detail.StatusLabel}" Kind="{Binding Detail.StatusKind}"/>
+                    <ContentControl Style="{StaticResource KvRowMono}" Tag="App ID">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="{Binding Detail.IdShort}" VerticalAlignment="Center" ToolTip="{Binding Detail.Id}"/>
+                            <Button Style="{StaticResource RowIconButton}" Width="24" Height="24" Margin="6,-4,0,-4"
+                                    Click="CopyAppId_Click" ToolTip="Copy full App ID">
+                                <controls:LineIcon Data="{DynamicResource IconCopy}" Width="14" Height="14"/>
+                            </Button>
+                        </StackPanel>
+                    </ContentControl>
+                    <ContentControl Style="{StaticResource KvRow}" Tag="Created" Content="{Binding Detail.CreatedFormatted}"/>
+                    <ContentControl Style="{StaticResource KvRow}" Tag="Last modified" Content="{Binding Detail.LastModifiedFormatted}"/>
+                </StackPanel>
+                <Button Style="{StaticResource GhostButton}" Margin="0,16,0,0" Click="ViewInIntune_Click"
+                        ToolTip="Open this app in the Intune admin center">
+                    <StackPanel Orientation="Horizontal">
+                        <controls:LineIcon Data="{DynamicResource IconExternal}"/>
+                        <TextBlock Text="View in Intune" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </controls:PageFrame.Rail>
+
+        <!-- Body scrolls on its own so the update overlay and the members slide-over
+             stay put over it. -->
+        <Grid>
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                <StackPanel>
+
+                    <Border Style="{StaticResource CalloutBad}" Margin="0,0,0,12"
+                            Visibility="{Binding StatusText, Converter={StaticResource NonEmptyToVis}}">
+                        <DockPanel>
+                            <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconAlert}" VerticalAlignment="Top"
+                                               Margin="0,2,10,0" Foreground="{DynamicResource BadBrush}"/>
+                            <TextBlock Text="{Binding StatusText}" FontSize="13" TextWrapping="Wrap"/>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- ═══════ OVERVIEW ═══════ -->
+                    <StackPanel Visibility="{Binding IsOverview, Converter={StaticResource BoolToVis}}">
+                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <controls:SectionHeader Title="Application information" Caption="Key details about this application."/>
+                                <Grid Margin="0,18,0,0">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="28"/>
+                                        <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0">
-                                        <ContentControl Content="{Binding Detail.Publisher}" Tag="Publisher" Style="{StaticResource DlRow}"/>
-                                        <ContentControl Content="{Binding Detail.Version}" Tag="Version" Style="{StaticResource DlRowMono}"/>
-                                        <ContentControl Content="{Binding Detail.Category}" Tag="Category" Style="{StaticResource DlRow}"/>
-                                        <ContentControl Content="{Binding Detail.Owner}" Tag="Owner" Style="{StaticResource DlRow}"/>
+                                    <StackPanel>
+                                        <ContentControl Style="{StaticResource Fact}" Tag="Publisher" Content="{Binding Detail.Publisher}"/>
+                                        <ContentControl Style="{StaticResource Fact}" Tag="Version" Content="{Binding Detail.Version}"/>
+                                        <ContentControl Style="{StaticResource Fact}" Tag="Category" Content="{Binding CategoryText}"/>
+                                        <ContentControl Style="{StaticResource Fact}" Tag="Owner" Content="{Binding OwnerText}" Margin="0"/>
                                     </StackPanel>
+                                    <Border Grid.Column="1" Width="1" Background="{DynamicResource LineBrush}" Margin="24,0"/>
                                     <StackPanel Grid.Column="2">
-                                        <ContentControl Content="Win32 (.intunewin)" Tag="Package type" Style="{StaticResource DlRow}"/>
-                                        <ContentControl Content="{Binding Detail.SizeFormatted}" Tag="File size" Style="{StaticResource DlRow}"/>
-                                        <ContentControl Content="{Binding Detail.InstallContext}" Tag="Install context" Style="{StaticResource DlRow}"/>
-                                        <ContentControl Content="{Binding Detail.LastModifiedFormatted}" Tag="Last modified" Style="{StaticResource DlRow}"/>
+                                        <ContentControl Style="{StaticResource Fact}" Tag="Package type" Content="Win32 (.intunewin)"/>
+                                        <ContentControl Style="{StaticResource Fact}" Tag="File size" Content="{Binding Detail.SizeFormatted}"/>
+                                        <ContentControl Style="{StaticResource Fact}" Tag="Install context" Content="{Binding Detail.InstallContext}"/>
+                                        <ContentControl Style="{StaticResource Fact}" Tag="Last modified" Content="{Binding Detail.LastModifiedFormatted}" Margin="0"/>
                                     </StackPanel>
                                 </Grid>
-                                <TextBlock Text="{Binding Detail.Description}" FontSize="12.5" Foreground="{DynamicResource MutedBrush}"
-                                           TextWrapping="Wrap" Margin="0,12,0,0">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding Detail.Description}" Value="">
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
+                                <StackPanel Visibility="{Binding Detail.Description, Converter={StaticResource NonEmptyToVis}}">
+                                    <Border Style="{StaticResource SectionRule}" Margin="0,20,0,16"/>
+                                    <TextBlock Text="Description" FontSize="13" Foreground="{DynamicResource Muted2Brush}"/>
+                                    <TextBlock Text="{Binding Detail.Description}" FontSize="13" Foreground="{DynamicResource TextBrush}"
+                                               TextWrapping="Wrap" Margin="0,8,0,0"/>
+                                </StackPanel>
                             </StackPanel>
                         </Border>
 
-                        <!-- Assignments at a glance: read-only chips; managed on the Deployment tab -->
-                        <Border Style="{StaticResource Card}" Margin="0,18,0,0">
+                        <!-- Assignments at a glance; managed on the Deployment tab. -->
+                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,12">
                             <StackPanel>
-                                <Grid Margin="0,0,0,12">
-                                    <TextBlock Text="Assignments" Style="{StaticResource H2}" HorizontalAlignment="Left"/>
-                                    <Button Style="{StaticResource Breadcrumb}" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <controls:SectionHeader Title="Assignments" Caption="Groups this application is assigned to."/>
+                                    <Button Grid.Column="1" Style="{StaticResource LinkButton}" VerticalAlignment="Top" Margin="16,0,0,0"
                                             Click="ManageAssignments_Click">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="Manage in Deployment" VerticalAlignment="Center"/>
-                                            <Viewbox Width="13" Height="13" Margin="5,0,0,0">
-                                                <Path Data="{StaticResource IconChevR}" Stroke="{DynamicResource MutedBrush}" StrokeThickness="2.2" Style="{StaticResource Icon}"/>
-                                            </Viewbox>
+                                            <controls:LineIcon Data="{DynamicResource IconArrowR}" Width="15" Height="15" Margin="6,0,0,0"/>
                                         </StackPanel>
                                     </Button>
                                 </Grid>
-                                <ItemsControl ItemsSource="{Binding Detail.AssignedGroups}">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
+                                <ItemsControl ItemsSource="{Binding Detail.AssignedGroups}" Margin="0,12,0,0" Focusable="False">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1"
-                                                    CornerRadius="4" Padding="12,6" Margin="0,0,8,8">
-                                                <StackPanel Orientation="Horizontal">
-                                                    <Rectangle Width="6" Height="6" RadiusX="3" RadiusY="3" VerticalAlignment="Center">
-                                                        <Rectangle.Style>
-                                                            <Style TargetType="Rectangle">
-                                                                <Setter Property="Fill" Value="{DynamicResource Muted2Brush}"/>
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding StatusKind}" Value="ok">
-                                                                        <Setter Property="Fill" Value="{DynamicResource OkBrush}"/>
-                                                                    </DataTrigger>
-                                                                    <DataTrigger Binding="{Binding StatusKind}" Value="bad">
-                                                                        <Setter Property="Fill" Value="{DynamicResource BadBrush}"/>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </Rectangle.Style>
-                                                    </Rectangle>
-                                                    <TextBlock Text="{Binding ChipText}" FontSize="12" FontWeight="SemiBold"
-                                                               Foreground="{DynamicResource InkBrush}" Margin="7,0,0,0" VerticalAlignment="Center"/>
-                                                </StackPanel>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                                <TextBlock Text="No assignments yet." FontSize="12.5" Foreground="{DynamicResource Muted2Brush}">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding HasAssignments}" Value="False">
-                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Source path only; everything actionable lives on the Package tab -->
-                        <Border Style="{StaticResource Card}" Margin="0,18,0,0">
-                            <StackPanel>
-                                <TextBlock Text="Package source" Style="{StaticResource H2}" Margin="0,0,0,12"/>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1"
-                                            CornerRadius="4" Padding="12,9" MinHeight="40">
-                                        <TextBlock Text="{Binding SourcePathDisplay}" FontFamily="{StaticResource MonoFontFamily}"
-                                                   FontSize="12" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                                                   ToolTip="{Binding SourcePathDisplay}"/>
-                                    </Border>
-                                    <Button Grid.Column="1" Style="{StaticResource FieldActionButton}" Content="Copy"
-                                            Click="CopyPath_Click" IsEnabled="{Binding HasSource}"/>
-                                </Grid>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-
-                    <!-- ═══════ PACKAGE: source + integrity ═══════ -->
-                    <StackPanel Visibility="{Binding IsPackage, Converter={StaticResource BoolToVis}}">
-                        <Border Style="{StaticResource Card}">
-                            <StackPanel>
-                                <TextBlock Text="Package source" Style="{StaticResource H2}"/>
-                                <TextBlock Text="Network share location" Style="{StaticResource FieldLabel}" Margin="0,14,0,6"/>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1"
-                                            CornerRadius="4" Padding="12,9" MinHeight="40">
-                                        <TextBlock Text="{Binding SourcePathDisplay}" FontFamily="{StaticResource MonoFontFamily}"
-                                                   FontSize="12" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
-                                                   ToolTip="{Binding SourcePathDisplay}"/>
-                                    </Border>
-                                    <Button Grid.Column="1" Style="{StaticResource FieldActionButton}" Content="Copy"
-                                            Click="CopyPath_Click" IsEnabled="{Binding HasSource}"/>
-                                </Grid>
-                                <DockPanel Margin="0,12,0,0">
-                                    <Button DockPanel.Dock="Left" Style="{StaticResource GhostButton}" VerticalAlignment="Top" Click="OpenFolder_Click" IsEnabled="{Binding HasSource}">
-                                        <StackPanel Orientation="Horizontal">
-                                            <Viewbox Width="15" Height="15"><Path Data="{StaticResource IconFolder}" Stroke="{DynamicResource MutedBrush}" StrokeThickness="1.8" Style="{StaticResource Icon}"/></Viewbox>
-                                            <TextBlock Text="Open folder" Margin="7,0,0,0" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Button>
-                                    <DockPanel Margin="14,0,0,0" VerticalAlignment="Center">
-                                        <Viewbox DockPanel.Dock="Left" Width="13" Height="13">
-                                            <Viewbox.Style>
-                                                <Style TargetType="Viewbox">
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding SourceHintOk}" Value="False">
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Viewbox.Style>
-                                            <Path Data="{StaticResource IconCheck}" Stroke="{DynamicResource OkBrush}" StrokeThickness="2.4" Style="{StaticResource Icon}"/>
-                                        </Viewbox>
-                                        <TextBlock Text="{Binding SourceHintText}" TextWrapping="Wrap" FontSize="12" FontWeight="SemiBold" Margin="6,0,0,0" VerticalAlignment="Center">
-                                            <TextBlock.Style>
-                                                <Style TargetType="TextBlock">
-                                                    <Setter Property="Foreground" Value="{DynamicResource OkBrush}"/>
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding SourceHintOk}" Value="False">
-                                                            <Setter Property="Foreground" Value="{DynamicResource WarnBrush}"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </TextBlock.Style>
-                                        </TextBlock>
-                                    </DockPanel>
-                                </DockPanel>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Integrity: key files on the share, checked against the Intune record -->
-                        <Border Style="{StaticResource Card}" Margin="0,18,0,0"
-                                Visibility="{Binding HasSource, Converter={StaticResource BoolToVis}}">
-                            <StackPanel>
-                                <TextBlock Text="Package integrity" Style="{StaticResource H2}"/>
-                                <TextBlock Text="Key files on the share, checked against the Intune record"
-                                           FontSize="12.5" Foreground="{DynamicResource MutedBrush}" Margin="0,2,0,12"/>
-                                <ItemsControl ItemsSource="{Binding SourceChecks}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border BorderBrush="{DynamicResource Line2Brush}" BorderThickness="0,0,0,1" Padding="0,9">
+                                            <Border BorderBrush="{DynamicResource Line2Brush}" BorderThickness="0,0,0,1" Padding="0,10">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto"/>
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <Border Grid.Column="0" Width="19" Height="19" CornerRadius="4" VerticalAlignment="Center">
-                                                        <Border.Style>
-                                                            <Style TargetType="Border">
-                                                                <Setter Property="Background" Value="{DynamicResource WarnBrush}"/>
-                                                                <Style.Triggers>
-                                                                    <DataTrigger Binding="{Binding IsOk}" Value="True">
-                                                                        <Setter Property="Background" Value="{DynamicResource OkBrush}"/>
-                                                                    </DataTrigger>
-                                                                </Style.Triggers>
-                                                            </Style>
-                                                        </Border.Style>
-                                                        <Viewbox Width="10" Height="10">
-                                                            <Path Stroke="White" StrokeThickness="2.6">
-                                                                <Path.Style>
-                                                                    <Style TargetType="Path" BasedOn="{StaticResource Icon}">
-                                                                        <Setter Property="Data" Value="{StaticResource IconX}"/>
-                                                                        <Style.Triggers>
-                                                                            <DataTrigger Binding="{Binding IsOk}" Value="True">
-                                                                                <Setter Property="Data" Value="{StaticResource IconCheck}"/>
-                                                                            </DataTrigger>
-                                                                        </Style.Triggers>
-                                                                    </Style>
-                                                                </Path.Style>
-                                                            </Path>
-                                                        </Viewbox>
-                                                    </Border>
-                                                    <TextBlock Grid.Column="1" Text="{Binding File}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12"
-                                                               FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}" Margin="10,0,0,0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                                    <TextBlock Grid.Column="2" Text="{Binding Note}" FontSize="12" Foreground="{DynamicResource MutedBrush}"
-                                                               Margin="14,0,0,0" VerticalAlignment="Center"/>
+                                                    <controls:LineIcon Data="{DynamicResource IconGroup}" Foreground="{DynamicResource Muted2Brush}"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding GroupName}" FontSize="13.5" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource InkBrush}" Margin="12,0,12,0" VerticalAlignment="Center"
+                                                               TextWrapping="Wrap"/>
+                                                    <ContentControl Grid.Column="2" Content="{Binding}" ContentTemplate="{StaticResource StatusBadgeTemplate}"
+                                                                    VerticalAlignment="Center" Focusable="False"/>
                                                 </Grid>
                                             </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <TextBlock Text="No assignments yet." Style="{StaticResource SubText}" Margin="0,12,0,0"
+                                           Visibility="{Binding HasAssignments, Converter={StaticResource InverseBoolToVis}}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Source path only; everything actionable lives on the Package tab. -->
+                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <controls:SectionHeader Title="Package source" Caption="Location of the application package files."/>
+                                <Grid Margin="0,16,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Source path" FontSize="13" Foreground="{DynamicResource Muted2Brush}" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding SourcePathDisplay}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12.5"
+                                               Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                               ToolTip="{Binding SourcePathDisplay}"/>
+                                    <Button Grid.Column="2" Style="{StaticResource GhostButton}" Margin="12,0,0,0" Click="CopyPath_Click"
+                                            IsEnabled="{Binding HasSource}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <controls:LineIcon Data="{DynamicResource IconCopy}"/>
+                                            <TextBlock Text="Copy" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Danger zone: out of the always-visible rail, at the end of the overview. -->
+                        <Border Style="{StaticResource SectionPanel}" BorderBrush="{DynamicResource BadLineBrush}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <controls:SectionHeader Title="Danger zone"
+                                                        Caption="Deleting removes this app and its assignments from Intune. It does not uninstall the app from devices; to remove it there, assign it as Uninstall first."/>
+                                <Button Grid.Column="1" Style="{StaticResource DangerButton}" VerticalAlignment="Center" Margin="20,0,0,0"
+                                        Click="Retire_Click" IsEnabled="{Binding IsSignedIn}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <controls:LineIcon Data="{DynamicResource IconTrash}"/>
+                                        <TextBlock Text="Delete from Intune" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- ═══════ PACKAGE ═══════ -->
+                    <StackPanel Visibility="{Binding IsPackage, Converter={StaticResource BoolToVis}}">
+                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,12">
+                            <StackPanel>
+                                <controls:SectionHeader Title="Package source" Caption="Location of the application package files."/>
+                                <TextBlock Text="Network share location" Style="{StaticResource FieldLabel}" Margin="0,18,0,7"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1"
+                                            CornerRadius="4" Padding="12,9" MinHeight="40">
+                                        <TextBlock Text="{Binding SourcePathDisplay}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12.5"
+                                                   Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                   ToolTip="{Binding SourcePathDisplay}"/>
+                                    </Border>
+                                    <Button Grid.Column="1" Style="{StaticResource GhostButton}" Margin="10,0,0,0" Click="CopyPath_Click"
+                                            IsEnabled="{Binding HasSource}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <controls:LineIcon Data="{DynamicResource IconCopy}"/>
+                                            <TextBlock Text="Copy" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Grid.Column="2" Style="{StaticResource GhostButton}" Margin="10,0,0,0" Click="OpenFolder_Click"
+                                            IsEnabled="{Binding HasSource}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <controls:LineIcon Data="{DynamicResource IconFolder}"/>
+                                            <TextBlock Text="Open folder" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+                                <DockPanel Margin="0,12,0,0">
+                                    <DockPanel.Style>
+                                        <Style TargetType="DockPanel">
+                                            <Setter Property="TextElement.Foreground" Value="{DynamicResource OkBrush}"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding SourceHintOk}" Value="False">
+                                                    <Setter Property="TextElement.Foreground" Value="{DynamicResource WarnBrush}"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </DockPanel.Style>
+                                    <controls:LineIcon DockPanel.Dock="Left" Width="15" Height="15" VerticalAlignment="Top" Margin="0,2,8,0">
+                                        <controls:LineIcon.Style>
+                                            <Style TargetType="controls:LineIcon" BasedOn="{StaticResource {x:Type controls:LineIcon}}">
+                                                <Setter Property="Data" Value="{DynamicResource IconCheck}"/>
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding SourceHintOk}" Value="False">
+                                                        <Setter Property="Data" Value="{DynamicResource IconAlert}"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </controls:LineIcon.Style>
+                                    </controls:LineIcon>
+                                    <TextBlock Text="{Binding SourceHintText}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                </DockPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Integrity: key files on the share, checked against the Intune record. -->
+                        <Border Style="{StaticResource SectionPanel}" Visibility="{Binding HasSource, Converter={StaticResource BoolToVis}}">
+                            <StackPanel>
+                                <controls:SectionHeader Title="Package integrity" Caption="Key files on the share, checked against the Intune record."/>
+                                <ItemsControl ItemsSource="{Binding SourceChecks}" Margin="0,10,0,0" Focusable="False">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <controls:StatusRow Label="{Binding File}" Detail="{Binding Note}"
+                                                                Kind="{Binding IsOk, Converter={StaticResource BoolToText}, ConverterParameter='ok|warn'}"/>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
@@ -334,245 +411,274 @@
                         </Border>
                     </StackPanel>
 
-                    <!-- ═══════ DEPLOYMENT: how the app lands on a device ═══════ -->
+                    <!-- ═══════ DEPLOYMENT ═══════ -->
                     <StackPanel Visibility="{Binding IsDeployment, Converter={StaticResource BoolToVis}}">
-                        <Border Style="{StaticResource Card}">
+                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,12">
                             <StackPanel>
-                                <TextBlock Text="Command lines" Style="{StaticResource H2}" Margin="0,0,0,16"/>
-                                <TextBlock Text="Install command" Style="{StaticResource FieldLabel}" Margin="0,0,0,6"/>
-                                <Grid>
+                                <controls:SectionHeader Title="Command lines" Caption="Intune runs these to install and uninstall the application."/>
+                                <Grid Margin="0,16,0,0">
                                     <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <Border Background="{DynamicResource CodeBgBrush}" CornerRadius="4" Padding="13,9" MinHeight="40">
-                                        <TextBlock Text="{Binding Detail.InstallCommand}" Foreground="{DynamicResource CodeTxtBrush}"
-                                                   FontFamily="{StaticResource MonoFontFamily}" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                                    </Border>
-                                    <Button Grid.Column="1" Style="{StaticResource FieldActionButton}" Content="Copy" Click="CopyInstall_Click"/>
+                                    <TextBlock Text="Install command" FontSize="13" Foreground="{DynamicResource Muted2Brush}" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Detail.InstallCommand}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12.5"
+                                               Foreground="{DynamicResource TextBrush}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                    <Button Grid.Column="2" Style="{StaticResource LinkButton}" Margin="16,0,0,0" Click="CopyInstall_Click"
+                                            AutomationProperties.Name="Copy install command">
+                                        <StackPanel Orientation="Horizontal">
+                                            <controls:LineIcon Data="{DynamicResource IconCopy}" Width="15" Height="15"/>
+                                            <TextBlock Text="Copy" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
                                 </Grid>
-                                <TextBlock Text="Uninstall command" Style="{StaticResource FieldLabel}" Margin="0,14,0,6"/>
+                                <Border Height="1" Background="{DynamicResource Line2Brush}" Margin="0,12"/>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="150"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <Border Background="{DynamicResource CodeBgBrush}" CornerRadius="4" Padding="13,9" MinHeight="40">
-                                        <TextBlock Text="{Binding Detail.UninstallCommand}" Foreground="{DynamicResource CodeTxtBrush}"
-                                                   FontFamily="{StaticResource MonoFontFamily}" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center"/>
-                                    </Border>
-                                    <Button Grid.Column="1" Style="{StaticResource FieldActionButton}" Content="Copy" Click="CopyUninstall_Click"/>
+                                    <TextBlock Text="Uninstall command" FontSize="13" Foreground="{DynamicResource Muted2Brush}" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Detail.UninstallCommand}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12.5"
+                                               Foreground="{DynamicResource TextBrush}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                    <Button Grid.Column="2" Style="{StaticResource LinkButton}" Margin="16,0,0,0" Click="CopyUninstall_Click"
+                                            AutomationProperties.Name="Copy uninstall command">
+                                        <StackPanel Orientation="Horizontal">
+                                            <controls:LineIcon Data="{DynamicResource IconCopy}" Width="15" Height="15"/>
+                                            <TextBlock Text="Copy" Margin="6,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
                                 </Grid>
                             </StackPanel>
                         </Border>
 
-                        <!-- Detection rules: type tag + summary per rule, editable in place -->
-                        <Border Style="{StaticResource Card}" Margin="0,18,0,0">
+                        <!-- Detection rules: type + summary per rule, edited in place. -->
+                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,12">
                             <StackPanel>
-                                <Grid Margin="0,0,0,4">
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
-                                        <TextBlock Text="Detection rules" Style="{StaticResource H2}" VerticalAlignment="Center"/>
-                                        <TextBlock Text="{Binding DetectionRulesHint}" FontSize="12" Foreground="{DynamicResource MutedBrush}"
-                                                   Margin="12,0,0,0" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <ComboBox AutomationProperties.Name="New rule type" x:Name="NewRuleType" Width="110" SelectedIndex="0">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <controls:SectionHeader Title="Detection rules" Caption="How Intune checks that the application is installed on a device."/>
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Top" Margin="16,0,0,0">
+                                        <ComboBox x:Name="NewRuleType" AutomationProperties.Name="New rule type" Width="110" SelectedIndex="0"
+                                                  IsEnabled="{Binding IsSignedIn}">
                                             <ComboBoxItem Content="MSI"/>
                                             <ComboBoxItem Content="File"/>
                                             <ComboBoxItem Content="Registry"/>
                                         </ComboBox>
-                                        <Button Style="{StaticResource GhostButton}" Margin="8,0,0,0" Click="AddRule_Click">
+                                        <Button Style="{StaticResource LinkButton}" Margin="12,0,0,0" Click="AddRule_Click" IsEnabled="{Binding IsSignedIn}">
                                             <StackPanel Orientation="Horizontal">
-                                                <Viewbox Width="13" Height="13"><Path Data="{StaticResource IconPlus}" Stroke="{DynamicResource MutedBrush}" StrokeThickness="2.3" Style="{StaticResource Icon}"/></Viewbox>
+                                                <controls:LineIcon Data="{DynamicResource IconPlus}" Width="15" Height="15"/>
                                                 <TextBlock Text="Add rule" Margin="6,0,0,0" VerticalAlignment="Center"/>
                                             </StackPanel>
                                         </Button>
                                     </StackPanel>
                                 </Grid>
-                                <ItemsControl ItemsSource="{Binding DetectionDisplays}">
+                                <DockPanel Style="{StaticResource WriteNote}">
+                                    <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconInfo}" Width="15" Height="15"
+                                                       VerticalAlignment="Top" Margin="0,2,8,0"/>
+                                    <TextBlock Style="{StaticResource SubText}" TextWrapping="Wrap"
+                                               Text="Changes are saved to Intune as soon as you save or delete a rule. Devices re-evaluate detection at their next check-in."/>
+                                </DockPanel>
+
+                                <Grid Margin="0,16,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="90"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Type" Style="{StaticResource TableHead}"/>
+                                    <TextBlock Grid.Column="1" Text="Rule" Style="{StaticResource TableHead}"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding DetectionRulesHint}" Style="{StaticResource Caption}"/>
+                                </Grid>
+                                <Border Height="1" Background="{DynamicResource LineBrush}" Margin="0,10,0,0"/>
+
+                                <ItemsControl ItemsSource="{Binding DetectionDisplays}" Focusable="False">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border CornerRadius="4" Padding="12,10" Margin="0,10,0,0" Background="{DynamicResource FieldBrush}" BorderThickness="1">
-                                                <Border.Style>
-                                                    <Style TargetType="Border">
-                                                        <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding IsEditing}" Value="True">
-                                                                <Setter Property="BorderBrush" Value="{DynamicResource AccentTextBrush}"/>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </Border.Style>
+                                            <Border BorderBrush="{DynamicResource Line2Brush}" BorderThickness="0,0,0,1" Padding="0,10">
                                                 <StackPanel>
                                                     <!-- Read row -->
-                                                    <Grid>
+                                                    <Grid Visibility="{Binding IsEditing, Converter={StaticResource InverseBoolToVis}}">
                                                         <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto"/>
+                                                            <ColumnDefinition Width="90"/>
                                                             <ColumnDefinition Width="*"/>
                                                             <ColumnDefinition Width="Auto"/>
                                                             <ColumnDefinition Width="Auto"/>
                                                         </Grid.ColumnDefinitions>
-                                                        <Border Grid.Column="0" Background="{DynamicResource PrimaryDimBrush}" CornerRadius="4" Padding="8,3" VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding TypeTag}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AccentTextBrush}"/>
+                                                        <Border Style="{StaticResource Chip}" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding TypeTag}"/>
                                                         </Border>
-                                                        <TextBlock Grid.Column="1" Text="{Binding Summary}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12"
-                                                                   Foreground="{DynamicResource InkBrush}" Margin="11,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                                                        <Button Grid.Column="2" Click="EditRule_Click" ToolTip="Edit rule">
-                                                            <Button.Style>
-                                                                <Style TargetType="Button" BasedOn="{StaticResource RowIconButton}">
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding IsEditing}" Value="True">
-                                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                                        </DataTrigger>
-                                                                        <DataTrigger Binding="{Binding CanEdit}" Value="False">
-                                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </Button.Style>
-                                                            <Viewbox Width="13" Height="13"><Path Data="{StaticResource IconPencil}" Stroke="{DynamicResource MutedBrush}" StrokeThickness="1.9" Style="{StaticResource Icon}"/></Viewbox>
+                                                        <TextBlock Grid.Column="1" Text="{Binding Summary}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12.5"
+                                                                   Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                                        <Button Grid.Column="2" Style="{StaticResource RowIconButton}" Margin="12,0,0,0" Click="EditRule_Click" ToolTip="Edit rule"
+                                                                Visibility="{Binding CanEdit, Converter={StaticResource BoolToVis}}"
+                                                                IsEnabled="{Binding DataContext.IsSignedIn, RelativeSource={RelativeSource AncestorType={x:Type views:ApplicationDetailView}}}">
+                                                            <controls:LineIcon Data="{DynamicResource IconPencil}" Width="15" Height="15"/>
                                                         </Button>
-                                                        <Button Grid.Column="3" Click="DeleteRule_Click" ToolTip="Delete rule">
-                                                            <Button.Style>
-                                                                <Style TargetType="Button" BasedOn="{StaticResource RowIconButton}">
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding IsEditing}" Value="True">
-                                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </Button.Style>
-                                                            <Viewbox Width="13" Height="13"><Path Data="{StaticResource IconTrash}" Stroke="{DynamicResource MutedBrush}" StrokeThickness="1.9" Style="{StaticResource Icon}"/></Viewbox>
+                                                        <Button Grid.Column="3" Style="{StaticResource RowIconButton}" Margin="4,0,0,0" Click="DeleteRule_Click" ToolTip="Delete rule"
+                                                                IsEnabled="{Binding DataContext.IsSignedIn, RelativeSource={RelativeSource AncestorType={x:Type views:ApplicationDetailView}}}">
+                                                            <controls:LineIcon Data="{DynamicResource IconTrash}" Width="15" Height="15"/>
                                                         </Button>
                                                     </Grid>
 
-                                                    <!-- Inline editor -->
-                                                    <StackPanel Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}" Margin="0,12,0,0">
-                                                        <!-- MSI fields -->
-                                                        <StackPanel Visibility="{Binding IsMsi, Converter={StaticResource BoolToVis}}">
-                                                            <TextBlock Text="Product code" Style="{StaticResource FieldLabel}" Margin="0,0,0,5"/>
-                                                            <TextBox AutomationProperties.Name="Product code" Style="{StaticResource TextField}" Height="34" FontFamily="{StaticResource MonoFontFamily}" FontSize="12"
-                                                                     Text="{Binding EditPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                                            <CheckBox Content="Check product version" IsChecked="{Binding EditCheckVersion, Mode=TwoWay}"
-                                                                      Foreground="{DynamicResource TextBrush}" FontSize="12.5" Margin="0,10,0,0"/>
-                                                        </StackPanel>
+                                                    <!-- Inline editor: the row turns into a focused card. -->
+                                                    <Border Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}"
+                                                            Background="{DynamicResource Card2Brush}" BorderBrush="{DynamicResource AccentTextBrush}"
+                                                            BorderThickness="1" CornerRadius="6" Padding="18,16">
+                                                        <StackPanel>
+                                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                                                <Border Style="{StaticResource Chip}" VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding TypeTag}"/>
+                                                                </Border>
+                                                                <TextBlock Text="Edit detection rule" Style="{StaticResource H3}" VerticalAlignment="Center"/>
+                                                            </StackPanel>
 
-                                                        <!-- File fields -->
-                                                        <StackPanel Visibility="{Binding IsFile, Converter={StaticResource BoolToVis}}">
-                                                            <TextBlock Text="Path" Style="{StaticResource FieldLabel}" Margin="0,0,0,5"/>
-                                                            <TextBox AutomationProperties.Name="Path" Style="{StaticResource TextField}" Height="34" FontFamily="{StaticResource MonoFontFamily}" FontSize="12"
-                                                                     Text="{Binding EditPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                                            <TextBlock Text="File or folder" Style="{StaticResource FieldLabel}" Margin="0,10,0,5"/>
-                                                            <TextBox AutomationProperties.Name="File or folder" Style="{StaticResource TextField}" Height="34" FontFamily="{StaticResource MonoFontFamily}" FontSize="12"
-                                                                     Text="{Binding EditName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                                        </StackPanel>
+                                                            <!-- MSI -->
+                                                            <StackPanel Visibility="{Binding IsMsi, Converter={StaticResource BoolToVis}}">
+                                                                <TextBlock Text="Product code" Style="{StaticResource FieldLabel}"/>
+                                                                <TextBox AutomationProperties.Name="Product code" Style="{StaticResource RuleField}"
+                                                                         Text="{Binding EditPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                                                <CheckBox Content="Check product version" IsChecked="{Binding EditCheckVersion, Mode=TwoWay}"
+                                                                          Foreground="{DynamicResource TextBrush}" FontSize="13" Margin="0,12,0,0"/>
+                                                            </StackPanel>
 
-                                                        <!-- Registry fields -->
-                                                        <StackPanel Visibility="{Binding IsRegistry, Converter={StaticResource BoolToVis}}">
-                                                            <TextBlock Text="Key path" Style="{StaticResource FieldLabel}" Margin="0,0,0,5"/>
-                                                            <TextBox AutomationProperties.Name="Key path" Style="{StaticResource TextField}" Height="34" FontFamily="{StaticResource MonoFontFamily}" FontSize="12"
-                                                                     Text="{Binding EditPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                                            <TextBlock Text="Value name (empty = key itself)" Style="{StaticResource FieldLabel}" Margin="0,10,0,5"/>
-                                                            <TextBox AutomationProperties.Name="Value name (empty = key itself)" Style="{StaticResource TextField}" Height="34" FontFamily="{StaticResource MonoFontFamily}" FontSize="12"
-                                                                     Text="{Binding EditName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                                        </StackPanel>
+                                                            <!-- File -->
+                                                            <Grid Visibility="{Binding IsFile, Converter={StaticResource BoolToVis}}">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="12"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                </Grid.ColumnDefinitions>
+                                                                <StackPanel>
+                                                                    <TextBlock Text="Path" Style="{StaticResource FieldLabel}"/>
+                                                                    <TextBox AutomationProperties.Name="Path" Style="{StaticResource RuleField}"
+                                                                             Text="{Binding EditPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                                                </StackPanel>
+                                                                <StackPanel Grid.Column="2">
+                                                                    <TextBlock Text="File or folder" Style="{StaticResource FieldLabel}"/>
+                                                                    <TextBox AutomationProperties.Name="File or folder" Style="{StaticResource RuleField}"
+                                                                             Text="{Binding EditName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                                                </StackPanel>
+                                                            </Grid>
 
-                                                        <!-- Detection type (file/registry only) -->
-                                                        <StackPanel Visibility="{Binding IsFileOrRegistry, Converter={StaticResource BoolToVis}}">
-                                                            <TextBlock Text="Detection" Style="{StaticResource FieldLabel}" Margin="0,10,0,5"/>
-                                                            <ComboBox AutomationProperties.Name="Detection" Width="200" Height="34" HorizontalAlignment="Left"
-                                                                      ItemsSource="{Binding DetectionTypeChoices}" DisplayMemberPath="Label"
-                                                                      SelectedValuePath="Value" SelectedValue="{Binding EditDetectionType, Mode=TwoWay}"/>
-                                                        </StackPanel>
+                                                            <!-- Registry -->
+                                                            <Grid Visibility="{Binding IsRegistry, Converter={StaticResource BoolToVis}}">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                    <ColumnDefinition Width="12"/>
+                                                                    <ColumnDefinition Width="*"/>
+                                                                </Grid.ColumnDefinitions>
+                                                                <StackPanel>
+                                                                    <TextBlock Text="Key path" Style="{StaticResource FieldLabel}"/>
+                                                                    <TextBox AutomationProperties.Name="Key path" Style="{StaticResource RuleField}"
+                                                                             Text="{Binding EditPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                                                </StackPanel>
+                                                                <StackPanel Grid.Column="2">
+                                                                    <TextBlock Text="Value name (empty for the key itself)" Style="{StaticResource FieldLabel}"/>
+                                                                    <TextBox AutomationProperties.Name="Value name" Style="{StaticResource RuleField}"
+                                                                             Text="{Binding EditName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                                                </StackPanel>
+                                                            </Grid>
 
-                                                        <!-- Operator + value -->
-                                                        <StackPanel Orientation="Horizontal" Margin="0,10,0,0"
-                                                                    Visibility="{Binding EditNeedsValue, Converter={StaticResource BoolToVis}}">
-                                                            <ComboBox Width="70" Height="34" ItemsSource="{Binding OperatorChoices}" DisplayMemberPath="Label"
-                                                                      SelectedValuePath="Value" SelectedValue="{Binding EditOperator, Mode=TwoWay}"/>
-                                                            <TextBox Style="{StaticResource TextField}" Height="34" Width="200" Margin="8,0,0,0"
-                                                                     FontFamily="{StaticResource MonoFontFamily}" FontSize="12"
-                                                                     Text="{Binding EditValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                                        </StackPanel>
+                                                            <!-- Detection method, operator and value -->
+                                                            <WrapPanel Margin="0,4,0,0">
+                                                                <StackPanel Margin="0,8,12,0" Visibility="{Binding IsFileOrRegistry, Converter={StaticResource BoolToVis}}">
+                                                                    <TextBlock Text="Detection method" Style="{StaticResource FieldLabel}"/>
+                                                                    <ComboBox AutomationProperties.Name="Detection method" Width="190"
+                                                                              ItemsSource="{Binding DetectionTypeChoices}" DisplayMemberPath="Label"
+                                                                              SelectedValuePath="Value" SelectedValue="{Binding EditDetectionType, Mode=TwoWay}"/>
+                                                                </StackPanel>
+                                                                <StackPanel Margin="0,8,12,0" Visibility="{Binding EditNeedsValue, Converter={StaticResource BoolToVis}}">
+                                                                    <TextBlock Text="Operator" Style="{StaticResource FieldLabel}"/>
+                                                                    <ComboBox AutomationProperties.Name="Operator" Width="90"
+                                                                              ItemsSource="{Binding OperatorChoices}" DisplayMemberPath="Label"
+                                                                              SelectedValuePath="Value" SelectedValue="{Binding EditOperator, Mode=TwoWay}"/>
+                                                                </StackPanel>
+                                                                <StackPanel Margin="0,8,0,0" Visibility="{Binding EditNeedsValue, Converter={StaticResource BoolToVis}}">
+                                                                    <TextBlock Text="Value" Style="{StaticResource FieldLabel}"/>
+                                                                    <TextBox AutomationProperties.Name="Value" Style="{StaticResource RuleField}" Width="220"
+                                                                             Text="{Binding EditValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                                                </StackPanel>
+                                                            </WrapPanel>
 
-                                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-                                                            <Button Style="{StaticResource GhostButton}" Content="Cancel" Click="CancelRule_Click" Margin="0,0,8,0"/>
-                                                            <Button Style="{StaticResource PrimaryButton}" Content="Save rule" Click="SaveRule_Click"/>
+                                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                                                                <Button Style="{StaticResource GhostButton}" Content="Cancel" Click="CancelRule_Click" Margin="0,0,10,0"/>
+                                                                <Button Style="{StaticResource PrimaryButton}" Content="Save rule" Click="SaveRule_Click"
+                                                                        IsEnabled="{Binding DataContext.IsSignedIn, RelativeSource={RelativeSource AncestorType={x:Type views:ApplicationDetailView}}}"/>
+                                                            </StackPanel>
                                                         </StackPanel>
-                                                    </StackPanel>
+                                                    </Border>
                                                 </StackPanel>
                                             </Border>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                                <TextBlock Text="No detection rules found for this app." FontSize="12.5" Foreground="{DynamicResource Muted2Brush}" Margin="0,10,0,0">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding HasDetectionRules}" Value="False">
-                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                                <TextBlock Text="Saving patches the app in Intune; devices re-evaluate detection at their next check-in."
-                                           FontSize="12" Foreground="{DynamicResource Muted2Brush}" Margin="0,12,0,0" TextWrapping="Wrap"/>
+                                <TextBlock Text="No detection rules found for this app." Style="{StaticResource SubText}" Margin="0,12,0,0"
+                                           Visibility="{Binding HasDetectionRules, Converter={StaticResource InverseBoolToVis}}"/>
                             </StackPanel>
                         </Border>
 
-                        <!-- Requirements: readable at the minimum window width -->
-                        <Border Style="{StaticResource Card}" Margin="0,18,0,0">
+                        <!-- Requirements -->
+                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,12">
                             <StackPanel>
-                                <TextBlock Text="Requirements" Style="{StaticResource H2}" Margin="0,0,0,12"/>
-                                <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4" Padding="12,9" Margin="0,0,0,10">
-                                    <StackPanel>
-                                        <TextBlock Text="Minimum Windows release" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource MutedBrush}"/>
-                                        <TextBlock Text="{Binding Detail.MinimumOperatingSystem}" TextWrapping="Wrap" FontSize="13.5" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}" Margin="0,3,0,0"/>
+                                <controls:SectionHeader Title="Requirements" Caption="What a device needs before Intune installs the application."/>
+                                <UniformGrid Columns="3" Margin="0,6,0,0">
+                                    <StackPanel Margin="0,12,16,0">
+                                        <TextBlock Text="Minimum Windows release" Style="{StaticResource ReqLabel}"/>
+                                        <TextBlock Text="{Binding Detail.MinimumOperatingSystem}" Style="{StaticResource ReqValue}"/>
                                     </StackPanel>
-                                </Border>
-                                <UniformGrid Columns="2" Margin="0,0,-10,-10">
-                                    <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4" Padding="12,9" Margin="0,0,10,10">
-                                        <StackPanel>
-                                            <TextBlock Text="Install context" TextWrapping="Wrap" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource MutedBrush}"/>
-                                            <TextBlock Text="{Binding Detail.InstallContext}" TextWrapping="Wrap" FontSize="13.5" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}" Margin="0,3,0,0"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4" Padding="12,9" Margin="0,0,10,10">
-                                        <StackPanel>
-                                            <TextBlock Text="Restart behavior" TextWrapping="Wrap" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource MutedBrush}"/>
-                                            <TextBlock Text="{Binding Detail.RestartBehaviorText}" TextWrapping="Wrap" FontSize="13.5" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}" Margin="0,3,0,0"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4" Padding="12,9" Margin="0,0,10,10">
-                                        <StackPanel>
-                                            <TextBlock Text="Maximum install time" TextWrapping="Wrap" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource MutedBrush}"/>
-                                            <TextBlock Text="{Binding Detail.MaxRunTimeText}" TextWrapping="Wrap" FontSize="13.5" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}" Margin="0,3,0,0"/>
-                                        </StackPanel>
-                                    </Border>
-                                    <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4" Padding="12,9" Margin="0,0,10,10">
-                                        <StackPanel>
-                                            <TextBlock Text="Disk space" TextWrapping="Wrap" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource MutedBrush}"/>
-                                            <TextBlock Text="{Binding Detail.MinDiskSpaceText}" TextWrapping="Wrap" FontSize="13.5" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}" Margin="0,3,0,0"/>
-                                        </StackPanel>
-                                    </Border>
+                                    <StackPanel Margin="0,12,16,0">
+                                        <TextBlock Text="Install context" Style="{StaticResource ReqLabel}"/>
+                                        <TextBlock Text="{Binding Detail.InstallContext}" Style="{StaticResource ReqValue}"/>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,12,16,0">
+                                        <TextBlock Text="Restart behavior" Style="{StaticResource ReqLabel}"/>
+                                        <TextBlock Text="{Binding Detail.RestartBehaviorText}" Style="{StaticResource ReqValue}"/>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,12,16,0">
+                                        <TextBlock Text="Maximum install time" Style="{StaticResource ReqLabel}"/>
+                                        <TextBlock Text="{Binding Detail.MaxRunTimeText}" Style="{StaticResource ReqValue}"/>
+                                    </StackPanel>
+                                    <StackPanel Margin="0,12,16,0">
+                                        <TextBlock Text="Disk space" Style="{StaticResource ReqLabel}"/>
+                                        <TextBlock Text="{Binding Detail.MinDiskSpaceText}" Style="{StaticResource ReqValue}"/>
+                                    </StackPanel>
                                 </UniformGrid>
                             </StackPanel>
                         </Border>
 
-                        <!-- Assignment groups: click a row for members, ✕ removes, add inline -->
-                        <Border Style="{StaticResource Card}" Margin="0,18,0,0">
+                        <!-- Assignment groups: select a row for members, remove, add inline. -->
+                        <Border Style="{StaticResource SectionPanel}">
                             <StackPanel>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                    <TextBlock Text="Assignment groups" Style="{StaticResource H2}" VerticalAlignment="Center"/>
-                                    <TextBlock Text="click a group to manage members" FontSize="12" Foreground="{DynamicResource Muted2Brush}"
-                                               Margin="12,0,0,0" VerticalAlignment="Center"/>
-                                </StackPanel>
-                                <ItemsControl ItemsSource="{Binding Detail.AssignedGroups}">
+                                <controls:SectionHeader Title="Assignment groups" Caption="Select a group to see and manage its members."/>
+                                <DockPanel Style="{StaticResource WriteNote}">
+                                    <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconInfo}" Width="15" Height="15"
+                                                       VerticalAlignment="Top" Margin="0,2,8,0"/>
+                                    <TextBlock Style="{StaticResource SubText}" TextWrapping="Wrap"
+                                               Text="Adding or removing an assignment updates Intune immediately. Devices pick it up at their next check-in."/>
+                                </DockPanel>
+
+                                <Grid Margin="0,16,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="42"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Group" Style="{StaticResource TableHead}"/>
+                                    <TextBlock Grid.Column="1" Text="Intent" Style="{StaticResource TableHead}"/>
+                                </Grid>
+                                <Border Height="1" Background="{DynamicResource LineBrush}" Margin="0,10,0,0"/>
+
+                                <ItemsControl ItemsSource="{Binding Detail.AssignedGroups}" Focusable="False">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Button Click="GroupRow_Click" Cursor="Hand" HorizontalContentAlignment="Stretch" ToolTip="View members">
+                                            <Button Click="GroupRow_Click" Cursor="Hand" HorizontalContentAlignment="Stretch" ToolTip="View members"
+                                                    AutomationProperties.Name="{Binding GroupName}" FocusVisualStyle="{StaticResource FocusVisualInset}">
                                                 <Button.Template>
                                                     <ControlTemplate TargetType="Button">
                                                         <Border x:Name="rb" Background="Transparent" BorderBrush="{DynamicResource Line2Brush}" BorderThickness="0,0,0,1">
@@ -580,311 +686,205 @@
                                                         </Border>
                                                         <ControlTemplate.Triggers>
                                                             <Trigger Property="IsMouseOver" Value="True">
-                                                                <Setter TargetName="rb" Property="Background" Value="{DynamicResource PrimarySoftBrush}"/>
+                                                                <Setter TargetName="rb" Property="Background" Value="{DynamicResource Card2Brush}"/>
                                                             </Trigger>
                                                         </ControlTemplate.Triggers>
                                                     </ControlTemplate>
                                                 </Button.Template>
-                                                <Grid Margin="6,11">
+                                                <Grid Margin="0,10">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto"/>
                                                         <ColumnDefinition Width="*"/>
                                                         <ColumnDefinition Width="Auto"/>
-                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="42"/>
                                                     </Grid.ColumnDefinitions>
-                                                    <Border Grid.Column="0" Width="36" Height="36" CornerRadius="4" Background="{DynamicResource PrimaryDimBrush}" VerticalAlignment="Center">
-                                                        <Viewbox Width="17" Height="17">
-                                                            <Path Data="{StaticResource IconGroup}" Stroke="{DynamicResource AccentTextBrush}" StrokeThickness="1.8" Style="{StaticResource Icon}"/>
-                                                        </Viewbox>
-                                                    </Border>
-                                                    <TextBlock Grid.Column="1" Text="{Binding GroupName}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}"
-                                                               Margin="12,0,0,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                                    <controls:LineIcon Data="{DynamicResource IconGroup}" Foreground="{DynamicResource Muted2Brush}"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding GroupName}" FontSize="13.5" FontWeight="SemiBold"
+                                                               Foreground="{DynamicResource InkBrush}" Margin="12,0,12,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
                                                     <ContentControl Grid.Column="2" Content="{Binding}" ContentTemplate="{StaticResource StatusBadgeTemplate}"
-                                                                    VerticalAlignment="Center" Margin="12,0,0,0"/>
-                                                    <Button Grid.Column="3" Style="{StaticResource RowIconButton}" Margin="6,0,0,0"
-                                                            Click="RemoveAssignment_Click" ToolTip="Remove this assignment">
-                                                        <Viewbox Width="12" Height="12"><Path Data="{StaticResource IconX}" Stroke="{DynamicResource MutedBrush}" StrokeThickness="2.1" Style="{StaticResource Icon}"/></Viewbox>
+                                                                    VerticalAlignment="Center" Focusable="False"/>
+                                                    <Button Grid.Column="3" Style="{StaticResource RowIconButton}" HorizontalAlignment="Right"
+                                                            Click="RemoveAssignment_Click" ToolTip="Remove this assignment"
+                                                            IsEnabled="{Binding DataContext.IsSignedIn, RelativeSource={RelativeSource AncestorType={x:Type views:ApplicationDetailView}}}">
+                                                        <controls:LineIcon Data="{DynamicResource IconX}" Width="14" Height="14"/>
                                                     </Button>
                                                 </Grid>
                                             </Button>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                                <TextBlock Text="No assignments yet." FontSize="12.5" Foreground="{DynamicResource Muted2Brush}" Margin="0,10,0,0">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding HasAssignments}" Value="False">
-                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
+                                <TextBlock Text="No assignments yet." Style="{StaticResource SubText}" Margin="0,12,0,0"
+                                           Visibility="{Binding HasAssignments, Converter={StaticResource InverseBoolToVis}}"/>
 
-                                <!-- Inline add: search Entra groups, pick intent, add -->
-                                <Border BorderBrush="{DynamicResource Line2Brush}" BorderThickness="0,1,0,0" Margin="0,12,0,0" Padding="0,14,0,0">
-                                    <StackPanel>
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBox Grid.Column="0" Style="{StaticResource TextField}"
-                                                     local:PlaceholderText.Text="Search Entra groups…"
-                                                     Text="{Binding GroupSearch, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                            <ComboBox Grid.Column="1" Width="120" Margin="10,0,0,0"
-                                                      ItemsSource="{Binding IntentChoices}" SelectedItem="{Binding SelectedIntent, Mode=TwoWay}"/>
-                                            <Button Grid.Column="2" Style="{StaticResource PrimaryButton}" Margin="10,0,0,0" Content="Add group"
-                                                    Click="AddAssignment_Click" IsEnabled="{Binding CanAddAssignment}"/>
-                                        </Grid>
-                                        <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1"
-                                                CornerRadius="4" Margin="0,8,0,0" MaxHeight="180"
-                                                Visibility="{Binding HasGroupResults, Converter={StaticResource BoolToVis}}">
-                                            <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                                <ItemsControl ItemsSource="{Binding GroupResults}">
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <Button Click="GroupResult_Click" Style="{StaticResource PickerRow}">
-                                                                <TextBlock Text="{Binding DisplayName}" FontSize="12.5" Foreground="{DynamicResource InkBrush}" Margin="12,8"/>
-                                                            </Button>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
-                                            </ScrollViewer>
-                                        </Border>
-                                    </StackPanel>
+                                <!-- Inline add: search Entra groups, pick an intent, add. -->
+                                <TextBlock Text="Add assignment" Style="{StaticResource FieldLabel}" Margin="0,20,0,7"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBox Style="{StaticResource TextField}" AutomationProperties.Name="Search Entra groups"
+                                             local:PlaceholderText.Text="Search Entra groups"
+                                             Text="{Binding GroupSearch, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                             IsEnabled="{Binding IsSignedIn}"/>
+                                    <ComboBox Grid.Column="1" Width="130" Margin="10,0,0,0" AutomationProperties.Name="Assignment intent"
+                                              ItemsSource="{Binding IntentChoices}" SelectedItem="{Binding SelectedIntent, Mode=TwoWay}"
+                                              IsEnabled="{Binding IsSignedIn}"/>
+                                    <Button Grid.Column="2" Style="{StaticResource FieldActionButton}" Content="Add group"
+                                            Click="AddAssignment_Click" IsEnabled="{Binding CanAddAssignment}"/>
+                                </Grid>
+                                <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1"
+                                        CornerRadius="4" Margin="0,8,0,0" MaxHeight="180"
+                                        Visibility="{Binding HasGroupResults, Converter={StaticResource BoolToVis}}">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding GroupResults}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Click="GroupResult_Click" Style="{StaticResource PickerRow}" AutomationProperties.Name="{Binding DisplayName}">
+                                                        <TextBlock Text="{Binding DisplayName}" FontSize="13" Foreground="{DynamicResource InkBrush}" Margin="12,8"/>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
                                 </Border>
                             </StackPanel>
                         </Border>
                     </StackPanel>
-
-                    <TextBlock Text="{Binding StatusText}" Foreground="{DynamicResource DangerBrush}" FontSize="12.5" Margin="2,12,0,0"
-                               TextWrapping="Wrap"/>
                 </StackPanel>
+            </ScrollViewer>
 
-                <!-- Sidebar: status, publishing, danger zone. Visible on every tab. -->
-                <StackPanel Grid.Column="2">
-                    <Border Style="{StaticResource Card}">
-                        <StackPanel>
-                            <TextBlock Text="Deployment status" FontSize="13.5" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}" Margin="0,0,0,10"/>
-
-                            <StackPanel Visibility="{Binding HasSummary, Converter={StaticResource BoolToVis}}">
-                                <TextBlock Text="Targeted devices" FontSize="12" Foreground="{DynamicResource MutedBrush}"/>
-                                <TextBlock Text="{Binding TargetedDevicesText}" FontSize="24" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}" Margin="0,1,0,12"/>
-                                <Border Height="9" CornerRadius="4" Background="{DynamicResource Line2Brush}" Margin="0,0,0,14" ClipToBounds="True">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="{Binding SumInstalled, Converter={StaticResource CountToStar}}"/>
-                                            <ColumnDefinition Width="{Binding SumPending, Converter={StaticResource CountToStar}}"/>
-                                            <ColumnDefinition Width="{Binding SumFailed, Converter={StaticResource CountToStar}}"/>
-                                            <ColumnDefinition Width="{Binding SumRemaining, Converter={StaticResource CountToStar}}"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Border Grid.Column="0" Background="{DynamicResource OkBrush}"/>
-                                        <Border Grid.Column="1" Background="{DynamicResource WarnBrush}"/>
-                                        <Border Grid.Column="2" Background="{DynamicResource BadBrush}"/>
-                                    </Grid>
-                                </Border>
-                                <ContentControl Content="{Binding SumInstalled}" Tag="Installed" Style="{StaticResource StatRow}"/>
-                                <ContentControl Content="{Binding SumPending}" Tag="Pending" Style="{StaticResource StatRowWarn}"/>
-                                <ContentControl Content="{Binding SumFailed}" Tag="Failed" Style="{StaticResource StatRowBad}"/>
-                                <ContentControl Content="{Binding SumNotInstalled}" Tag="Not installed" Style="{StaticResource StatRowMut}"/>
-                                <ContentControl Content="{Binding SumNotApplicable}" Tag="Not applicable" Style="{StaticResource StatRowMut}"/>
-                            </StackPanel>
-
-                            <TextBlock Text="No deployment data yet." Foreground="{DynamicResource MutedBrush}" FontSize="12.5">
-                                <TextBlock.Style>
-                                    <Style TargetType="TextBlock">
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                        <Style.Triggers>
-                                            <DataTrigger Binding="{Binding HasSummary}" Value="True">
-                                                <Setter Property="Visibility" Value="Collapsed"/>
-                                            </DataTrigger>
-                                        </Style.Triggers>
-                                    </Style>
-                                </TextBlock.Style>
-                            </TextBlock>
-                        </StackPanel>
-                    </Border>
-
-                    <Border Style="{StaticResource Card}" Margin="0,16,0,0">
-                        <StackPanel>
-                            <TextBlock Text="Intune publishing" FontSize="13.5" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}" Margin="0,0,0,4"/>
-                            <ContentControl Tag="State" Style="{StaticResource DlRow}">
-                                <ContentControl Content="{Binding Detail}" ContentTemplate="{StaticResource StatusBadgeTemplate}"/>
-                            </ContentControl>
-                            <ContentControl Tag="App ID" Style="{StaticResource DlRowMono}">
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding Detail.IdShort}" VerticalAlignment="Center"
-                                               FontFamily="{StaticResource MonoFontFamily}" FontSize="12" Foreground="{DynamicResource InkBrush}"/>
-                                    <Button Style="{StaticResource RowIconButton}" Width="24" Height="24" Margin="5,0,0,0"
-                                            Click="CopyAppId_Click" ToolTip="Copy full App ID">
-                                        <Viewbox Width="12" Height="12">
-                                            <Path Data="{StaticResource IconFile}" Stroke="{DynamicResource MutedBrush}" StrokeThickness="1.9" Style="{StaticResource Icon}"/>
-                                        </Viewbox>
-                                    </Button>
-                                </StackPanel>
-                            </ContentControl>
-                            <ContentControl Content="{Binding Detail.CreatedFormatted}" Tag="Created" Style="{StaticResource DlRow}"/>
-                            <ContentControl Content="{Binding Detail.LastModifiedFormatted}" Tag="Published" Style="{StaticResource DlRow}"/>
-                            <Button Style="{StaticResource PrimaryButton}" Click="ViewInIntune_Click" Margin="0,12,0,0" HorizontalAlignment="Left">
-                                <StackPanel Orientation="Horizontal">
-                                    <Viewbox Width="15" Height="15" Margin="0,0,7,0"><Path Data="{StaticResource IconExternal}" Stroke="{DynamicResource PrimaryFgBrush}" StrokeThickness="1.9" Style="{StaticResource Icon}"/></Viewbox>
-                                    <TextBlock Text="View in Intune" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </Button>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- Danger zone -->
-                    <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4" Padding="16" Margin="0,16,0,0">
-                        <StackPanel>
-                            <TextBlock Text="Delete application" FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}"/>
-                            <TextBlock Text="Permanently deletes this app and its assignments from Intune. Installed copies stay on devices; use an Uninstall assignment to remove them."
-                                       FontSize="12" Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" Margin="0,3,0,10"/>
-                            <Button Style="{StaticResource DangerButton}" HorizontalAlignment="Left"
-                                    Foreground="{DynamicResource DangerBrush}" Click="Retire_Click">
-                                <StackPanel Orientation="Horizontal">
-                                    <Viewbox Width="15" Height="15" Margin="0,0,8,0"><Path Data="{StaticResource IconTrash}" Stroke="{DynamicResource DangerBrush}" StrokeThickness="1.9" Style="{StaticResource Icon}"/></Viewbox>
-                                    <TextBlock Text="Delete from Intune" VerticalAlignment="Center"/>
-                                </StackPanel>
-                            </Button>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-            </Grid>
-        </StackPanel>
-    </ScrollViewer>
-
-    <!-- ═══════ Package update overlay ═══════
-         The rebuild + upload runs for minutes and must not race edits made on the
-         page behind it, so it blocks the whole surface until it finishes. -->
-    <Border Background="#88000000" Visibility="{Binding IsUpdating, Converter={StaticResource BoolToVis}}">
-        <Border Style="{StaticResource Card}" Width="420" Padding="24" VerticalAlignment="Center"
-                HorizontalAlignment="Center" Background="{DynamicResource CardBrush}">
-            <StackPanel>
-                <TextBlock Text="Updating package content" Style="{StaticResource H2}"/>
-                <TextBlock Text="{Binding Detail.DisplayName}" FontSize="12" Margin="0,4,0,0"
-                           Foreground="{DynamicResource MutedBrush}" TextTrimming="CharacterEllipsis"/>
-                <ProgressBar Value="{Binding UpdatePercent, Mode=OneWay}" Maximum="100" Margin="0,18,0,0"/>
-                <TextBlock Text="{Binding UpdateStatus}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12"
-                           Foreground="{DynamicResource Muted2Brush}" Margin="0,10,0,0" TextWrapping="Wrap"/>
-                <Button Style="{StaticResource GhostButton}" Content="Cancel" HorizontalAlignment="Right"
-                        Margin="0,18,0,0" Click="CancelUpdate_Click"/>
-            </StackPanel>
-        </Border>
-    </Border>
-
-    <!-- ═══════ Group members slide-over ═══════
-         A group is a different object with blast radius beyond this app, so it gets
-         its own surface; the app stays visible (dimmed) behind it. -->
-    <Border Background="#66000000" Visibility="{Binding IsFlyoutOpen, Converter={StaticResource BoolToVis}}"
-            MouseLeftButtonDown="FlyoutBackdrop_MouseDown"/>
-    <Border HorizontalAlignment="Right" Width="360" Background="{DynamicResource CardBrush}"
-            BorderBrush="{DynamicResource LineBrush}" BorderThickness="1,0,0,0"
-            Visibility="{Binding IsFlyoutOpen, Converter={StaticResource BoolToVis}}" CornerRadius="4">
-        <Grid Margin="20">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-
-            <!-- Header -->
-            <Grid Grid.Row="0" Margin="0,0,0,12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0">
-                    <TextBlock Text="{Binding FlyoutGroup.GroupName}" FontSize="15" FontWeight="SemiBold"
-                               Foreground="{DynamicResource InkBrush}" TextWrapping="Wrap"/>
-                    <ContentControl Content="{Binding FlyoutGroup}" ContentTemplate="{StaticResource StatusBadgeTemplate}"
-                                    HorizontalAlignment="Left" Margin="0,6,0,0"/>
-                </StackPanel>
-                <Button Grid.Column="1" Style="{StaticResource RowIconButton}" Click="FlyoutClose_Click" ToolTip="Close" VerticalAlignment="Top">
-                    <Viewbox Width="13" Height="13"><Path Data="{StaticResource IconX}" Stroke="{DynamicResource MutedBrush}" StrokeThickness="2.1" Style="{StaticResource Icon}"/></Viewbox>
-                </Button>
+            <!-- ═══════ Package update overlay ═══════
+                 The rebuild + upload runs for minutes and must not race edits made on the
+                 page behind it, so it covers the body until it finishes. -->
+            <Grid Visibility="{Binding IsUpdating, Converter={StaticResource BoolToVis}}">
+                <Border Background="{DynamicResource BgBrush}" Opacity="0.75" CornerRadius="8"/>
+                <Border Style="{StaticResource PanelCard}" Background="{DynamicResource FlyoutBrush}" BorderBrush="{DynamicResource ControlStrokeBrush}"
+                        Width="420" Padding="24" VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <StackPanel>
+                        <TextBlock Text="Updating package content" Style="{StaticResource H2}"/>
+                        <TextBlock Text="{Binding Detail.DisplayName}" Style="{StaticResource SubText}" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/>
+                        <ProgressBar Value="{Binding UpdatePercent, Mode=OneWay}" Maximum="100" Margin="0,18,0,0"/>
+                        <TextBlock Text="{Binding UpdateStatus}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12"
+                                   Foreground="{DynamicResource Muted2Brush}" Margin="0,10,0,0" TextWrapping="Wrap"/>
+                        <Button Style="{StaticResource GhostButton}" Content="Cancel" HorizontalAlignment="Right"
+                                Margin="0,18,0,0" Click="CancelUpdate_Click"/>
+                    </StackPanel>
+                </Border>
             </Grid>
 
-            <!-- Blast-radius warning -->
-            <Border Grid.Row="1" Background="{DynamicResource WarnSoftBrush}" CornerRadius="4" Padding="11,9" Margin="0,0,0,12"
-                    Visibility="{Binding FlyoutHasGroup, Converter={StaticResource BoolToVis}}">
-                <TextBlock Text="Membership changes affect every app assigned to this group — not just this one."
-                           FontSize="12" Foreground="{DynamicResource WarnBrush}" FontWeight="SemiBold" TextWrapping="Wrap"/>
-            </Border>
+            <!-- ═══════ Group members slide-over ═══════
+                 A group is a different object with blast radius beyond this app, so it gets
+                 its own surface; the app stays visible (dimmed) behind it. -->
+            <Border Background="{DynamicResource BgBrush}" Opacity="0.6" CornerRadius="8"
+                    Visibility="{Binding IsFlyoutOpen, Converter={StaticResource BoolToVis}}"
+                    MouseLeftButtonDown="FlyoutBackdrop_MouseDown"/>
+            <Border HorizontalAlignment="Right" Width="360" Style="{StaticResource PanelCard}"
+                    Background="{DynamicResource FlyoutBrush}" BorderBrush="{DynamicResource ControlStrokeBrush}"
+                    Visibility="{Binding IsFlyoutOpen, Converter={StaticResource BoolToVis}}">
+                <Grid Margin="20">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
 
-            <!-- Add member -->
-            <StackPanel Grid.Row="2" Margin="0,0,0,8" Visibility="{Binding FlyoutHasGroup, Converter={StaticResource BoolToVis}}">
-                <TextBlock Text="Add member" Style="{StaticResource FieldLabel}" Margin="0,0,0,5"/>
-                <TextBox AutomationProperties.Name="Add member" Style="{StaticResource TextField}" Height="36"
-                         local:PlaceholderText.Text="Search devices or users…"
-                         Text="{Binding MemberSearch, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-            </StackPanel>
+                    <Grid Margin="0,0,0,14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel>
+                            <TextBlock Text="{Binding FlyoutGroup.GroupName}" Style="{StaticResource H2}" TextWrapping="Wrap"/>
+                            <ContentControl Content="{Binding FlyoutGroup}" ContentTemplate="{StaticResource StatusBadgeTemplate}"
+                                            HorizontalAlignment="Left" Margin="0,8,0,0" Focusable="False"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Style="{StaticResource RowIconButton}" Click="FlyoutClose_Click" ToolTip="Close" VerticalAlignment="Top">
+                            <controls:LineIcon Data="{DynamicResource IconX}" Width="15" Height="15"/>
+                        </Button>
+                    </Grid>
 
-            <!-- Search results -->
-            <Border Grid.Row="3" Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1"
-                    CornerRadius="4" Margin="0,0,0,8" MaxHeight="160"
-                    Visibility="{Binding HasMemberResults, Converter={StaticResource BoolToVis}}">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding MemberSearchResults}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Button Click="MemberResult_Click" Cursor="Hand" HorizontalContentAlignment="Stretch" ToolTip="Add to group">
-                                    <Grid Margin="12,7">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{Binding DisplayName}" FontSize="12.5" Foreground="{DynamicResource InkBrush}" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Grid.Column="1" Text="{Binding Kind}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource Muted2Brush}" Margin="10,0,0,0" VerticalAlignment="Center"/>
-                                    </Grid>
-                                </Button>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
-            </Border>
+                    <!-- Blast-radius warning -->
+                    <Border Grid.Row="1" Style="{StaticResource CalloutWarn}" Margin="0,0,0,14"
+                            Visibility="{Binding FlyoutHasGroup, Converter={StaticResource BoolToVis}}">
+                        <DockPanel>
+                            <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconAlert}" VerticalAlignment="Top"
+                                               Margin="0,2,10,0" Foreground="{DynamicResource WarnBrush}"/>
+                            <TextBlock Text="Membership changes affect every app assigned to this group, not just this one. They are saved to Entra ID immediately."
+                                       FontSize="13" TextWrapping="Wrap"/>
+                        </DockPanel>
+                    </Border>
 
-            <!-- Members -->
-            <Border Grid.Row="4" Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4"
-                    Visibility="{Binding FlyoutHasGroup, Converter={StaticResource BoolToVis}}">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding Members}" Margin="10,4">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border BorderBrush="{DynamicResource Line2Brush}" BorderThickness="0,0,0,1" Padding="2,7">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock Grid.Column="0" Text="{Binding DisplayName}" FontSize="12" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Grid.Column="1" Text="{Binding Kind}" FontSize="12" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource Muted2Brush}" Margin="8,0,0,0" VerticalAlignment="Center"/>
-                                        <Button Grid.Column="2" Style="{StaticResource RowIconButton}" Width="24" Height="24" Margin="4,0,0,0"
-                                                Click="RemoveMember_Click" ToolTip="Remove from group">
-                                            <Viewbox Width="11" Height="11"><Path Data="{StaticResource IconX}" Stroke="{DynamicResource MutedBrush}" StrokeThickness="2.1" Style="{StaticResource Icon}"/></Viewbox>
+                    <StackPanel Grid.Row="2" Margin="0,0,0,8" Visibility="{Binding FlyoutHasGroup, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="Add member" Style="{StaticResource FieldLabel}"/>
+                        <TextBox AutomationProperties.Name="Add member" Style="{StaticResource TextField}"
+                                 local:PlaceholderText.Text="Search devices or users"
+                                 Text="{Binding MemberSearch, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 IsEnabled="{Binding IsSignedIn}"/>
+                    </StackPanel>
+
+                    <Border Grid.Row="3" Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1"
+                            CornerRadius="4" Margin="0,0,0,8" MaxHeight="160"
+                            Visibility="{Binding HasMemberResults, Converter={StaticResource BoolToVis}}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding MemberSearchResults}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Click="MemberResult_Click" Style="{StaticResource PickerRow}" ToolTip="Add to group"
+                                                AutomationProperties.Name="{Binding DisplayName}">
+                                            <Grid Margin="12,8">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding DisplayName}" FontSize="13" Foreground="{DynamicResource InkBrush}" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding Kind}" FontSize="12" Foreground="{DynamicResource Muted2Brush}"
+                                                           Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                            </Grid>
                                         </Button>
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
-            </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Border>
 
-            <!-- Status line -->
-            <TextBlock Grid.Row="5" Text="{Binding MembersStatus}" FontSize="12" Foreground="{DynamicResource MutedBrush}"
-                       TextWrapping="Wrap" Margin="0,10,0,0"/>
+                    <Border Grid.Row="4" Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4"
+                            Visibility="{Binding FlyoutHasGroup, Converter={StaticResource BoolToVis}}">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding Members}" Margin="12,4">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="{DynamicResource Line2Brush}" BorderThickness="0,0,0,1" Padding="0,7">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding DisplayName}" FontSize="13" Foreground="{DynamicResource InkBrush}"
+                                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding Kind}" FontSize="12" Foreground="{DynamicResource Muted2Brush}"
+                                                           Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                                <Button Grid.Column="2" Style="{StaticResource RowIconButton}" Width="26" Height="26" Margin="4,0,0,0"
+                                                        Click="RemoveMember_Click" ToolTip="Remove from group"
+                                                        IsEnabled="{Binding DataContext.IsSignedIn, RelativeSource={RelativeSource AncestorType={x:Type views:ApplicationDetailView}}}">
+                                                    <controls:LineIcon Data="{DynamicResource IconX}" Width="13" Height="13"/>
+                                                </Button>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Border>
+
+                    <TextBlock Grid.Row="5" Text="{Binding MembersStatus}" Style="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                </Grid>
+            </Border>
         </Grid>
-    </Border>
-    </Grid>
+    </controls:PageFrame>
 </UserControl>

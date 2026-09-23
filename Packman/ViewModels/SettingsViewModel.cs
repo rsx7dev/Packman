@@ -97,6 +97,10 @@ public sealed class SettingsViewModel : ObservableObject
     private bool _connectionOk;
     public bool ConnectionOk { get => _connectionOk; private set => Set(ref _connectionOk, value); }
 
+    /// <summary>Rail line from the last connection test: "Read and write verified", "Read only: publishing will fail"…</summary>
+    private string _permissionSummary = "Not tested";
+    public string PermissionSummary { get => _permissionSummary; private set => Set(ref _permissionSummary, value); }
+
     private bool _isTesting;
     public bool IsTesting
     {
@@ -136,7 +140,11 @@ public sealed class SettingsViewModel : ObservableObject
 
     // ── App Registration fields ────────────────────────────────────────
     private string _tenantId = "";
-    public string TenantId { get => _tenantId; set => Set(ref _tenantId, value); }
+    public string TenantId { get => _tenantId; set => Set(ref _tenantId, value, [nameof(TenantDisplay)]); }
+
+    /// <summary>Tenant for the rail: the signed-in user's domain label, else the Tenant ID on screen.</summary>
+    public string TenantDisplay => IsSignedIn && SignedInUser.Contains('@') ? _auth.TenantName
+        : string.IsNullOrWhiteSpace(TenantId) ? "Not set" : TenantId.Trim();
 
     private string _clientId = "";
     public string ClientId { get => _clientId; set => Set(ref _clientId, value); }
@@ -165,7 +173,7 @@ public sealed class SettingsViewModel : ObservableObject
     public bool CodeSigningEnabled
     {
         get => _codeSigningEnabled;
-        set { if (Set(ref _codeSigningEnabled, value)) OnPropertyChanged(nameof(CodeSigningDisabled)); }
+        set => Set(ref _codeSigningEnabled, value, [nameof(CodeSigningDisabled), nameof(CodeSignCertDisplay)]);
     }
     public bool CodeSigningDisabled { get => !_codeSigningEnabled; set => CodeSigningEnabled = !value; }
 
@@ -181,7 +189,10 @@ public sealed class SettingsViewModel : ObservableObject
     public string CodeSignThumbprint { get => _codeSignThumbprint; set => Set(ref _codeSignThumbprint, value); }
 
     private string _codeSignCertName = "";
-    public string CodeSignCertName { get => _codeSignCertName; set => Set(ref _codeSignCertName, value); }
+    public string CodeSignCertName { get => _codeSignCertName; set => Set(ref _codeSignCertName, value, [nameof(CodeSignCertDisplay)]); }
+
+    /// <summary>Certificate named in the rail while signing is on.</summary>
+    public string CodeSignCertDisplay => CodeSigningEnabled ? _selectedCodeSignCert?.DisplayName ?? CodeSignCertName : "";
 
     private string _codeSignCertSubject = "";
     public string CodeSignCertSubject { get => _codeSignCertSubject; set => Set(ref _codeSignCertSubject, value); }
@@ -193,7 +204,7 @@ public sealed class SettingsViewModel : ObservableObject
     public CertificateInfo? SelectedCodeSignCert
     {
         get => _selectedCodeSignCert;
-        set { if (Set(ref _selectedCodeSignCert, value) && value != null) CodeSignThumbprint = value.Thumbprint; }
+        set { if (Set(ref _selectedCodeSignCert, value, [nameof(CodeSignCertDisplay)]) && value != null) CodeSignThumbprint = value.Thumbprint; }
     }
 
     // ── Network Paths ──────────────────────────────────────────────────
@@ -275,10 +286,13 @@ public sealed class SettingsViewModel : ObservableObject
 
     // ── Intune Defaults ────────────────────────────────────────────────
     private string _defaultInstallCommand = AppSettings.IntuneDefaultsConfig.DefaultInstallCommand;
-    public string DefaultInstallCommand { get => _defaultInstallCommand; set => Set(ref _defaultInstallCommand, value); }
+    public string DefaultInstallCommand { get => _defaultInstallCommand; set => Set(ref _defaultInstallCommand, value, [nameof(IntuneDefaultsConfigured)]); }
 
     private string _defaultUninstallCommand = AppSettings.IntuneDefaultsConfig.DefaultUninstallCommand;
-    public string DefaultUninstallCommand { get => _defaultUninstallCommand; set => Set(ref _defaultUninstallCommand, value); }
+    public string DefaultUninstallCommand { get => _defaultUninstallCommand; set => Set(ref _defaultUninstallCommand, value, [nameof(IntuneDefaultsConfigured)]); }
+
+    public bool IntuneDefaultsConfigured =>
+        !string.IsNullOrWhiteSpace(_defaultInstallCommand) && !string.IsNullOrWhiteSpace(_defaultUninstallCommand);
 
     public IReadOnlyList<AppSettings.RestartBehaviorOption> RestartBehaviors { get; } = AppSettings.IntuneDefaultsConfig.RestartBehaviors;
 
@@ -343,6 +357,10 @@ public sealed class SettingsViewModel : ObservableObject
     private string _saveStatus = "";
     public string SaveStatus { get => _saveStatus; set => Set(ref _saveStatus, value); }
 
+    /// <summary>How the footer shows SaveStatus: ok after a save, warn for a failure, empty for a progress note.</summary>
+    private string _saveStatusKind = "";
+    public string SaveStatusKind { get => _saveStatusKind; private set => Set(ref _saveStatusKind, value); }
+
     public ObservableCollection<CertificateInfo> AvailableCertificates { get; } = new();
 
     public RelayCommand SaveCommand { get; }
@@ -373,7 +391,11 @@ public sealed class SettingsViewModel : ObservableObject
         _auth.StateChanged += SyncSignInState;
 
         // An unparseable file was set aside at startup; say so rather than looking fresh.
-        if (_svc.LoadError != null) SaveStatus = _svc.LoadError;
+        if (_svc.LoadError != null)
+        {
+            SaveStatusKind = "warn";
+            SaveStatus = _svc.LoadError;
+        }
     }
 
     private void LoadFromSettings()
@@ -481,6 +503,7 @@ public sealed class SettingsViewModel : ObservableObject
             }
             catch (Exception ex)
             {
+                SaveStatusKind = "warn";
                 SaveStatus = $"Could not read the {location} certificate store: {ex.Message}";
             }
         }
@@ -492,6 +515,7 @@ public sealed class SettingsViewModel : ObservableObject
 
     private async Task SignInAsync()
     {
+        SaveStatusKind = "";
         SaveStatus = "Signing in…";
         try
         {
@@ -507,6 +531,7 @@ public sealed class SettingsViewModel : ObservableObject
         }
         catch (Exception ex)
         {
+            SaveStatusKind = "warn";
             SaveStatus = $"Sign-in failed: {ex.Message}";
         }
     }
@@ -523,12 +548,16 @@ public sealed class SettingsViewModel : ObservableObject
     {
         IsSignedIn = _auth.IsSignedIn;
         SignedInUser = _auth.SignedInUser ?? "";
+        OnPropertyChanged(nameof(TenantDisplay));
+        // A verdict belongs to the sign-in it was tested with.
+        PermissionSummary = "Not tested";
     }
 
     private async Task TestConnectionAsync()
     {
         ConnectionChecks.Clear();
         ConnectionOk = false;
+        PermissionSummary = "Not tested";
         IsTesting = true;
         try
         {
@@ -562,11 +591,13 @@ public sealed class SettingsViewModel : ObservableObject
             }
 
             ConnectionStatus = "Testing connection to Microsoft Intune…";
-            var result = await AppServices.Apps.TestConnectionAsync();
+            // Group creation is checked against the toggles on screen, like the sign-in fields.
+            var result = await AppServices.Apps.TestConnectionAsync(CreateGroupPerPackage || CreateUninstallGroupPerPackage);
             foreach (var c in result.Checks)
                 ConnectionChecks.Add(new ConnectionCheckRow { Name = c.Name, Ok = c.Ok, Detail = c.Detail });
             ConnectionOk = result.Success;
             ConnectionStatus = result.Message;
+            PermissionSummary = result.PermissionSummary;
         }
         catch (Exception ex)
         {
@@ -613,6 +644,7 @@ public sealed class SettingsViewModel : ObservableObject
         var invalidCode = ReturnCodes.FirstOrDefault(r => r.ToInfo() == null);
         if (invalidCode != null)
         {
+            SaveStatusKind = "warn";
             SaveStatus = $"Return code '{invalidCode.Code}' is not a number. Nothing was saved.";
             return;
         }
@@ -671,10 +703,12 @@ public sealed class SettingsViewModel : ObservableObject
         try
         {
             _svc.Save();
-            SaveStatus = "Settings saved.";
+            SaveStatusKind = "ok";
+            SaveStatus = $"Settings saved at {DateTime.Now:t}";
         }
         catch (Exception ex)
         {
+            SaveStatusKind = "warn";
             SaveStatus = $"Settings could not be saved: {ex.Message}";
         }
     }

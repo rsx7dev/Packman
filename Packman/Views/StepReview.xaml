@@ -3,85 +3,176 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="clr-namespace:Packman.Views.Controls"
     FontFamily="{StaticResource UIFontFamily}">
+
+    <UserControl.Resources>
+        <!-- One command line with its copy button. Tag = the text to copy. -->
+        <Style x:Key="CopyButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
+            <Setter Property="Width" Value="34"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Margin" Value="10,0,0,0"/>
+            <Setter Property="ToolTip" Value="Copy"/>
+        </Style>
+    </UserControl.Resources>
+
+    <!-- Step 3 of the wizard: everything that will be sent, with routes back to change it.
+         The rail beside it (WizardRail) shows publish readiness and the tenant. -->
     <StackPanel>
-        <StackPanel Visibility="{Binding Upload.Publish.IsNotPublishing, Converter={StaticResource BoolToVis}}">
-            <controls:SectionHeader Title="Review your deployment" Caption="Confirm the package, destination and audience before publishing." Margin="0,0,0,20"/>
-            <Border Style="{StaticResource Card}" Margin="0,0,0,20">
-                <StackPanel>
-                    <TextBlock Text="Destination tenant" Style="{StaticResource FieldLabel}"/>
-                    <TextBlock Text="{Binding Upload.TenantName}" Style="{StaticResource H2}"
-                        Visibility="{Binding Upload.IsSignedIn, Converter={StaticResource BoolToVis}}"/>
-                    <TextBlock Text="{Binding ConnectionStatusText}" Style="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,6,0,0"/>
-                </StackPanel>
-            </Border>
-            <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="24"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <Border Style="{StaticResource Card}" VerticalAlignment="Top">
-                    <StackPanel>
-                        <DockPanel Margin="0,0,0,14">
-                            <Button DockPanel.Dock="Right" Style="{StaticResource Breadcrumb}" Content="Edit package" Command="{Binding GoToStepCommand}" CommandParameter="0"/>
-                            <TextBlock Text="Package" Style="{StaticResource H2}"/>
-                        </DockPanel>
-                        <ContentControl Style="{StaticResource DlRow}" Tag="Name in Intune" Content="{Binding Upload.IntuneDisplayName}"/>
-                        <ContentControl Style="{StaticResource DlRow}" Tag="Application" Content="{Binding Upload.ReviewName}"/>
-                        <ContentControl Style="{StaticResource DlRow}" Tag="Publisher" Content="{Binding Upload.ReviewVendor}"/>
-                        <ContentControl Style="{StaticResource DlRowMono}" Tag="Version" Content="{Binding Upload.ReviewVersion}"/>
-                        <ContentControl Style="{StaticResource DlRow}" Tag="Author" Content="{Binding Upload.ReviewAuthor}"/>
-                        <ContentControl Style="{StaticResource DlRow}" Tag="Architecture" Content="{Binding Upload.ReviewArchitecture}"/>
-                        <ContentControl Style="{StaticResource DlRow}" Tag="Context" Content="{Binding Upload.ReviewContext}"/>
-                        <ContentControl Style="{StaticResource DlRow}" Tag="Type" Content="{Binding Upload.ReviewPackageType}"/>
-                        <ContentControl Style="{StaticResource DlRow}" Tag="Source size" Content="{Binding Upload.ReviewSize}"/>
+        <Border Style="{StaticResource SectionPanel}"
+                Visibility="{Binding Upload.Publish.IsNotPublishing, Converter={StaticResource BoolToVis}}">
+            <StackPanel>
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                        <Button Style="{StaticResource LinkButton}" Command="{Binding GoToStepCommand}" CommandParameter="0">
+                            <StackPanel Orientation="Horizontal">
+                                <controls:LineIcon Data="{DynamicResource IconPencil}" Width="14" Height="14"/>
+                                <TextBlock Text="Edit package" Margin="6,0,0,0"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource LinkButton}" Command="{Binding GoToStepCommand}" CommandParameter="1" Margin="16,0,0,0">
+                            <StackPanel Orientation="Horizontal">
+                                <controls:LineIcon Data="{DynamicResource IconPencil}" Width="14" Height="14"/>
+                                <TextBlock Text="Edit configuration" Margin="6,0,0,0"/>
+                            </StackPanel>
+                        </Button>
+                        <Button Style="{StaticResource LinkButton}" Command="{Binding OpenTestToolCommand}" Margin="16,0,0,0">
+                            <StackPanel Orientation="Horizontal">
+                                <controls:LineIcon Data="{DynamicResource IconPlay}" Width="14" Height="14"/>
+                                <TextBlock Text="Run remote test" Margin="6,0,0,0"/>
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
+                    <StackPanel>
+                        <TextBlock Text="Review &amp; publish" Style="{StaticResource H1}" FontSize="20"/>
+                        <TextBlock Text="Check what will be sent to Microsoft Intune before publishing." Style="{StaticResource SubText}" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </DockPanel>
+                <Border Style="{StaticResource SectionRule}" Margin="0,16,0,18"/>
+
+                <!-- Package -->
+                <TextBlock Text="Package" Style="{StaticResource H2}" Margin="0,0,0,12"/>
+                <controls:AppIdentity Title="{Binding Upload.ReviewName}" Subtitle="{Binding Upload.ReviewVendor}"
+                                      IconPath="{Binding CreatePackage.ExtractedIconPath}">
+                    <controls:AppIdentity.Meta>
+                        <MultiBinding StringFormat="{}{0} · {1} · {2}">
+                            <Binding Path="Upload.ReviewVersion"/>
+                            <Binding Path="Upload.ReviewArchitecture"/>
+                            <Binding Path="Upload.ReviewContext"/>
+                        </MultiBinding>
+                    </controls:AppIdentity.Meta>
+                </controls:AppIdentity>
+                <StackPanel Margin="0,14,0,0">
+                    <ContentControl Style="{StaticResource FieldRow}" Tag="Name in Intune" Content="{Binding Upload.IntuneDisplayName}"/>
+                    <ContentControl Style="{StaticResource FieldRow}" Tag="Type" Content="{Binding Upload.ReviewPackageType}"/>
+                    <ContentControl Style="{StaticResource FieldRow}" Tag="Source size" Content="{Binding Upload.ReviewSize}"/>
+                    <ContentControl Style="{StaticResource FieldRow}" Tag="Author" Content="{Binding Upload.ReviewAuthor}"/>
+                </StackPanel>
+
+                <Border Style="{StaticResource SectionRule}"/>
+
+                <!-- Command lines: exactly what Intune runs. -->
+                <TextBlock Text="Command lines" Style="{StaticResource H2}" Margin="0,0,0,12"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="110"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="8"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <TextBlock Text="Install" FontSize="13" Foreground="{DynamicResource Muted2Brush}" VerticalAlignment="Center"/>
+                    <TextBox Grid.Column="1" Style="{StaticResource MonoField}" IsReadOnly="True" FontSize="12.5" AutomationProperties.Name="Install command line"
+                             Text="{Binding Upload.InstallCommandPreview, Mode=OneWay}"/>
+                    <Button Grid.Column="2" Style="{StaticResource CopyButton}" AutomationProperties.Name="Copy install command"
+                            Tag="{Binding Upload.InstallCommandPreview}" Click="Copy_Click">
+                        <controls:LineIcon Data="{DynamicResource IconCopy}" Width="15" Height="15"/>
+                    </Button>
+                    <TextBlock Grid.Row="2" Text="Uninstall" FontSize="13" Foreground="{DynamicResource Muted2Brush}" VerticalAlignment="Center"/>
+                    <TextBox Grid.Row="2" Grid.Column="1" Style="{StaticResource MonoField}" IsReadOnly="True" FontSize="12.5" AutomationProperties.Name="Uninstall command line"
+                             Text="{Binding Upload.UninstallCommandPreview, Mode=OneWay}"/>
+                    <Button Grid.Row="2" Grid.Column="2" Style="{StaticResource CopyButton}" AutomationProperties.Name="Copy uninstall command"
+                            Tag="{Binding Upload.UninstallCommandPreview}" Click="Copy_Click">
+                        <controls:LineIcon Data="{DynamicResource IconCopy}" Width="15" Height="15"/>
+                    </Button>
+                </Grid>
+                <StackPanel Margin="0,12,0,0">
+                    <ContentControl Style="{StaticResource FieldRow}" Tag="Deploy mode" Content="{Binding Upload.SelectedDeployMode}"/>
+                    <ContentControl Style="{StaticResource FieldRow}" Tag="Restart behavior" Content="{Binding Upload.RestartBehaviorText}"/>
+                    <ContentControl Style="{StaticResource FieldRow}" Tag="Maximum install time" Content="{Binding Upload.MaxRunTimeText}"/>
+                </StackPanel>
+                <TextBlock Text="Intune installs without user input. Package files and script syntax are checked before signing and building."
+                           Style="{StaticResource SubText}" FontSize="12.5" TextWrapping="Wrap" Margin="0,6,0,0"/>
+
+                <Border Style="{StaticResource SectionRule}"/>
+
+                <!-- Detection -->
+                <TextBlock Text="Detection" Style="{StaticResource H2}" Margin="0,0,0,12"/>
+                <ContentControl Style="{StaticResource FieldRow}" Tag="Type" Content="{Binding Upload.DetectionMethodLabel}"/>
+                <ContentControl Style="{StaticResource FieldRow}" Tag="Rule">
+                    <TextBlock Text="{Binding Upload.DetectionSummary}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12.5" TextWrapping="Wrap"/>
+                </ContentControl>
+
+                <Border Style="{StaticResource SectionRule}"/>
+
+                <!-- Requirements -->
+                <TextBlock Text="Requirements" Style="{StaticResource H2}" Margin="0,0,0,12"/>
+                <ContentControl Style="{StaticResource FieldRow}" Tag="Operating system" Content="{Binding Upload.SelectedOperatingSystem}"/>
+                <ContentControl Style="{StaticResource FieldRow}" Tag="Architecture" Content="{Binding Upload.ReviewArchitecture}"/>
+                <ContentControl Style="{StaticResource FieldRow}" Tag="Install context" Content="{Binding Upload.ReviewContext}"/>
+                <ContentControl Style="{StaticResource FieldRow}" Tag="Hardware" Content="{Binding Upload.RequirementsSummary}"/>
+
+                <Border Style="{StaticResource SectionRule}"/>
+
+                <!-- Assignment -->
+                <TextBlock Text="Assignment" Style="{StaticResource H2}" Margin="0,0,0,12"/>
+                <ItemsControl ItemsSource="{Binding Upload.GroupPicker.SelectedGroups}" Focusable="False">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Grid Margin="0,0,0,8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding GroupName}" FontSize="13" Foreground="{DynamicResource TextBrush}" TextWrapping="Wrap"/>
+                                <ContentPresenter Grid.Column="1" Content="{Binding}" ContentTemplate="{StaticResource StatusBadgeTemplate}" Margin="12,0,0,0"/>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="No existing groups selected." Style="{StaticResource SubText}" TextWrapping="Wrap"
+                           Visibility="{Binding Upload.GroupPicker.HasGroups, Converter={StaticResource InverseBoolToVis}}"/>
+                <TextBlock Text="{Binding Upload.PerPackageGroupsSummary}" Style="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,8,0,0"/>
+
+                <!-- Supersedence (upgrades only) -->
+                <StackPanel Visibility="{Binding Upload.HasSupersedence, Converter={StaticResource BoolToVis}}">
+                    <Border Style="{StaticResource SectionRule}"/>
+                    <TextBlock Text="Supersedence" Style="{StaticResource H2}" Margin="0,0,0,12"/>
+                    <TextBlock Text="{Binding Upload.SupersedenceSummary}" Style="{StaticResource SubText}" TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <Border Style="{StaticResource SectionRule}"/>
+
+                <!-- Return codes -->
+                <Expander Header="Return codes" Focusable="True">
+                    <ItemsControl ItemsSource="{Binding Upload.ReturnCodes}" Margin="0,10,0,0" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <ContentControl Style="{StaticResource FieldRow}" Tag="{Binding Code}" Content="{Binding Type}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Expander>
+
+                <!-- Why the last publish attempt stopped, if it did. -->
+                <Border Style="{StaticResource CalloutWarn}" Margin="0,18,0,0"
+                        Visibility="{Binding Upload.StatusText, Converter={StaticResource NonEmptyToVis}}">
+                    <TextBlock Text="{Binding Upload.StatusText}" TextWrapping="Wrap" FontSize="13" AutomationProperties.LiveSetting="Polite"/>
                 </Border>
-                <StackPanel Grid.Column="2">
-                    <Border Style="{StaticResource Card}">
-                        <StackPanel>
-                            <DockPanel Margin="0,0,0,14">
-                                <Button DockPanel.Dock="Right" Style="{StaticResource Breadcrumb}" Content="Configure" Command="{Binding GoToStepCommand}" CommandParameter="1"/>
-                                <TextBlock Text="Detection &amp; audience" Style="{StaticResource H2}"/>
-                            </DockPanel>
-                            <TextBlock Text="{Binding Upload.DetectionSummary}" Style="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,0,0,16"/>
-                            <ItemsControl ItemsSource="{Binding Upload.GroupPicker.SelectedGroups}">
-                                <ItemsControl.ItemTemplate><DataTemplate>
-                                    <TextBlock Text="{Binding ChipText}" Style="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,0,0,8"/>
-                                </DataTemplate></ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <TextBlock Text="No existing groups selected." Style="{StaticResource SubText}" TextWrapping="Wrap"
-                                Visibility="{Binding Upload.GroupPicker.HasGroups, Converter={StaticResource InverseBoolToVis}}"/>
-                            <TextBlock Text="{Binding Upload.PerPackageGroupsSummary}" Style="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,10,0,0"/>
-                        </StackPanel>
-                    </Border>
-                    <Border Style="{StaticResource Card}" Margin="0,20,0,0">
-                        <StackPanel>
-                            <TextBlock Text="Verify before rollout" Style="{StaticResource H2}"/>
-                            <TextBlock Text="Test install and uninstall on a representative device. Check the detection rule against the installed application." Style="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,8,0,14"/>
-                            <Button Style="{StaticResource GhostButton}" Content="Open remote test" Command="{Binding OpenTestToolCommand}" HorizontalAlignment="Left"/>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-            </Grid>
-            <Border Style="{StaticResource Card}" Margin="0,20,0,0">
-                <StackPanel>
-                    <TextBlock Text="Installation behavior" Style="{StaticResource H2}" Margin="0,0,0,14"/>
-                    <ContentControl Style="{StaticResource DlRow}" Tag="Deploy mode" Content="{Binding Upload.SelectedDeployMode}"/>
-                    <ContentControl Style="{StaticResource DlRowMono}" Tag="Install" Content="{Binding Upload.InstallCommandPreview}"/>
-                    <ContentControl Style="{StaticResource DlRowMono}" Tag="Uninstall" Content="{Binding Upload.UninstallCommandPreview}"/>
-                    <ContentControl Style="{StaticResource DlRow}" Tag="Minimum OS" Content="{Binding Upload.SelectedOperatingSystem}"/>
-                    <TextBlock Text="Intune deployment must complete without user input. Package files and script syntax are checked before signing and building." Style="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,14,0,0"/>
-                    <Expander Header="Requirements &amp; return codes" Margin="0,16,0,0">
-                        <StackPanel Margin="0,12,0,0">
-                            <TextBlock Text="{Binding Upload.RequirementsSummary}" Style="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,0,0,10"/>
-                            <ItemsControl ItemsSource="{Binding Upload.ReturnCodes}">
-                                <ItemsControl.ItemTemplate><DataTemplate>
-                                    <ContentControl Style="{StaticResource DlRow}" Tag="{Binding Code}" Content="{Binding Type}"/>
-                                </DataTemplate></ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </StackPanel>
-                    </Expander>
-                </StackPanel>
-            </Border>
-            <TextBlock Text="{Binding Upload.StatusText}" Foreground="{DynamicResource WarnBrush}" FontSize="13" TextWrapping="Wrap" Margin="0,18,0,0" AutomationProperties.LiveSetting="Polite"/>
-        </StackPanel>
+            </StackPanel>
+        </Border>
+
         <controls:PublishStatusControl DataContext="{Binding Upload.Publish}" Visibility="{Binding IsPublishing, Converter={StaticResource BoolToVis}}"/>
     </StackPanel>
 </UserControl>

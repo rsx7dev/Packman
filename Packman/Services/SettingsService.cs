@@ -94,5 +94,9 @@ public class SettingsService
     {
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
         TextFileIO.Write(_path, JsonSerializer.Serialize(Settings, WriteOptions), new System.Text.UTF8Encoding(false));
+        Saved?.Invoke();
     }
+
+    /// <summary>Raised after a successful save, so pages summarising settings can refresh.</summary>
+    public event Action? Saved;
 }

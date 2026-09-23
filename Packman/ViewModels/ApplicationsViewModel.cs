@@ -10,8 +10,8 @@ namespace Packman.ViewModels;
 /// </summary>
 public sealed class ApplicationsViewModel : ObservableObject
 {
-    private const string AllCategories = "All Categories";
-    private const string AllManufacturers = "All Manufacturers";
+    private const string AllCategories = "Category: All";
+    private const string AllManufacturers = "Publisher: All";
     private const int PageSize = 50;
 
     private static readonly (string Label, int Days)[] UpdatedWindowChoices =
@@ -41,6 +41,7 @@ public sealed class ApplicationsViewModel : ObservableObject
     public RelayCommand ConnectCommand { get; }
     public RelayCommand SortByNameCommand { get; }
     public RelayCommand SortByUpdatedCommand { get; }
+    public RelayCommand ViewInIntuneCommand { get; }
 
     /// <summary>Raised on row activation; the host swaps in the detail screen.</summary>
     public event Action<IntuneApplication>? OpenRequested;
@@ -61,6 +62,12 @@ public sealed class ApplicationsViewModel : ObservableObject
         ConnectCommand = new RelayCommand(() => ConnectRequested?.Invoke());
         SortByNameCommand = new RelayCommand(() => ToggleSort("name"));
         SortByUpdatedCommand = new RelayCommand(() => ToggleSort("updated"));
+        ViewInIntuneCommand = new RelayCommand(() =>
+        {
+            if (SelectedApp == null) return;
+            try { ApplicationDetailViewModel.OpenInIntune(SelectedApp.Id); }
+            catch (Exception ex) { ErrorReporter.Report(ex); }
+        });
 
         // Sign-out or a different tenant: the cached list belongs to the old session.
         _auth.StateChanged += () =>
@@ -108,8 +115,32 @@ public sealed class ApplicationsViewModel : ObservableObject
     private string _sortColumn = "updated";
     private bool _sortDesc = true;
 
-    public string NameHeader => _sortColumn == "name" ? (_sortDesc ? "APPLICATION ↓" : "APPLICATION ↑") : "APPLICATION";
-    public string UpdatedHeader => _sortColumn == "updated" ? (_sortDesc ? "UPDATED ↓" : "UPDATED ↑") : "UPDATED";
+    public string NameHeader => _sortColumn == "name" ? (_sortDesc ? "Application ↓" : "Application ↑") : "Application";
+    public string UpdatedHeader => _sortColumn == "updated" ? (_sortDesc ? "Updated ↓" : "Updated ↑") : "Updated";
+
+    // ── Selection: one click selects (rail shows it), double click or Enter opens ──
+    private IntuneApplication? _selectedApp;
+    public IntuneApplication? SelectedApp
+    {
+        get => _selectedApp;
+        set => Set(ref _selectedApp, value, [nameof(SelectedMeta), nameof(SelectedStateText), nameof(SelectedCategoryText)]);
+    }
+
+    public string SelectedMeta => SelectedApp == null ? "" : $"{SelectedApp.Version} · Win32";
+
+    public string SelectedStateText => SelectedApp switch
+    {
+        null => "",
+        { PublishingState: "" } => "Unknown",
+        { ShowStateWarning: true } a => a.StateWarningText,
+        _ => "Published",
+    };
+
+    public string SelectedCategoryText => string.IsNullOrWhiteSpace(SelectedApp?.Category) ? "None" : SelectedApp.Category;
+
+    private DateTime? _lastRefreshed;
+    /// <summary>When the list last finished loading from Intune; shown in the footer.</summary>
+    public string LastRefreshedText => _lastRefreshed is { } t ? $"Last refreshed at {t:t}" : "";
 
     private void ToggleSort(string column)
     {
@@ -201,6 +232,8 @@ public sealed class ApplicationsViewModel : ObservableObject
             _all.Clear();
             _all.AddRange(apps);
             _loadedOnce = true;
+            _lastRefreshed = DateTime.Now;
+            OnPropertyChanged(nameof(LastRefreshedText));
             _currentPage = 1;
             RebuildCategories();
             RebuildManufacturers();
@@ -244,8 +277,11 @@ public sealed class ApplicationsViewModel : ObservableObject
         var skip = (_currentPage - 1) * PageSize;
         var paged = filtered.Skip(skip).Take(PageSize).ToList();
 
+        // Clearing the page makes the list drop its selection; keep it when the app is still shown.
+        var selectedId = _selectedApp?.Id;
         Page.Clear();
         foreach (var a in paged) Page.Add(a);
+        SelectedApp = paged.FirstOrDefault(a => a.Id == selectedId);
 
         PageDisplay = $"Page {_currentPage} of {MaxPage}";
         RangeText = _totalCount > 0 ? $"Showing {skip + 1}–{skip + paged.Count} of {_totalCount}" : "No applications";

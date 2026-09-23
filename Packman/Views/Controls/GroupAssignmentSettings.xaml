@@ -2,10 +2,7 @@
     <Border Background="Transparent" BorderThickness="0" Padding="0">
         <StackPanel>
             <!-- Card header -->
-            <StackPanel Margin="0,0,0,14">
-                <controls:SectionHeader Title="Group assignment"/>
-                <TextBlock Text="Assign uploaded packages to Entra ID groups automatically" Style="{StaticResource SubText}" Margin="0,8,0,0" TextWrapping="Wrap"/>
-            </StackPanel>
+            <controls:SectionHeader Title="Group assignment" Caption="Assign uploaded packages to Entra ID groups automatically." Margin="0,0,0,20"/>
             <!-- ── Per-package group ──────────────────────────── -->
             <Grid Margin="0,0,0,14">
                 <Grid.ColumnDefinitions>

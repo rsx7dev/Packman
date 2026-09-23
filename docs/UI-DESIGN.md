@@ -1,17 +1,25 @@
 # Packman desktop UI
 
-The UI centers on the working sequence: select an installer, prepare its PSADT package, test it, configure Intune, review and publish. It retains the Windows Fluent shell and amber accent. All existing navigation destinations remain available, including standalone publishing, remote testing and directory tools.
+The UI centers on the working sequence: select an installer, prepare its PSADT package, test it, configure Intune, review and publish. It keeps the Windows Fluent shell and amber accent. All navigation destinations remain: Create, Upload, Remote test, Applications, Advanced and Settings.
 
-## Design changes
+## Layout (three columns)
 
-- Package: source selection precedes the fields it can populate. An adjacent summary reflects edits; generated packages retain script, test and folder actions. Installer fields lock while generating and after generation, so a changed form cannot misrepresent an already-built package; Start a new package resets them. Upgrade remains a separate mode that preserves prior script edits.
-- Configure: detection and assignment sections use the full content width. Requirements and return codes are expandable. The middle step explicitly makes no changes in Intune.
-- Review: shows tenant, package, command lines, detection, audience, per-package group creation, requirements and return codes, with direct routes to edit or test. Publish errors remain visible.
-- Applications: search is separate from filters, names have a bounded width for ellipsis, and rows have more vertical space.
-- Application Detail: keeps overview, package integrity, detection editing, deployments, assignments and membership tools. “Republish content” accurately describes replacement of content for the same app. “Delete from Intune” makes deletion distinct from uninstalling on devices.
-- Remote Test: preserves install, uninstall, detection discovery, context, staging cleanup and live output. The editable computer picker now has the WPF `PART_EditableTextBox` required by its template. Context radio groups are scoped to each control instance.
-- Settings: six implemented sections, with a full-width setup hint and persistent save feedback. Sections inherit the existing view model; appearance still saves immediately. Planned features no longer occupy navigation space.
-- Editor: preserves Monaco, dirty tabs, save/reload/revert and external editor support, with more readable tab labels and keyboard focus.
+Every page is a `PageFrame` (`Views/Controls/PageFrame.cs`, template in `Themes/Styles.xaml`): a header panel (breadcrumb, optional leading tile, title, subtitle, actions, and a strip for the stepper or tabs), the body, an optional footer panel (Back, what the primary action does or doesn't do, primary action) and an optional inspector rail on the right. Panels sit on the Mica backdrop with 12px gaps. When the frame is narrower than 1080px (small or scaled screens, for example 1366×768 at 125%) the rail leaves its column and opens over the body from a "Details" button in the header.
+
+The title bar carries the connection pill: Connected with the tenant, or Not connected with a Sign in link that opens Settings on Authentication. The old status bar is gone.
+
+## Pages
+
+- Create: numbered stepper (Package, Configure, Review & publish). Package reads metadata from the dropped installer; the rail shows what the form doesn't: installer type, product code, the resolved package folder, and readiness (installer, output share, template, Intune connection), with a warning for EXE installers that need real silent switches. After generating, the page offers Edit script, Remote test and Open folder before Configure. Configure shows the real command lines (Settings > Intune defaults, plus the chosen deploy mode), detection, requirements (unfolded), return codes, assignments and, for upgrades, supersedence. Review lists everything that will be sent, with copy buttons and links back; Publish to Intune stays disabled with a sign-in callout until a tenant is available (app registration connects on its own).
+- Upload: the same sections and labels as Configure, including requirements and return codes, over a package picked from the share, with a publish readiness rail. It keeps its own multi-rule detection editor.
+- Remote test: package folder, computer, context, deploy mode, actions and live output; the Test session rail is shared with the wizard's test tool.
+- Edit script: one toolbar with the only Save (Ctrl+S still works), a compact file navigator and the Monaco editor. No rail, so the editor keeps the width.
+- Applications: Application, Publisher, Version and Updated columns; selecting a row fills the rail, double click opens it.
+- Application detail: tile, name and meta in the header with Republish content and Edit script; Overview / Package / Deployment tabs; deployment status and Intune publishing in the rail. Delete from Intune lives in a danger zone at the end of Overview. Signed out, every write action is disabled and the rail shows when the figures were last synced. Detection and assignment sections say that changes are written to Intune immediately.
+- Settings: six section tabs, a configuration status rail, persistent save feedback in the footer. The connection test also checks write permission from the token's scopes or roles (DeviceManagementApps.ReadWrite.All, and group creation when per-package groups are on).
+- Advanced: bulk add, device membership and apps-for-group tools with a directory action rail.
+
+Inline actions use the accent (`LinkButton`), never blue. Colours come from theme tokens only; both themes are supported.
 
 ## Shared components
 

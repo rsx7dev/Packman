@@ -5,355 +5,410 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:local="clr-namespace:Packman"
+             xmlns:services="clr-namespace:Packman.Services"
              xmlns:vm="clr-namespace:Packman.ViewModels"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:AdvancedViewModel}"
              FontFamily="{StaticResource UIFontFamily}">
 
+    <UserControl.Resources>
+        <!-- Search box with a magnifier drawn over its left padding. -->
+        <Style x:Key="SearchField" TargetType="{x:Type TextBox}" BasedOn="{StaticResource TextField}">
+            <Setter Property="Padding" Value="36,0,11,0"/>
+        </Style>
+        <Style x:Key="SearchGlyph" TargetType="{x:Type controls:LineIcon}" BasedOn="{StaticResource {x:Type controls:LineIcon}}">
+            <Setter Property="Data" Value="{DynamicResource IconSearch}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Muted2Brush}"/>
+            <Setter Property="HorizontalAlignment" Value="Left"/>
+            <Setter Property="Margin" Value="12,0,0,0"/>
+            <Setter Property="IsHitTestVisible" Value="False"/>
+        </Style>
+        <!-- Results dropdown under a search box. -->
+        <Style x:Key="ResultsBox" TargetType="{x:Type Border}">
+            <Setter Property="Background" Value="{DynamicResource FlyoutBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Margin" Value="0,6,0,0"/>
+            <Setter Property="Padding" Value="0,4"/>
+            <Setter Property="MaxHeight" Value="200"/>
+        </Style>
+        <!-- Bordered list or table inside a section. -->
+        <Style x:Key="TableBox" TargetType="{x:Type Border}">
+            <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Margin" Value="0,12,0,0"/>
+        </Style>
+    </UserControl.Resources>
 
-    <Grid Margin="26,20,26,26">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+    <controls:PageFrame Title="Advanced" Subtitle="Bulk and reverse-lookup actions the Intune portal doesn't offer">
 
-        <!-- Header -->
-        <StackPanel Grid.Row="0">
-            <TextBlock Text="Advanced" Style="{StaticResource H1}"/>
-            <TextBlock Text="Bulk and reverse-lookup actions the Intune portal doesn't offer" Style="{StaticResource SubText}" Margin="0,5,0,0"/>
-        </StackPanel>
-
-        <!-- Tab strip -->
-        <Border Grid.Row="1" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1" Margin="0,18,0,0">
-            <StackPanel Orientation="Horizontal">
+        <!-- ══ Tabs ═════════════════════════════════════════════════════ -->
+        <controls:PageFrame.HeaderBottom>
+            <WrapPanel>
                 <RadioButton x:Name="TabBulkAdd" Style="{StaticResource PageTab}" IsChecked="True">
                     <StackPanel Orientation="Horizontal">
-                        <Viewbox Width="14" Height="14" Margin="0,0,8,0">
-                            <Path Data="{StaticResource IconGroup}" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type RadioButton}}}" StrokeThickness="1.8" Style="{StaticResource Icon}"/>
-                        </Viewbox>
+                        <controls:LineIcon Data="{DynamicResource IconGroup}" Width="15" Height="15" Margin="0,0,8,0"/>
                         <TextBlock Text="Bulk add PCs to group" VerticalAlignment="Center"/>
                     </StackPanel>
                 </RadioButton>
                 <RadioButton x:Name="TabPcGroups" Style="{StaticResource PageTab}">
                     <StackPanel Orientation="Horizontal">
-                        <Viewbox Width="14" Height="14" Margin="0,0,8,0">
-                            <Path Data="{StaticResource IconLaptop}" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type RadioButton}}}" StrokeThickness="1.8" Style="{StaticResource Icon}"/>
-                        </Viewbox>
+                        <controls:LineIcon Data="{DynamicResource IconLaptop}" Width="15" Height="15" Margin="0,0,8,0"/>
                         <TextBlock Text="PC group membership" VerticalAlignment="Center"/>
                     </StackPanel>
                 </RadioButton>
                 <RadioButton x:Name="TabGroupApps" Style="{StaticResource PageTab}">
                     <StackPanel Orientation="Horizontal">
-                        <Viewbox Width="14" Height="14" Margin="0,0,8,0">
-                            <Path Data="{StaticResource IconApp}" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type RadioButton}}}" StrokeThickness="1.8" Style="{StaticResource Icon}"/>
-                        </Viewbox>
+                        <controls:LineIcon Data="{DynamicResource IconApp}" Width="15" Height="15" Margin="0,0,8,0"/>
                         <TextBlock Text="Apps assigned to group" VerticalAlignment="Center"/>
                     </StackPanel>
                 </RadioButton>
-            </StackPanel>
-        </Border>
+            </WrapPanel>
+        </controls:PageFrame.HeaderBottom>
 
-        <ScrollViewer Grid.Row="2" Margin="0,16,0,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <!-- ══ Rail: directory action ═══════════════════════════════════
+             The rail is not in the page's logical tree, so it reaches the tabs with x:Reference. -->
+        <controls:PageFrame.Rail>
             <StackPanel>
+                <TextBlock Text="Directory action" Style="{StaticResource RailTitle}" Margin="0,0,0,16"/>
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Border Width="56" Height="56" CornerRadius="6" Background="{DynamicResource PrimaryFaintBrush}"
+                            BorderBrush="{DynamicResource PrimaryLineBrush}" BorderThickness="1">
+                        <controls:LineIcon Data="{DynamicResource IconGroup}" Width="26" Height="26" HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource AccentTextBrush}"/>
+                    </Border>
+                    <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding TenantLabel}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <TextBlock Text="Microsoft Entra ID" FontSize="13" Foreground="{DynamicResource Muted2Brush}" Margin="0,2,0,0"/>
+                    </StackPanel>
+                </Grid>
 
-                <!-- Not connected -->
-                <Border Style="{StaticResource Card}" Padding="30,44" Visibility="{Binding ShowConnectPrompt, Converter={StaticResource BoolToVis}}">
+                <ContentControl Style="{StaticResource KvRow}" Tag="Tenant" Content="{Binding TenantLabel}"/>
+                <controls:StatusRow Label="Connection"
+                                    Value="{Binding IsSignedIn, Converter={StaticResource BoolToText}, ConverterParameter='Connected|Not connected'}"
+                                    Kind="{Binding IsSignedIn, Converter={StaticResource BoolToText}, ConverterParameter='ok|pending'}"/>
+
+                <StackPanel Visibility="{Binding IsChecked, Source={x:Reference TabBulkAdd}, Converter={StaticResource BoolToVis}}">
+                    <ContentControl Style="{StaticResource KvRow}" Tag="Target group" Content="{Binding BulkTargetGroupText}"/>
+                    <ContentControl Style="{StaticResource KvRow}" Tag="Input" Content="{Binding BulkInputText}"/>
+                    <Border Style="{StaticResource CalloutNeutral}" Margin="0,18,0,0">
+                        <DockPanel>
+                            <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconInfo}" Foreground="{DynamicResource Muted2Brush}"
+                                               VerticalAlignment="Top" Margin="0,1,10,0"/>
+                            <TextBlock Text="Only direct group membership is changed." FontSize="13" TextWrapping="Wrap"/>
+                        </DockPanel>
+                    </Border>
+                </StackPanel>
+                <StackPanel Visibility="{Binding IsChecked, Source={x:Reference TabPcGroups}, Converter={StaticResource BoolToVis}}">
+                    <ContentControl Style="{StaticResource KvRow}" Tag="Device" Content="{Binding SelectedDeviceText}"/>
+                </StackPanel>
+                <StackPanel Visibility="{Binding IsChecked, Source={x:Reference TabGroupApps}, Converter={StaticResource BoolToVis}}">
+                    <ContentControl Style="{StaticResource KvRow}" Tag="Group" Content="{Binding SelectedAppGroupText}"/>
+                </StackPanel>
+            </StackPanel>
+        </controls:PageFrame.Rail>
+
+        <!-- ══ Body ═════════════════════════════════════════════════════ -->
+        <StackPanel>
+
+            <!-- Not connected -->
+            <Border Style="{StaticResource SectionPanel}" Padding="30,44" Visibility="{Binding ShowConnectPrompt, Converter={StaticResource BoolToVis}}">
+                <StackPanel>
+                    <Border Width="52" Height="52" CornerRadius="6" Background="{DynamicResource PrimaryFaintBrush}"
+                            BorderBrush="{DynamicResource PrimaryLineBrush}" BorderThickness="1" HorizontalAlignment="Center">
+                        <controls:LineIcon Data="{DynamicResource IconShield}" Width="24" Height="24" HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource AccentTextBrush}"/>
+                    </Border>
+                    <TextBlock Text="Not connected to Microsoft Intune" Style="{StaticResource H3}" HorizontalAlignment="Center" Margin="0,16,0,0"/>
+                    <TextBlock Text="Sign in on the Settings page to use the directory actions."
+                               Style="{StaticResource SubText}" Margin="0,6,0,0"
+                               HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="420" TextAlignment="Center"/>
+                    <Button Style="{StaticResource PrimaryButton}" Content="Sign in" MinWidth="120"
+                            Command="{x:Static services:AppNavigation.OpenSettings}"
+                            HorizontalAlignment="Center" Margin="0,16,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <StackPanel Visibility="{Binding IsSignedIn, Converter={StaticResource BoolToVis}}">
+
+                <!-- ══ 1. Bulk add PCs to a group ══════════════════════ -->
+                <Border Style="{StaticResource SectionPanel}"
+                        Visibility="{Binding IsChecked, ElementName=TabBulkAdd, Converter={StaticResource BoolToVis}}">
                     <StackPanel>
-                        <Border Width="52" Height="52" CornerRadius="4" Background="{DynamicResource PrimaryDimBrush}" HorizontalAlignment="Center">
-                            <Viewbox Width="24" Height="24">
-                                <Path Data="{StaticResource IconShield}" Stroke="{DynamicResource AccentTextBrush}" StrokeThickness="1.8" Style="{StaticResource Icon}"/>
-                            </Viewbox>
-                        </Border>
-                        <TextBlock Text="Not connected to Microsoft Intune" Foreground="{DynamicResource InkBrush}" FontSize="14" FontWeight="SemiBold"
-                                   HorizontalAlignment="Center" Margin="0,16,0,0"/>
-                        <TextBlock Text="Connect to your tenant on the Settings page to use the advanced directory actions."
-                                   Foreground="{DynamicResource MutedBrush}" FontSize="12.5" Margin="0,6,0,0"
-                                   HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="420" TextAlignment="Center"/>
-                        <Button Style="{StaticResource PrimaryButton}" Command="{Binding ConnectCommand}"
-                                HorizontalAlignment="Center" Margin="0,16,0,0">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="Go to Settings to connect" VerticalAlignment="Center"/>
-                                <Viewbox Width="14" Height="14" Margin="8,0,0,0">
-                                    <Path Data="{StaticResource IconChevR}" Stroke="{DynamicResource PrimaryFgBrush}" StrokeThickness="2.2" Style="{StaticResource Icon}"/>
-                                </Viewbox>
+                        <controls:SectionHeader Title="Bulk add devices to a group"
+                                                Caption="Paste a list of PC names, one per line or separated by commas, and add them all at once."
+                                                Margin="0,0,0,18"/>
+
+                        <TextBlock Text="Target group" Style="{StaticResource FieldLabel}"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid>
+                                <TextBox AutomationProperties.Name="Target group" Style="{StaticResource SearchField}"
+                                         local:PlaceholderText.Text="Search Entra groups…"
+                                         Text="{Binding BulkGroupSearch, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                <controls:LineIcon Style="{StaticResource SearchGlyph}"/>
+                            </Grid>
+                            <!-- Confirms the typed name resolved to a real group before anything is added -->
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center"
+                                        Visibility="{Binding IsBulkGroupConfirmed, Converter={StaticResource BoolToVis}}">
+                                <controls:LineIcon Data="{DynamicResource IconCheck}" Foreground="{DynamicResource OkBrush}" StrokeThickness="2.2"/>
+                                <TextBlock Text="Group found" Margin="7,0,0,0" VerticalAlignment="Center" FontSize="13" Foreground="{DynamicResource OkBrush}"/>
                             </StackPanel>
-                        </Button>
+                        </Grid>
+                        <Border Style="{StaticResource ResultsBox}" MaxHeight="180"
+                                Visibility="{Binding HasBulkGroupResults, Converter={StaticResource BoolToVis}}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding BulkGroupResults}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Style="{StaticResource PickerRow}" Click="BulkGroupResult_Click">
+                                                <TextBlock Text="{Binding DisplayName}" FontSize="13" Foreground="{DynamicResource InkBrush}" Margin="12,8" TextTrimming="CharacterEllipsis"/>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Border>
+                        <TextBlock Text="{Binding BulkGroupCheck}" Style="{StaticResource SubText}" Margin="0,8,0,0" TextWrapping="Wrap"
+                                   Visibility="{Binding HasBulkGroupCheck, Converter={StaticResource BoolToVis}}"/>
+
+                        <TextBlock Text="PC names" Style="{StaticResource FieldLabel}" Margin="0,18,0,7"/>
+                        <!-- Plain TextBox in a bordered box: the TextField style is single-line (hidden scrollbars, centred content) -->
+                        <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource ControlStrokeBrush}" BorderThickness="1" CornerRadius="4">
+                            <TextBox AutomationProperties.Name="PC names" Height="150" AcceptsReturn="True" TextWrapping="Wrap" Padding="12,10"
+                                     Background="Transparent" BorderThickness="0"
+                                     Foreground="{DynamicResource InkBrush}" CaretBrush="{DynamicResource InkBrush}"
+                                     SelectionBrush="{DynamicResource PrimaryDimBrush}"
+                                     VerticalScrollBarVisibility="Auto"
+                                     FontFamily="{StaticResource MonoFontFamily}" FontSize="13"
+                                     Text="{Binding PcNames, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        </Border>
+                        <Grid Margin="0,7,0,0">
+                            <TextBlock Text="{Binding PcNameCountText}" Style="{StaticResource SubText}" HorizontalAlignment="Left"/>
+                            <TextBlock Text="One name per line, or separated by commas, semicolons or spaces."
+                                       Style="{StaticResource SubText}" FontSize="12" HorizontalAlignment="Right"/>
+                        </Grid>
+
+                        <Button Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" MinWidth="160" Margin="0,16,0,0"
+                                Content="Add to group" Command="{Binding BulkAddCommand}"/>
+
+                        <!-- Per-PC results -->
+                        <StackPanel Visibility="{Binding HasBulkRows, Converter={StaticResource BoolToVis}}">
+                            <Border Style="{StaticResource SectionRule}"/>
+                            <TextBlock Text="Results" Style="{StaticResource H2}"/>
+                            <Border Style="{StaticResource TableBox}">
+                                <StackPanel>
+                                    <Border Background="{DynamicResource Card2Brush}" CornerRadius="6,6,0,0" Padding="14,10"
+                                            BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="180"/>
+                                                <ColumnDefinition Width="170"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="PC name" Style="{StaticResource ColHead}"/>
+                                            <TextBlock Grid.Column="1" Text="Status" Style="{StaticResource ColHead}"/>
+                                            <TextBlock Grid.Column="2" Text="Detail" Style="{StaticResource ColHead}"/>
+                                        </Grid>
+                                    </Border>
+                                    <ScrollViewer MaxHeight="320" VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding BulkRows}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border BorderBrush="{DynamicResource Line2Brush}" BorderThickness="0,0,0,1" Padding="14,10">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="180"/>
+                                                                <ColumnDefinition Width="170"/>
+                                                                <ColumnDefinition Width="*"/>
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Text="{Binding PcName}" VerticalAlignment="Center" Margin="0,0,14,0"
+                                                                       FontFamily="{StaticResource MonoFontFamily}" FontSize="13"
+                                                                       Foreground="{DynamicResource InkBrush}" TextTrimming="CharacterEllipsis"/>
+                                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                <controls:LineIcon Margin="0,0,8,0">
+                                                                    <controls:LineIcon.Style>
+                                                                        <Style TargetType="controls:LineIcon" BasedOn="{StaticResource {x:Type controls:LineIcon}}">
+                                                                            <Setter Property="Data" Value="{DynamicResource IconInfo}"/>
+                                                                            <Setter Property="Foreground" Value="{DynamicResource Muted2Brush}"/>
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding Status}" Value="Added">
+                                                                                    <Setter Property="Data" Value="{DynamicResource IconCheck}"/>
+                                                                                    <Setter Property="Foreground" Value="{DynamicResource OkBrush}"/>
+                                                                                </DataTrigger>
+                                                                                <DataTrigger Binding="{Binding Status}" Value="Not found">
+                                                                                    <Setter Property="Data" Value="{DynamicResource IconAlert}"/>
+                                                                                    <Setter Property="Foreground" Value="{DynamicResource WarnBrush}"/>
+                                                                                </DataTrigger>
+                                                                                <DataTrigger Binding="{Binding Status}" Value="Failed">
+                                                                                    <Setter Property="Data" Value="{DynamicResource IconX}"/>
+                                                                                    <Setter Property="Foreground" Value="{DynamicResource BadBrush}"/>
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </controls:LineIcon.Style>
+                                                                </controls:LineIcon>
+                                                                <TextBlock Text="{Binding Status}" FontSize="13" Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center"/>
+                                                            </StackPanel>
+                                                            <TextBlock Grid.Column="2" Text="{Binding Detail}" VerticalAlignment="Center"
+                                                                       FontSize="13" Foreground="{DynamicResource Muted2Brush}" TextTrimming="CharacterEllipsis"
+                                                                       ToolTip="{Binding Detail}"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+
+                        <!-- Progress, then the summary line -->
+                        <TextBlock Text="{Binding BulkStatus}" Style="{StaticResource SubText}" Margin="0,12,0,0" TextWrapping="Wrap"
+                                   AutomationProperties.LiveSetting="Polite"
+                                   Visibility="{Binding HasBulkStatus, Converter={StaticResource BoolToVis}}"/>
                     </StackPanel>
                 </Border>
 
-                <StackPanel Visibility="{Binding IsSignedIn, Converter={StaticResource BoolToVis}}">
+                <!-- ══ 2. PC → groups ══════════════════════════════════ -->
+                <Border Style="{StaticResource SectionPanel}"
+                        Visibility="{Binding IsChecked, ElementName=TabPcGroups, Converter={StaticResource BoolToVis}}">
+                    <StackPanel>
+                        <controls:SectionHeader Title="Device group membership"
+                                                Caption="Type a PC name to see every group it is a direct member of."
+                                                Margin="0,0,0,18"/>
 
-                    <!-- ══ 1. Bulk add PCs to a group ══════════════════════ -->
-                    <Border Style="{StaticResource Card}"
-                            Visibility="{Binding IsChecked, ElementName=TabBulkAdd, Converter={StaticResource BoolToVis}}">
-                        <StackPanel>
-<StackPanel Margin="0,0,0,14">
-    <controls:SectionHeader Title="Bulk add devices to a group"/>
-    <TextBlock Text="Paste a list of PC names — one per line, or separated by commas — and add them all at once." Style="{StaticResource SubText}" Margin="0,8,0,0" TextWrapping="Wrap"/>
-</StackPanel>
+                        <TextBlock Text="Device" Style="{StaticResource FieldLabel}"/>
+                        <Grid>
+                            <TextBox AutomationProperties.Name="Search PC names" Style="{StaticResource SearchField}"
+                                     local:PlaceholderText.Text="Search PC names…"
+                                     Text="{Binding DeviceSearch, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <controls:LineIcon Style="{StaticResource SearchGlyph}"/>
+                        </Grid>
+                        <Border Style="{StaticResource ResultsBox}"
+                                Visibility="{Binding HasDeviceResults, Converter={StaticResource BoolToVis}}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding DeviceResults}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Button Style="{StaticResource PickerRow}" Click="DeviceResult_Click">
+                                                <StackPanel Margin="12,7">
+                                                    <TextBlock Text="{Binding DisplayName}" FontSize="13" Foreground="{DynamicResource InkBrush}" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{DynamicResource Muted2Brush}" TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Border>
 
-                            <TextBlock Text="Target group" Style="{StaticResource FieldLabel}" Margin="0,0,0,5"/>
-                            <Grid>
-                                <TextBox AutomationProperties.Name="Target group" Style="{StaticResource TextField}"
-                                         local:PlaceholderText.Text="Search Entra groups…"
-                                         Text="{Binding BulkGroupSearch, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                            </Grid>
-                            <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1"
-                                    CornerRadius="4" Margin="0,8,0,0" MaxHeight="180"
-                                    Visibility="{Binding HasBulkGroupResults, Converter={StaticResource BoolToVis}}">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                    <ItemsControl ItemsSource="{Binding BulkGroupResults}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Button Style="{StaticResource PickerRow}" Click="BulkGroupResult_Click">
-                                                    <TextBlock Text="{Binding DisplayName}" FontSize="12.5" Foreground="{DynamicResource InkBrush}" Margin="12,8" TextTrimming="CharacterEllipsis"/>
-                                                </Button>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-                            </Border>
+                        <TextBlock Text="{Binding DeviceStatus}" Style="{StaticResource SubText}" Margin="0,14,0,0" TextWrapping="Wrap"
+                                   AutomationProperties.LiveSetting="Polite"
+                                   Visibility="{Binding HasDeviceStatus, Converter={StaticResource BoolToVis}}"/>
 
-                            <!-- Confirms the typed name resolved to a real group before anything is added -->
-                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
-                                        Visibility="{Binding HasBulkGroupCheck, Converter={StaticResource BoolToVis}}">
-                                <Viewbox Width="14" Height="14" VerticalAlignment="Center">
-                                    <Path Data="{StaticResource IconCheck}" StrokeThickness="2.6">
-                                        <Path.Style>
-                                            <Style TargetType="Path" BasedOn="{StaticResource Icon}">
-                                                <Setter Property="Stroke" Value="{DynamicResource MutedBrush}"/>
-                                                <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsBulkGroupConfirmed}" Value="True">
-                                                        <Setter Property="Stroke" Value="{DynamicResource OkBrush}"/>
-                                                    </DataTrigger>
-                                                </Style.Triggers>
-                                            </Style>
-                                        </Path.Style>
-                                    </Path>
-                                </Viewbox>
-                                <TextBlock Text="{Binding BulkGroupCheck}" Margin="7,0,0,0" VerticalAlignment="Center" FontSize="12" TextWrapping="Wrap">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsBulkGroupConfirmed}" Value="True">
-                                                    <Setter Property="Foreground" Value="{DynamicResource OkBrush}"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-                            </StackPanel>
-
-                            <TextBlock Text="PC names" Style="{StaticResource FieldLabel}" Margin="0,16,0,5"/>
-                            <!-- Plain TextBox in a card border: the TextField style is single-line (hidden scrollbars, centred content) -->
-                            <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4">
-                                <TextBox AutomationProperties.Name="PC names" Height="150" AcceptsReturn="True" TextWrapping="Wrap" Padding="12,10"
-                                         Background="Transparent" BorderThickness="0"
-                                         Foreground="{DynamicResource InkBrush}" CaretBrush="{DynamicResource InkBrush}"
-                                         SelectionBrush="{DynamicResource PrimaryDimBrush}"
-                                         VerticalScrollBarVisibility="Auto"
-                                         FontFamily="{StaticResource MonoFontFamily}" FontSize="12.5"
-                                         Text="{Binding PcNames, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                            </Border>
-                            <TextBlock Text="One name per line, or separated by commas, semicolons or spaces."
-                                       FontSize="12" Foreground="{DynamicResource Muted2Brush}" Margin="0,6,0,0"/>
-
-                            <Grid Margin="0,12,0,0">
-                                <TextBlock Text="{Binding PcNameCountText}" VerticalAlignment="Center"
-                                           FontSize="12" Foreground="{DynamicResource MutedBrush}"/>
-                                <Button Style="{StaticResource PrimaryButton}" HorizontalAlignment="Right"
-                                        Content="Add to group" Command="{Binding BulkAddCommand}"/>
-                            </Grid>
-
-                            <TextBlock Text="{Binding BulkStatus}" Margin="0,12,0,0" TextWrapping="Wrap"
-                                       FontSize="12.5" Foreground="{DynamicResource MutedBrush}"
-                                       Visibility="{Binding HasBulkStatus, Converter={StaticResource BoolToVis}}"/>
-
-                            <!-- Per-PC results -->
-                            <Border Background="{DynamicResource Card2Brush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1"
-                                    CornerRadius="4" Margin="0,12,0,0" MaxHeight="320"
-                                    Visibility="{Binding HasBulkRows, Converter={StaticResource BoolToVis}}">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                    <ItemsControl ItemsSource="{Binding BulkRows}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Border BorderBrush="{DynamicResource Line2Brush}" BorderThickness="0,0,0,1">
-                                                    <Grid Margin="14,9">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="Auto" MinWidth="160"/>
-                                                            <ColumnDefinition Width="Auto" MinWidth="130"/>
-                                                            <ColumnDefinition Width="*"/>
-                                                        </Grid.ColumnDefinitions>
-                                                        <TextBlock Grid.Column="0" Text="{Binding PcName}" VerticalAlignment="Center"
-                                                                   FontFamily="{StaticResource MonoFontFamily}" FontSize="12.5"
-                                                                   Foreground="{DynamicResource InkBrush}" TextTrimming="CharacterEllipsis"/>
-                                                        <TextBlock Grid.Column="1" Text="{Binding Status}" VerticalAlignment="Center"
-                                                                   FontSize="12" FontWeight="SemiBold" Margin="12,0">
-                                                            <TextBlock.Style>
-                                                                <Style TargetType="TextBlock">
-                                                                    <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding Status}" Value="Added">
-                                                                            <Setter Property="Foreground" Value="{DynamicResource OkBrush}"/>
-                                                                        </DataTrigger>
-                                                                        <DataTrigger Binding="{Binding Status}" Value="Not found">
-                                                                            <Setter Property="Foreground" Value="{DynamicResource WarnBrush}"/>
-                                                                        </DataTrigger>
-                                                                        <DataTrigger Binding="{Binding Status}" Value="Failed">
-                                                                            <Setter Property="Foreground" Value="{DynamicResource BadBrush}"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </TextBlock.Style>
-                                                        </TextBlock>
-                                                        <TextBlock Grid.Column="2" Text="{Binding Detail}" VerticalAlignment="Center"
-                                                                   FontSize="12" Foreground="{DynamicResource MutedBrush}" TextTrimming="CharacterEllipsis"/>
-                                                    </Grid>
+                        <Border Style="{StaticResource TableBox}"
+                                Visibility="{Binding HasDeviceGroups, Converter={StaticResource BoolToVis}}">
+                            <ItemsControl ItemsSource="{Binding DeviceGroups}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="{DynamicResource Line2Brush}" BorderThickness="0,0,0,1" Padding="14,10">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding DisplayName}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding Description}" FontSize="12" Foreground="{DynamicResource Muted2Brush}" TextTrimming="CharacterEllipsis"
+                                                               Visibility="{Binding Description, Converter={StaticResource NonEmptyToVis}}"/>
+                                                </StackPanel>
+                                                <Border Grid.Column="1" Style="{StaticResource Chip}" Margin="12,0,0,0" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding MembershipType}"/>
                                                 </Border>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-                            </Border>
-                        </StackPanel>
-                    </Border>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+                    </StackPanel>
+                </Border>
 
-                    <!-- ══ 2. PC → groups ══════════════════════════════════ -->
-                    <Border Style="{StaticResource Card}"
-                            Visibility="{Binding IsChecked, ElementName=TabPcGroups, Converter={StaticResource BoolToVis}}">
-                        <StackPanel>
-<StackPanel Margin="0,0,0,14">
-    <controls:SectionHeader Title="Device group membership"/>
-    <TextBlock Text="Type a PC name to see every group it is a direct member of." Style="{StaticResource SubText}" Margin="0,8,0,0" TextWrapping="Wrap"/>
-</StackPanel>
+                <!-- ══ 3. Group → apps ═════════════════════════════════ -->
+                <Border Style="{StaticResource SectionPanel}"
+                        Visibility="{Binding IsChecked, ElementName=TabGroupApps, Converter={StaticResource BoolToVis}}">
+                    <StackPanel>
+                        <controls:SectionHeader Title="Apps assigned to a group"
+                                                Caption="Find the applications assigned to an Entra group. Larger tenants may take longer to search."
+                                                Margin="0,0,0,18"/>
 
-                            <Grid>
-                                <TextBox Style="{StaticResource TextField}"
-                                         local:PlaceholderText.Text="Search PC names…"
-                                         Text="{Binding DeviceSearch, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                            </Grid>
-                            <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1"
-                                    CornerRadius="4" Margin="0,8,0,0" MaxHeight="200"
-                                    Visibility="{Binding HasDeviceResults, Converter={StaticResource BoolToVis}}">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                    <ItemsControl ItemsSource="{Binding DeviceResults}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Button Style="{StaticResource PickerRow}" Click="DeviceResult_Click">
-                                                    <StackPanel Margin="12,7">
-                                                        <TextBlock Text="{Binding DisplayName}" FontSize="12.5" Foreground="{DynamicResource InkBrush}" TextTrimming="CharacterEllipsis"/>
-                                                        <TextBlock Text="{Binding Subtitle}" FontSize="12" Foreground="{DynamicResource MutedBrush}" TextTrimming="CharacterEllipsis"/>
-                                                    </StackPanel>
-                                                </Button>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-                            </Border>
-
-                            <TextBlock Text="{Binding DeviceStatus}" Margin="0,14,0,0" TextWrapping="Wrap"
-                                       FontSize="12.5" Foreground="{DynamicResource MutedBrush}"
-                                       Visibility="{Binding HasDeviceStatus, Converter={StaticResource BoolToVis}}"/>
-
-                            <Border Background="{DynamicResource Card2Brush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1"
-                                    CornerRadius="4" Margin="0,12,0,0"
-                                    Visibility="{Binding HasDeviceGroups, Converter={StaticResource BoolToVis}}">
-                                <ItemsControl ItemsSource="{Binding DeviceGroups}">
+                        <TextBlock Text="Group" Style="{StaticResource FieldLabel}"/>
+                        <Grid>
+                            <TextBox AutomationProperties.Name="Search Entra groups" Style="{StaticResource SearchField}"
+                                     local:PlaceholderText.Text="Search Entra groups…"
+                                     Text="{Binding AppGroupSearch, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                            <controls:LineIcon Style="{StaticResource SearchGlyph}"/>
+                        </Grid>
+                        <Border Style="{StaticResource ResultsBox}" MaxHeight="180"
+                                Visibility="{Binding HasAppGroupResults, Converter={StaticResource BoolToVis}}">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                                <ItemsControl ItemsSource="{Binding AppGroupResults}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border BorderBrush="{DynamicResource Line2Brush}" BorderThickness="0,0,0,1">
-                                                <Grid Margin="14,10">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding DisplayName}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}" TextTrimming="CharacterEllipsis"/>
-                                                        <TextBlock Text="{Binding Description}" FontSize="12" Foreground="{DynamicResource MutedBrush}"
-                                                                   TextTrimming="CharacterEllipsis"/>
-                                                    </StackPanel>
-                                                    <Border Grid.Column="1" CornerRadius="4" Padding="8,2" VerticalAlignment="Center"
-                                                            Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1">
-                                                        <TextBlock Text="{Binding MembershipType}" FontSize="12" FontWeight="SemiBold"
-                                                                   Foreground="{DynamicResource MutedBrush}"/>
-                                                    </Border>
-                                                </Grid>
-                                            </Border>
+                                            <Button Style="{StaticResource PickerRow}" Click="AppGroupResult_Click">
+                                                <TextBlock Text="{Binding DisplayName}" FontSize="13" Foreground="{DynamicResource InkBrush}" Margin="12,8" TextTrimming="CharacterEllipsis"/>
+                                            </Button>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                            </Border>
-                        </StackPanel>
-                    </Border>
+                            </ScrollViewer>
+                        </Border>
 
-                    <!-- ══ 3. Group → apps ═════════════════════════════════ -->
-                    <Border Style="{StaticResource Card}"
-                            Visibility="{Binding IsChecked, ElementName=TabGroupApps, Converter={StaticResource BoolToVis}}">
-                        <StackPanel>
-<StackPanel Margin="0,0,0,14">
-    <controls:SectionHeader Title="Apps assigned to a group"/>
-    <TextBlock Text="Find the applications assigned to an Entra group. Larger tenants may take longer to search." Style="{StaticResource SubText}" Margin="0,8,0,0" TextWrapping="Wrap"/>
-</StackPanel>
+                        <TextBlock Text="{Binding AppScanStatus}" Style="{StaticResource SubText}" Margin="0,14,0,0" TextWrapping="Wrap"
+                                   AutomationProperties.LiveSetting="Polite"
+                                   Visibility="{Binding HasAppScanStatus, Converter={StaticResource BoolToVis}}"/>
 
-                            <Grid>
-                                <TextBox Style="{StaticResource TextField}"
-                                         local:PlaceholderText.Text="Search Entra groups…"
-                                         Text="{Binding AppGroupSearch, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                            </Grid>
-                            <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1"
-                                    CornerRadius="4" Margin="0,8,0,0" MaxHeight="180"
-                                    Visibility="{Binding HasAppGroupResults, Converter={StaticResource BoolToVis}}">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                    <ItemsControl ItemsSource="{Binding AppGroupResults}">
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate>
-                                                <Button Style="{StaticResource PickerRow}" Click="AppGroupResult_Click">
-                                                    <TextBlock Text="{Binding DisplayName}" FontSize="12.5" Foreground="{DynamicResource InkBrush}" Margin="12,8" TextTrimming="CharacterEllipsis"/>
-                                                </Button>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </ScrollViewer>
-                            </Border>
+                        <Border Style="{StaticResource TableBox}"
+                                Visibility="{Binding HasGroupApps, Converter={StaticResource BoolToVis}}">
+                            <ItemsControl ItemsSource="{Binding GroupApps}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border BorderBrush="{DynamicResource Line2Brush}" BorderThickness="0,0,0,1" Padding="14,10">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto" MinWidth="110"/>
+                                                    <ColumnDefinition Width="Auto" MinWidth="110"/>
+                                                </Grid.ColumnDefinitions>
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding DisplayName}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding Publisher}" FontSize="12" Foreground="{DynamicResource Muted2Brush}" TextTrimming="CharacterEllipsis"/>
+                                                </StackPanel>
+                                                <TextBlock Grid.Column="1" Text="{Binding AppType}" VerticalAlignment="Center" Margin="12,0"
+                                                           FontSize="12.5" Foreground="{DynamicResource Muted2Brush}"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding IntentText}" VerticalAlignment="Center"
+                                                           FontSize="12.5" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Border>
+                    </StackPanel>
+                </Border>
 
-                            <TextBlock Text="{Binding AppScanStatus}" Margin="0,14,0,0" TextWrapping="Wrap"
-                                       FontSize="12.5" Foreground="{DynamicResource MutedBrush}"
-                                       Visibility="{Binding HasAppScanStatus, Converter={StaticResource BoolToVis}}"/>
-
-                            <Border Background="{DynamicResource Card2Brush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1"
-                                    CornerRadius="4" Margin="0,12,0,0"
-                                    Visibility="{Binding HasGroupApps, Converter={StaticResource BoolToVis}}">
-                                <ItemsControl ItemsSource="{Binding GroupApps}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border BorderBrush="{DynamicResource Line2Brush}" BorderThickness="0,0,0,1">
-                                                <Grid Margin="14,10">
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto" MinWidth="110"/>
-                                                        <ColumnDefinition Width="Auto" MinWidth="110"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding DisplayName}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}" TextTrimming="CharacterEllipsis"/>
-                                                        <TextBlock Text="{Binding Publisher}" FontSize="12" Foreground="{DynamicResource MutedBrush}" TextTrimming="CharacterEllipsis"/>
-                                                    </StackPanel>
-                                                    <TextBlock Grid.Column="1" Text="{Binding AppType}" VerticalAlignment="Center" Margin="12,0"
-                                                               FontSize="12" Foreground="{DynamicResource MutedBrush}"/>
-                                                    <TextBlock Grid.Column="2" Text="{Binding IntentText}" VerticalAlignment="Center"
-                                                               FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource TextBrush}"/>
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                            </Border>
-                        </StackPanel>
-                    </Border>
-
-                </StackPanel>
             </StackPanel>
-        </ScrollViewer>
-    </Grid>
+        </StackPanel>
+    </controls:PageFrame>
 </UserControl>

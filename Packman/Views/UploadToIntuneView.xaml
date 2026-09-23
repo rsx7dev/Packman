@@ -2,227 +2,379 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="clr-namespace:Packman.Views.Controls"
+             xmlns:services="clr-namespace:Packman.Services"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:local="clr-namespace:Packman"
              mc:Ignorable="d"
              FontFamily="{StaticResource UIFontFamily}">
 
-    <Grid>
-        <!-- ============ FORM ============ -->
-        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                      Visibility="{Binding Publish.IsNotPublishing, Converter={StaticResource BoolToVis}}">
-            <StackPanel Margin="26,20,26,26">
-                <StackPanel>
-                    <TextBlock Text="Upload to Intune" Style="{StaticResource H1}"/>
-                    <TextBlock Text="Publish an already-built package without re-creating it" Style="{StaticResource SubText}" Margin="0,5,0,0"/>
+    <!-- Publish a package built earlier. The sections match the wizard's Configure step,
+         so the two forms read as one. DataContext: UploadToIntuneViewModel. -->
+    <controls:PageFrame Title="Upload to Intune"
+                        Subtitle="Publish an existing PSADT package to Microsoft Intune">
+
+        <!-- ═══════════ FOOTER ═══════════ -->
+        <controls:PageFrame.Footer>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding FooterText}" Style="{StaticResource FooterHint}" Margin="18,0"/>
+                <Button Grid.Column="1" Style="{StaticResource PrimaryButton}" MinWidth="180"
+                        Command="{Binding UploadCommand}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Publish to Intune" VerticalAlignment="Center"/>
+                        <controls:LineIcon Data="{DynamicResource IconArrowR}" Width="15" Height="15" Margin="10,0,0,0"/>
+                    </StackPanel>
+                </Button>
+            </Grid>
+        </controls:PageFrame.Footer>
+
+        <!-- ═══════════ RAIL ═══════════ -->
+        <controls:PageFrame.Rail>
+            <StackPanel>
+                <TextBlock Text="Publish readiness" Style="{StaticResource RailTitle}"/>
+
+                <StackPanel Margin="0,18,0,8" Visibility="{Binding IsValidated, Converter={StaticResource BoolToVis}}">
+                    <controls:AppIdentity Title="{Binding AppName}"
+                                          Subtitle="{Binding Manufacturer}"
+                                          Meta="{Binding PackageMeta}"
+                                          IconPath="{Binding PackageIconPath}"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,12,0,8">
+                        <controls:LineIcon Data="{DynamicResource IconCheck}" Foreground="{DynamicResource OkBrush}" Width="15" Height="15"/>
+                        <TextBlock Text="Package ready" Margin="8,0,0,0" VerticalAlignment="Center"
+                                   FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource OkBrush}"/>
+                    </StackPanel>
+                    <ContentControl Style="{StaticResource KvRow}" Tag="Size" Content="{Binding SizeText}"/>
                 </StackPanel>
+                <TextBlock Text="Select a package folder to check it for publishing." Style="{StaticResource SubText}"
+                           TextWrapping="Wrap" Margin="0,10,0,8"
+                           Visibility="{Binding IsValidated, Converter={StaticResource InverseBoolToVis}}"/>
 
-                <Grid Margin="0,22,0,0">
-                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                <controls:StatusRow Label="Package" Detail="{Binding PackageFolderName}"
+                                    Value="{Binding IsValidated, Converter={StaticResource BoolToText}, ConverterParameter='Ready|Not selected'}"
+                                    Kind="{Binding IsValidated, Converter={StaticResource BoolToText}, ConverterParameter='ok|pending'}"/>
+                <controls:StatusRow Label="Commands" Value="{Binding CommandsState}"
+                                    Kind="{Binding CommandsReady, Converter={StaticResource BoolToText}, ConverterParameter='ok|warn'}"/>
+                <controls:StatusRow Label="Detection" Value="{Binding DetectionState}" Detail="{Binding DetectionDetail}"
+                                    Kind="{Binding HasDetectionRule, Converter={StaticResource BoolToText}, ConverterParameter='ok|warn'}"/>
+                <controls:StatusRow Label="Requirements" Value="{Binding SelectedOperatingSystem}" Kind="ok"/>
+                <controls:StatusRow Label="Assignment" Value="{Binding AssignmentState}" Detail="{Binding AssignmentDetail}"
+                                    Kind="{Binding HasAssignment, Converter={StaticResource BoolToText}, ConverterParameter='ok|info'}"/>
+                <controls:StatusRow Label="Intune connection" Value="{Binding ConnectionLabel}" Detail="{Binding ConnectionDetail}"
+                                    Kind="{Binding IsSignedIn, Converter={StaticResource BoolToText}, ConverterParameter='ok|pending'}"/>
 
-                    <!-- LEFT COLUMN -->
-                    <StackPanel Grid.Column="0">
+                <!-- App registration connects on its own when the publish starts, so the
+                     callout only shows for interactive sign-in. -->
+                <Border Style="{StaticResource Callout}" Margin="0,20,0,0"
+                        Visibility="{Binding ShowSignInCallout, Converter={StaticResource BoolToVis}}">
+                    <DockPanel>
+                        <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconInfo}" Foreground="{DynamicResource AccentTextBrush}"
+                                           VerticalAlignment="Top" Margin="0,1,10,0"/>
+                        <StackPanel>
+                            <TextBlock TextWrapping="Wrap" FontSize="12.5" LineHeight="18"
+                                       Text="Connect to Microsoft Intune to publish this package."/>
+                            <Button Style="{StaticResource LinkButton}" Content="Sign in" HorizontalAlignment="Left" Margin="0,6,0,0"
+                                    Command="{x:Static services:AppNavigation.OpenSettings}"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+            </StackPanel>
+        </controls:PageFrame.Rail>
 
-                        <!-- Select Package card -->
-                        <Border Style="{StaticResource Card}" VerticalAlignment="Top">
-                            <StackPanel>
-<StackPanel Margin="0,0,0,14">
-    <controls:SectionHeader Title="Select package"/>
-    <TextBlock Text="Choose the folder that contains the Invoke-AppDeployToolkit package" Style="{StaticResource SubText}" Margin="0,8,0,0" TextWrapping="Wrap"/>
-</StackPanel>
+        <!-- ═══════════ BODY ═══════════ -->
+        <Grid>
+            <!-- The form, until a publish starts. -->
+            <Border Style="{StaticResource SectionPanel}"
+                    Visibility="{Binding Publish.IsNotPublishing, Converter={StaticResource BoolToVis}}">
+                <StackPanel>
 
-                                <!-- Folder picker row -->
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBox AutomationProperties.Name="Package folder" Style="{StaticResource TextField}" IsReadOnly="True"
-                                             local:PlaceholderText.Text="Select the package folder (contains the Application folder)"
-                                             Text="{Binding PackageRoot, Mode=OneWay}"/>
-                                    <Button Grid.Column="1" Style="{StaticResource FieldActionButton}" Content="Browse…" Click="Browse_Click"/>
-                                </Grid>
+                    <!-- Package folder -->
+                    <controls:SectionHeader Title="Package folder" Caption="Select the folder that contains the Invoke-AppDeployToolkit package." Margin="0,0,0,14"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox AutomationProperties.Name="Package folder" Style="{StaticResource MonoField}" IsReadOnly="True"
+                                 local:PlaceholderText.Text="Select the package folder (contains the Application folder)"
+                                 Text="{Binding PackageRoot, Mode=OneWay}"/>
+                        <Button Grid.Column="1" Style="{StaticResource FieldActionButton}" Content="Browse…" Click="Browse_Click"/>
+                    </Grid>
+                    <Border Style="{StaticResource CalloutBad}" Margin="0,12,0,0"
+                            Visibility="{Binding HasValidationError, Converter={StaticResource BoolToVis}}">
+                        <DockPanel>
+                            <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconAlert}" Foreground="{DynamicResource BadBrush}"
+                                               VerticalAlignment="Top" Margin="0,1,10,0"/>
+                            <TextBlock Text="{Binding ValidationError}" TextWrapping="Wrap" FontSize="12.5" LineHeight="18"/>
+                        </DockPanel>
+                    </Border>
 
-                                <!-- Validation error -->
-                                <Border Background="{DynamicResource BadSoftBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,12,0,0"
-                                        Visibility="{Binding HasValidationError, Converter={StaticResource BoolToVis}}">
-                                    <TextBlock Text="{Binding ValidationError}" FontSize="12.5" Foreground="{DynamicResource BadBrush}" TextWrapping="Wrap"/>
-                                </Border>
+                    <Border Style="{StaticResource SectionRule}"/>
 
-                                <!-- Validated metadata -->
-                                <StackPanel Visibility="{Binding IsValidated, Converter={StaticResource BoolToVis}}" Margin="0,14,0,0">
-                                    <Border Background="{DynamicResource OkSoftBrush}" CornerRadius="4" Padding="12,10">
-                                        <StackPanel Orientation="Horizontal">
-                                            <Viewbox Width="15" Height="15">
-                                                <Path Data="{StaticResource IconCheck}" Stroke="{DynamicResource OkBrush}" StrokeThickness="2.6" Style="{StaticResource Icon}"/>
-                                            </Viewbox>
-                                            <TextBlock Text="Package validated — metadata detected" Margin="9,0,0,0" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource OkBrush}" VerticalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Border>
-
-                                    <StackPanel Margin="2,12,2,0">
-                                        <TextBlock Text="Name in Intune" Style="{StaticResource FieldLabel}"/>
-                                        <TextBox AutomationProperties.Name="Name in Intune" Style="{StaticResource TextField}" Padding="11,0" Margin="0,6,0,10"
-                                                 Text="{Binding IntuneDisplayName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                        <ContentControl Style="{StaticResource DlRow}" Tag="Application" Content="{Binding DisplayTitle}"/>
-                                        <ContentControl Style="{StaticResource DlRow}" Tag="Version" Content="{Binding Version}"/>
-                                        <ContentControl Style="{StaticResource DlRow}" Tag="Install context" Content="{Binding InstallContext}"/>
-                                        <ContentControl Style="{StaticResource DlRow}" Tag="Size" Content="{Binding SizeText}"/>
-                                    </StackPanel>
-                                </StackPanel>
-                            </StackPanel>
-                        </Border>
-
-                        <!-- Detection method card -->
-                        <Border Style="{StaticResource Card}" Margin="0,18,0,0" VerticalAlignment="Top">
-                            <StackPanel>
-<controls:SectionHeader Title="Detection rules" Caption="How Intune confirms the app is installed" Margin="0,0,0,14"/>
-
-                                <!-- Rule list -->
-                                <ItemsControl ItemsSource="{Binding DetectionRules}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate>
-                                            <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4" Padding="12,10" Margin="0,0,0,8">
-                                                <Grid>
-                                                    <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="*"/>
-                                                        <ColumnDefinition Width="Auto"/>
-                                                    </Grid.ColumnDefinitions>
-                                                    <StackPanel Grid.Column="0">
-                                                        <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}" TextWrapping="Wrap"/>
-                                                        <TextBlock Text="{Binding Description}" FontSize="12" Foreground="{DynamicResource MutedBrush}" Margin="0,2,0,0" TextWrapping="Wrap"/>
-                                                    </StackPanel>
-                                                    <Button Grid.Column="1" Style="{StaticResource RowIconButton}" VerticalAlignment="Top" Margin="8,0,0,0"
-                                                            Command="{Binding DataContext.RemoveRuleCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                            CommandParameter="{Binding}" ToolTip="Remove rule">
-                                                        <Viewbox Width="13" Height="13">
-                                                            <Path Data="{StaticResource IconX}" Stroke="{DynamicResource MutedBrush}" StrokeThickness="2" Style="{StaticResource Icon}"/>
-                                                        </Viewbox>
-                                                    </Button>
-                                                </Grid>
-                                            </Border>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-
-                                <TextBlock Text="No detection rule yet — add one below." FontSize="12.5" Foreground="{DynamicResource Muted2Brush}" Margin="0,0,0,6">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding DetectionRules.Count}" Value="0">
-                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
-
-                                <!-- Add-rule editor -->
-                                <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,6,0,0">
-                                    <StackPanel>
-                                        <ComboBox ItemsSource="{Binding DetectionMethods}" SelectedItem="{Binding NewRuleMethod, Mode=TwoWay}"
-                                                  Height="40" VerticalContentAlignment="Center"/>
-
-                                        <!-- File exists / File version -->
-                                        <StackPanel Visibility="{Binding IsFileMethod, Converter={StaticResource BoolToVis}}">
-                                            <TextBox Style="{StaticResource TextField}" Padding="11,0" Margin="0,8,0,0"
-                                                     local:PlaceholderText.Text="Folder path, e.g. %ProgramFiles%\Contoso"
-                                                     Text="{Binding NewRulePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                            <TextBox Style="{StaticResource TextField}" Padding="11,0" Margin="0,8,0,0"
-                                                     local:PlaceholderText.Text="File or folder name"
-                                                     Text="{Binding NewRuleName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                            <StackPanel Orientation="Horizontal" Margin="0,8,0,0"
-                                                        Visibility="{Binding IsFileVersionMethod, Converter={StaticResource BoolToVis}}">
-                                                <ComboBox ItemsSource="{Binding Operators}" SelectedItem="{Binding NewRuleOperator, Mode=TwoWay}"
-                                                          Width="180" Height="36" VerticalContentAlignment="Center"/>
-                                                <TextBox Style="{StaticResource TextField}" Padding="11,0" Width="140" Margin="8,0,0,0"
-                                                         local:PlaceholderText.Text="Version"
-                                                         Text="{Binding NewRuleValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                            </StackPanel>
-                                        </StackPanel>
-
-                                        <!-- Registry key exists -->
-                                        <StackPanel Visibility="{Binding IsRegistryMethod, Converter={StaticResource BoolToVis}}">
-                                            <ComboBox ItemsSource="{Binding RegistryHives}" SelectedItem="{Binding NewRuleHive, Mode=TwoWay}"
-                                                      Height="40" Margin="0,8,0,0" VerticalContentAlignment="Center"/>
-                                            <TextBox Style="{StaticResource TextField}" Padding="11,0" Margin="0,8,0,0"
-                                                     local:PlaceholderText.Text="Key path, e.g. SOFTWARE\Contoso\App"
-                                                     Text="{Binding NewRuleKeyPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                            <TextBox Style="{StaticResource TextField}" Padding="11,0" Margin="0,8,0,0"
-                                                     local:PlaceholderText.Text="Value name (blank checks the key itself)"
-                                                     Text="{Binding NewRuleValueName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                        </StackPanel>
-
-                                        <!-- MSI product code -->
-                                        <StackPanel Visibility="{Binding IsMsiMethod, Converter={StaticResource BoolToVis}}">
-                                            <TextBox Style="{StaticResource TextField}" Padding="11,0" Margin="0,8,0,0"
-                                                     local:PlaceholderText.Text="{}{00000000-0000-0000-0000-000000000000}"
-                                                     Text="{Binding NewRuleProductCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                            <TextBlock Text="No MSI found in the package — enter the product code manually."
-                                                       FontSize="12" Foreground="{DynamicResource WarnBrush}" Margin="0,6,0,0" TextWrapping="Wrap"
-                                                       Visibility="{Binding HasNoMsiProductCode, Converter={StaticResource BoolToVis}}"/>
-                                        </StackPanel>
-
-                                        <Button Style="{StaticResource CardActionButton}" HorizontalAlignment="Left" Margin="0,12,0,0"
-                                                Command="{Binding AddRuleCommand}">
-                                            <StackPanel Orientation="Horizontal">
-                                                <Viewbox Width="14" Height="14">
-                                                    <Path Data="{StaticResource IconPlus}" Stroke="{DynamicResource AccentTextBrush}" StrokeThickness="2.3" Style="{StaticResource Icon}"/>
-                                                </Viewbox>
-                                                <TextBlock Text="Add detection rule" Margin="7,0,0,0" VerticalAlignment="Center"/>
-                                            </StackPanel>
-                                        </Button>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
-                        </Border>
+                    <!-- Package identity -->
+                    <controls:SectionHeader Title="Package identity" Caption="Review the package details that will be published to Intune." Margin="0,0,0,14"/>
+                    <TextBlock Text="Select a package folder to read its name, publisher and version." Style="{StaticResource SubText}" TextWrapping="Wrap"
+                               Visibility="{Binding IsValidated, Converter={StaticResource InverseBoolToVis}}"/>
+                    <StackPanel Visibility="{Binding IsValidated, Converter={StaticResource BoolToVis}}">
+                        <controls:AppIdentity Title="{Binding AppName}"
+                                              Subtitle="{Binding Manufacturer}"
+                                              Meta="{Binding PackageMeta}"
+                                              IconPath="{Binding PackageIconPath}"/>
+                        <TextBlock Text="Name in Intune" Style="{StaticResource FieldLabel}" Margin="0,18,0,7"/>
+                        <TextBox AutomationProperties.Name="Name in Intune" Style="{StaticResource TextField}"
+                                 Text="{Binding IntuneDisplayName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                     </StackPanel>
 
-                    <!-- RIGHT COLUMN: Assignment -->
-                    <Border Grid.Row="1" Style="{StaticResource Card}" Margin="0,24,0,0" VerticalAlignment="Top">
+                    <Border Style="{StaticResource SectionRule}"/>
+
+                    <!-- Install behavior -->
+                    <controls:SectionHeader Title="Install behavior" Caption="Configure how the application will be installed and uninstalled using PSADT." Margin="0,0,0,14"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="14"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Install command" Style="{StaticResource FieldLabel}"/>
+                            <TextBox AutomationProperties.Name="Install command" Style="{StaticResource MonoField}" FontSize="12.5" IsReadOnly="True"
+                                     Text="{Binding InstallCommandPreview, Mode=OneWay}" ToolTip="{Binding InstallCommandPreview}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Uninstall command" Style="{StaticResource FieldLabel}"/>
+                            <TextBox AutomationProperties.Name="Uninstall command" Style="{StaticResource MonoField}" FontSize="12.5" IsReadOnly="True"
+                                     Text="{Binding UninstallCommandPreview, Mode=OneWay}" ToolTip="{Binding UninstallCommandPreview}"/>
+                        </StackPanel>
+                    </Grid>
+                    <TextBlock Text="From Settings ▸ Intune Defaults, with the deploy mode below applied." Style="{StaticResource Caption}"
+                               TextWrapping="Wrap" Margin="0,7,0,0"/>
+
+                    <TextBlock Text="PSADT deploy mode" Style="{StaticResource FieldLabel}" Margin="0,16,0,7"/>
+                    <ComboBox AutomationProperties.Name="PSADT deploy mode" HorizontalAlignment="Left" MinWidth="220"
+                              ItemsSource="{Binding DeployModes}"
+                              SelectedItem="{Binding SelectedDeployMode, Mode=TwoWay}"/>
+                    <TextBlock Text="{Binding DeployModeHint}" Style="{StaticResource Caption}" TextWrapping="Wrap" Margin="0,7,0,0"/>
+
+                    <Border Style="{StaticResource SectionRule}"/>
+
+                    <!-- Detection rules -->
+                    <controls:SectionHeader Title="Detection rules" Caption="Configure how Intune detects that the application is installed." Margin="0,0,0,14"/>
+                    <ItemsControl ItemsSource="{Binding DetectionRules}" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="6" Padding="14,10" Margin="0,0,0,8">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{Binding Description}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12"
+                                                       Foreground="{DynamicResource Muted2Brush}" Margin="0,3,0,0" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Style="{StaticResource RowIconButton}" VerticalAlignment="Top" Margin="8,0,0,0"
+                                                Command="{Binding DataContext.RemoveRuleCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}" ToolTip="Remove rule">
+                                            <controls:LineIcon Data="{DynamicResource IconX}" Width="14" Height="14"/>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock Text="No detection rule yet. Add one below." Style="{StaticResource SubText}" Margin="0,0,0,10"
+                               Visibility="{Binding HasDetectionRule, Converter={StaticResource InverseBoolToVis}}"/>
+
+                    <!-- Add-rule editor -->
+                    <Border Background="{DynamicResource Card2Brush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1"
+                            CornerRadius="6" Padding="16,14">
                         <StackPanel>
-<controls:SectionHeader Title="Assignments" Caption="Who receives this app" Margin="0,0,0,14"/>
+                            <TextBlock Text="Detection method" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox AutomationProperties.Name="Detection method"
+                                      ItemsSource="{Binding DetectionMethods}" SelectedItem="{Binding NewRuleMethod, Mode=TwoWay}"/>
 
-                            <controls:GroupPickerControl DataContext="{Binding GroupPicker}"/>
+                            <!-- File exists / File version -->
+                            <StackPanel Visibility="{Binding IsFileMethod, Converter={StaticResource BoolToVis}}">
+                                <Grid Margin="0,12,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="12"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Folder path" Style="{StaticResource FieldLabel}"/>
+                                        <TextBox AutomationProperties.Name="Folder path" Style="{StaticResource MonoField}"
+                                                 local:PlaceholderText.Text="%ProgramFiles%\Contoso"
+                                                 Text="{Binding NewRulePath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="File or folder name" Style="{StaticResource FieldLabel}"/>
+                                        <TextBox AutomationProperties.Name="File or folder name" Style="{StaticResource MonoField}"
+                                                 local:PlaceholderText.Text="app.exe"
+                                                 Text="{Binding NewRuleName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </StackPanel>
+                                </Grid>
+                                <Grid Margin="0,12,0,0" Visibility="{Binding IsFileVersionMethod, Converter={StaticResource BoolToVis}}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="12"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="Operator" Style="{StaticResource FieldLabel}"/>
+                                        <ComboBox AutomationProperties.Name="Operator"
+                                                  ItemsSource="{Binding Operators}" SelectedItem="{Binding NewRuleOperator, Mode=TwoWay}"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="Version" Style="{StaticResource FieldLabel}"/>
+                                        <TextBox AutomationProperties.Name="Version" Style="{StaticResource MonoField}"
+                                                 local:PlaceholderText.Text="1.2.3"
+                                                 Text="{Binding NewRuleValue, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
 
-                            <!-- Upload button -->
-                            <Button Style="{StaticResource PrimaryButton}" HorizontalAlignment="Stretch" Margin="0,18,0,0"
-                                    Command="{Binding UploadCommand}">
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                    <Viewbox Width="16" Height="16" Margin="0,0,8,0">
-                                        <Path Data="{StaticResource IconUpload}" Stroke="{DynamicResource PrimaryFgBrush}" StrokeThickness="1.9" Style="{StaticResource Icon}"/>
-                                    </Viewbox>
-                                    <TextBlock Text="Upload to Intune" VerticalAlignment="Center"/>
+                            <!-- Registry key exists -->
+                            <Grid Margin="0,12,0,0" Visibility="{Binding IsRegistryMethod, Converter={StaticResource BoolToVis}}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="180"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="12"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock Text="Hive" Style="{StaticResource FieldLabel}"/>
+                                    <ComboBox AutomationProperties.Name="Hive"
+                                              ItemsSource="{Binding RegistryHives}" SelectedItem="{Binding NewRuleHive, Mode=TwoWay}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2">
+                                    <TextBlock Text="Key path" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox AutomationProperties.Name="Key path" Style="{StaticResource MonoField}"
+                                             local:PlaceholderText.Text="SOFTWARE\Contoso\App"
+                                             Text="{Binding NewRuleKeyPath, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="4">
+                                    <TextBlock Text="Value name (optional)" Style="{StaticResource FieldLabel}"/>
+                                    <TextBox AutomationProperties.Name="Value name (optional)" Style="{StaticResource MonoField}"
+                                             local:PlaceholderText.Text="blank checks the key itself"
+                                             Text="{Binding NewRuleValueName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- MSI product code -->
+                            <StackPanel Margin="0,12,0,0" Visibility="{Binding IsMsiMethod, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="MSI product code" Style="{StaticResource FieldLabel}"/>
+                                <TextBox AutomationProperties.Name="MSI product code" Style="{StaticResource MonoField}"
+                                         local:PlaceholderText.Text="{}{00000000-0000-0000-0000-000000000000}"
+                                         Text="{Binding NewRuleProductCode, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                <TextBlock Text="No MSI found in the package. Enter the product code manually."
+                                           FontSize="12" Foreground="{DynamicResource WarnBrush}" Margin="0,6,0,0" TextWrapping="Wrap"
+                                           Visibility="{Binding HasNoMsiProductCode, Converter={StaticResource BoolToVis}}"/>
+                            </StackPanel>
+
+                            <Button Style="{StaticResource LinkButton}" HorizontalAlignment="Left" Margin="0,12,0,0"
+                                    Command="{Binding AddRuleCommand}">
+                                <StackPanel Orientation="Horizontal">
+                                    <controls:LineIcon Data="{DynamicResource IconPlus}" Width="14" Height="14"/>
+                                    <TextBlock Text="Add rule" Margin="7,0,0,0" VerticalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
-
-                            <!-- Not signed in notice -->
-                            <Border Background="{DynamicResource BadSoftBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,14,0,0"
-                                    Visibility="{Binding IsNotSignedIn, Converter={StaticResource BoolToVis}}">
-                                <TextBlock FontSize="12.5" Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap"
-                                           Text="Not signed in to Intune. Open Settings and sign in before uploading."/>
-                            </Border>
-
-                            <!-- Signed-in note -->
-                            <Border Background="{DynamicResource PrimarySoftBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4" Padding="12" Margin="0,14,0,0"
-                                    Visibility="{Binding IsSignedIn, Converter={StaticResource BoolToVis}}">
-                                <TextBlock FontSize="12.5" Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap">
-                                    <Run Text="Connected to "/>
-                                    <Run Text="{Binding TenantName, Mode=OneWay}" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}"/>
-                                    <Run Text=" tenant. The PSADT package is signed when enabled, built as .intunewin, and published with these assignments."/>
-                                </TextBlock>
-                            </Border>
                         </StackPanel>
                     </Border>
-                </Grid>
-            </StackPanel>
-        </ScrollViewer>
 
-        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-            Visibility="{Binding Publish.IsPublishing, Converter={StaticResource BoolToVis}}">
-            <controls:PublishStatusControl DataContext="{Binding Publish}" MaxWidth="760" Margin="30" VerticalAlignment="Top"/>
-        </ScrollViewer>
-    </Grid>
+                    <Border Style="{StaticResource SectionRule}"/>
+
+                    <!-- Requirements -->
+                    <controls:SectionHeader Title="Requirements" Caption="Specify the minimum requirements for this application. Pre-filled from Settings ▸ Intune Defaults." Margin="0,0,0,14"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="160"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="100"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="100"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="100"/>
+                            <ColumnDefinition Width="12"/>
+                            <ColumnDefinition Width="100"/>
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="Minimum OS" Style="{StaticResource FieldLabel}"/>
+                            <ComboBox AutomationProperties.Name="Minimum OS"
+                                      ItemsSource="{Binding OperatingSystems}"
+                                      SelectedItem="{Binding SelectedOperatingSystem, Mode=TwoWay}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="Disk (MB)" Style="{StaticResource FieldLabel}"/>
+                            <TextBox AutomationProperties.Name="Disk (MB)" Style="{StaticResource MonoField}"
+                                     local:PlaceholderText.Text="any"
+                                     Text="{Binding MinFreeDiskSpaceMB, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="4">
+                            <TextBlock Text="Memory (MB)" Style="{StaticResource FieldLabel}"/>
+                            <TextBox AutomationProperties.Name="Memory (MB)" Style="{StaticResource MonoField}"
+                                     local:PlaceholderText.Text="any"
+                                     Text="{Binding MinMemoryMB, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="6">
+                            <TextBlock Text="Processors" Style="{StaticResource FieldLabel}"/>
+                            <TextBox AutomationProperties.Name="Processors" Style="{StaticResource MonoField}"
+                                     local:PlaceholderText.Text="any"
+                                     Text="{Binding MinProcessors, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="8">
+                            <TextBlock Text="CPU (MHz)" Style="{StaticResource FieldLabel}"/>
+                            <TextBox AutomationProperties.Name="CPU (MHz)" Style="{StaticResource MonoField}"
+                                     local:PlaceholderText.Text="any"
+                                     Text="{Binding MinCpuSpeedMHz, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <Border Style="{StaticResource SectionRule}"/>
+
+                    <!-- Return codes -->
+                    <DockPanel Margin="0,0,0,14">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" VerticalAlignment="Top"
+                                Command="{Binding RestoreDefaultsCommand}"
+                                ToolTip="Reload requirements and return codes from Settings ▸ Intune Defaults">
+                            <StackPanel Orientation="Horizontal">
+                                <controls:LineIcon Data="{DynamicResource IconUndo}" Width="14" Height="14"/>
+                                <TextBlock Text="Restore defaults" Margin="7,0,0,0" VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
+                        <controls:SectionHeader Title="Return codes" Caption="How Intune reads the installer's exit codes. Pre-filled from Settings ▸ Intune Defaults."/>
+                    </DockPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="10"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox AutomationProperties.Name="New return code" Style="{StaticResource MonoField}"
+                                 local:PlaceholderText.Text="Exit code, e.g. 1707"
+                                 Text="{Binding NewReturnCodeInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <Button Grid.Column="2" Style="{StaticResource GhostButton}" Content="Add"
+                                Command="{Binding AddReturnCodeCommand}"/>
+                    </Grid>
+                    <controls:ReturnCodeEditor Margin="0,6,0,0"/>
+
+                    <Border Style="{StaticResource SectionRule}"/>
+
+                    <!-- Assignments -->
+                    <controls:SectionHeader Title="Assignments" Caption="Choose the Microsoft Entra groups that receive this app and the intent for each." Margin="0,0,0,14"/>
+                    <controls:GroupPickerControl DataContext="{Binding GroupPicker}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Publishing progress and result, in place of the form (the control is its own card). -->
+            <controls:PublishStatusControl DataContext="{Binding Publish}" VerticalAlignment="Top"
+                                           Visibility="{Binding IsPublishing, Converter={StaticResource BoolToVis}}"/>
+        </Grid>
+    </controls:PageFrame>
 </UserControl>

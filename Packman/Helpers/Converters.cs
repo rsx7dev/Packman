@@ -69,3 +69,36 @@ public sealed class InverseBoolToVisibilityConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => value is Visibility.Collapsed;
 }
+
+/// <summary>
+/// Picks one of two strings from a bool: ConverterParameter "ok|pending" gives "ok" for
+/// true and "pending" for false. Drives StatusRow.Kind and short labels from a flag.
+/// </summary>
+public sealed class BoolToStringConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        var parts = (parameter as string ?? "").Split('|');
+        var whenTrue = parts.Length > 0 ? parts[0] : "";
+        var whenFalse = parts.Length > 1 ? parts[1] : "";
+        return value is true ? whenTrue : whenFalse;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => Binding.DoNothing;
+}
+
+/// <summary>Visible for a non-blank string (or any non-null object), collapsed otherwise.</summary>
+public sealed class NonEmptyToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value switch
+        {
+            null => Visibility.Collapsed,
+            string s => string.IsNullOrWhiteSpace(s) ? Visibility.Collapsed : Visibility.Visible,
+            _ => Visibility.Visible,
+        };
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => Binding.DoNothing;
+}

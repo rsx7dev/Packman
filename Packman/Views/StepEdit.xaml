@@ -5,14 +5,20 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:wv2="clr-namespace:Microsoft.Web.WebView2.Wpf;assembly=Microsoft.Web.WebView2.Wpf"
              xmlns:local="clr-namespace:Packman"
+             xmlns:controls="clr-namespace:Packman.Views.Controls"
              mc:Ignorable="d"
              Loaded="StepEdit_Loaded"
              IsVisibleChanged="StepEdit_IsVisibleChanged"
              FontFamily="{StaticResource UIFontFamily}">
 
     <UserControl.Resources>
+        <!-- Toolbar action: an outlined button with an icon and a label. -->
+        <Style x:Key="ToolbarButton" TargetType="Button" BasedOn="{StaticResource GhostButton}">
+            <Setter Property="Padding" Value="14,7"/>
+        </Style>
+
         <!-- Flat button used inside the file tabs; the shared IconButton style fixes a
-             38x38 box, which the variable-width tabs cannot use. -->
+             square box, which the variable-width tabs cannot use. -->
         <Style x:Key="FlatTabButton" TargetType="Button">
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="FocusVisualStyle" Value="{StaticResource FocusVisual}"/>
@@ -21,7 +27,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="4">
+                        <Border x:Name="bd" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}" CornerRadius="4">
                             <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center"/>
                         </Border>
                     </ControlTemplate>
@@ -29,31 +35,37 @@
             </Setter>
         </Style>
 
-        <!-- One tab per open file; the active one is lifted out of the bar. -->
+        <!-- One tab per open file; the active one is lifted and underlined in the accent. -->
         <DataTemplate x:Key="FileTabTemplate">
-            <Border x:Name="TabBorder" CornerRadius="4" Margin="0,0,4,0" Background="Transparent">
+            <Border x:Name="TabBorder" CornerRadius="6,6,0,0" Margin="0,0,4,0" Background="Transparent"
+                    BorderBrush="Transparent" BorderThickness="0,0,0,2">
                 <StackPanel Orientation="Horizontal">
-                    <Button Style="{StaticResource FlatTabButton}" Padding="9,3" Height="30" ToolTip="{Binding Path}"
+                    <Button Style="{StaticResource FlatTabButton}" Padding="12,0,6,0" Height="34" ToolTip="{Binding Path}"
+                            AutomationProperties.Name="{Binding Name}"
                             Command="{Binding DataContext.Editor.ActivateCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                             CommandParameter="{Binding}">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="{Binding Name}" FontFamily="{StaticResource MonoFontFamily}"
-                                       FontSize="12" Foreground="{DynamicResource CodeBarTxtBrush}" VerticalAlignment="Center"/>
-                            <TextBlock Text="●" Margin="5,0,0,0" FontSize="12" VerticalAlignment="Center"
-                                       Foreground="{DynamicResource WarnBrush}" ToolTip="Unsaved changes"
-                                       Visibility="{Binding IsDirty, Converter={StaticResource BoolToVis}}"/>
+                            <TextBlock x:Name="TabName" Text="{Binding Name}" FontFamily="{StaticResource MonoFontFamily}"
+                                       FontSize="12" Foreground="{DynamicResource Text2Brush}" VerticalAlignment="Center"/>
+                            <Ellipse Width="7" Height="7" Margin="7,0,0,0" VerticalAlignment="Center"
+                                     Fill="{DynamicResource WarnBrush}" ToolTip="Unsaved changes"
+                                     Visibility="{Binding IsDirty, Converter={StaticResource BoolToVis}}"/>
                         </StackPanel>
                     </Button>
-                    <Button Style="{StaticResource FlatTabButton}" Width="18" Height="30" Margin="0,0,4,0" ToolTip="Close"
+                    <Button Style="{StaticResource FlatTabButton}" Width="22" Height="22" Margin="0,0,6,0" ToolTip="Close"
+                            AutomationProperties.Name="Close file" Foreground="{DynamicResource MutedBrush}"
                             Command="{Binding DataContext.Editor.CloseCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                             CommandParameter="{Binding}">
-                        <TextBlock Text="✕" FontSize="12" Foreground="{DynamicResource CodeBarTxtBrush}"/>
+                        <controls:LineIcon Data="{DynamicResource IconX}" Width="12" Height="12" StrokeThickness="2"/>
                     </Button>
                 </StackPanel>
             </Border>
             <DataTemplate.Triggers>
                 <DataTrigger Binding="{Binding IsActive}" Value="True">
                     <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource ControlHoverBrush}"/>
+                    <Setter TargetName="TabBorder" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+                    <Setter TargetName="TabName" Property="Foreground" Value="{DynamicResource InkBrush}"/>
+                    <Setter TargetName="TabName" Property="FontWeight" Value="SemiBold"/>
                 </DataTrigger>
             </DataTemplate.Triggers>
         </DataTemplate>
@@ -69,91 +81,141 @@
                            Foreground="{DynamicResource MutedBrush}" TextTrimming="CharacterEllipsis"/>
             </StackPanel>
         </DataTemplate>
+
+        <Style x:Key="StatusText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
     </UserControl.Resources>
 
-    <Border Style="{StaticResource Card}">
-        <Grid>
+    <Grid>
+        <!-- No package yet -->
+        <Border Style="{StaticResource SectionPanel}" VerticalAlignment="Top"
+                Visibility="{Binding Editor.HasPackage, Converter={StaticResource InverseBoolToVis}}">
+            <controls:SectionHeader Title="No package generated yet"
+                                    Caption="Go back to the Package step to create the package first."/>
+        </Border>
+
+        <!-- Toolbar on top; package files and the editor fill the rest. The body never
+             scrolls: the WebView2 is an HWND and has to keep a fixed viewport. -->
+        <Grid Visibility="{Binding Editor.HasPackage, Converter={StaticResource BoolToVis}}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
-            <!-- No package yet -->
-            <Border Grid.Row="0" Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1"
-                    CornerRadius="4" Padding="20" VerticalAlignment="Top"
-                    Visibility="{Binding Editor.HasPackage, Converter={StaticResource InverseBoolToVis}}">
-                <TextBlock Text="No package generated yet. Go back to the Package step to create the package first."
-                           FontSize="12.5" Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap"/>
+
+            <!-- Toolbar -->
+            <Border Grid.Row="0" Style="{StaticResource PanelCard}" Padding="16,12,8,4" Margin="0,0,0,12">
+                <WrapPanel Orientation="Horizontal">
+                    <Button Style="{StaticResource PrimaryButton}" Padding="16,8" Margin="0,0,8,8"
+                            Command="{Binding Editor.SaveCommand}" ToolTip="Save the active file (Ctrl+S)">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:LineIcon Data="{DynamicResource IconSave}" Width="16" Height="16"/>
+                            <TextBlock Text="Save" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource ToolbarButton}" Margin="0,0,8,8"
+                            Command="{Binding Editor.ReloadCommand}" ToolTip="Re-read this file from disk">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:LineIcon Data="{DynamicResource IconRefresh}" Width="16" Height="16"/>
+                            <TextBlock Text="Reload" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource ToolbarButton}" Margin="0,0,8,8"
+                            Command="{Binding Editor.RevertCommand}" ToolTip="Discard unsaved changes in this file">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:LineIcon Data="{DynamicResource IconUndo}" Width="16" Height="16"/>
+                            <TextBlock Text="Revert" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource ToolbarButton}" Margin="0,0,8,8"
+                            Click="OpenExternally_Click" ToolTip="Open the active file in VS Code or another script editor">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:LineIcon Data="{DynamicResource IconExternal}" Width="16" Height="16"/>
+                            <TextBlock Text="Open externally" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Border Width="1" Height="24" Margin="4,0,12,8" VerticalAlignment="Center" Background="{DynamicResource LineBrush}"/>
+                    <Button Style="{StaticResource ToolbarButton}" Margin="0,0,8,8"
+                            Command="{Binding OpenTestToolCommand}" ToolTip="Test the package on a remote Windows device">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:LineIcon Data="{DynamicResource IconLaptop}" Width="16" Height="16"/>
+                            <TextBlock Text="Remote test" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource ToolbarButton}" Margin="0,0,8,8"
+                            Command="{Binding OpenPackageFolderCommand}" ToolTip="Open the package folder in File Explorer">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:LineIcon Data="{DynamicResource IconFolder}" Width="16" Height="16"/>
+                            <TextBlock Text="Open folder" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </WrapPanel>
             </Border>
 
-            <!-- Editor: tree + code editor, fills the remaining height.
-                 The tree starts collapsed to a slim rail so the editor gets the width;
-                 the rail button (or the chevron in the tree header) toggles it. -->
-            <Grid Grid.Row="1" Visibility="{Binding Editor.HasPackage, Converter={StaticResource BoolToVis}}">
+            <!-- Package files + editor. The navigator folds to a slim rail so the editor
+                 can take the width; the rail button (or the chevron in its header) toggles it. -->
+            <Grid Grid.Row="1">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="14"/>
+                    <ColumnDefinition Width="12"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
                 <!-- Collapsed rail -->
-                <Border x:Name="TreeRail" Grid.Column="0" Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4" Padding="4">
-                    <Button Style="{StaticResource IconButton}" Width="32" Height="32" Background="Transparent" BorderThickness="0"
-                            VerticalAlignment="Top" ToolTip="Show files" Click="ToggleTree_Click">
-                        <Viewbox Width="15" Height="15">
-                            <Path Data="{StaticResource IconFolder}" Stroke="{DynamicResource InkBrush}" StrokeThickness="1.8" Style="{StaticResource Icon}"/>
-                        </Viewbox>
+                <Border x:Name="TreeRail" Grid.Column="0" Style="{StaticResource PanelCard}" Padding="6" Visibility="Collapsed">
+                    <Button Style="{StaticResource IconButton}" Width="34" Height="34" BorderThickness="0"
+                            VerticalAlignment="Top" ToolTip="Show package files" Click="ToggleTree_Click">
+                        <controls:LineIcon Data="{DynamicResource IconFolder}" Width="16" Height="16"/>
                     </Button>
                 </Border>
 
-                <!-- Tree -->
-                <Border x:Name="TreePanel" Grid.Column="0" Width="270" Visibility="Collapsed" Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4" Padding="8">
+                <!-- Package files navigator -->
+                <Border x:Name="TreePanel" Grid.Column="0" Width="250" Style="{StaticResource PanelCard}" Padding="10,10,6,10">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-                        <Grid Grid.Row="0" Margin="10,4,0,4">
+                        <Grid Grid.Row="0" Margin="6,0,0,6">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                <Viewbox Width="14" Height="14">
-                                    <Path Data="{StaticResource IconFolder}" Stroke="{DynamicResource InkBrush}" StrokeThickness="1.8" Style="{StaticResource Icon}"/>
-                                </Viewbox>
-                                <TextBlock Text="{Binding Editor.PackageName}" Margin="7,0,0,0" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}" TextTrimming="CharacterEllipsis"/>
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="Package files" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}"/>
+                                <TextBlock Text="{Binding Editor.PackageName}" ToolTip="{Binding Editor.PackageName}" Margin="0,2,0,0"
+                                           FontFamily="{StaticResource MonoFontFamily}" FontSize="11.5"
+                                           Foreground="{DynamicResource MutedBrush}" TextTrimming="CharacterEllipsis"/>
                             </StackPanel>
-                            <Button Grid.Column="1" Style="{StaticResource IconButton}" Width="28" Height="28" Background="Transparent" BorderThickness="0"
+                            <Button Grid.Column="1" Style="{StaticResource IconButton}" Width="28" Height="28" BorderThickness="0"
                                     ToolTip="Refresh files" Click="RefreshTree_Click">
-                                <Viewbox Width="13" Height="13">
-                                    <Path Data="{StaticResource IconRefresh}" Stroke="{DynamicResource MutedBrush}" StrokeThickness="1.9" Style="{StaticResource Icon}"/>
-                                </Viewbox>
+                                <controls:LineIcon Data="{DynamicResource IconRefresh}" Width="14" Height="14"/>
                             </Button>
-                            <Button Grid.Column="2" Style="{StaticResource IconButton}" Width="28" Height="28" Background="Transparent" BorderThickness="0"
-                                    ToolTip="Hide files" Click="ToggleTree_Click">
-                                <Viewbox Width="13" Height="13">
-                                    <Path Data="{StaticResource IconChevL}" Stroke="{DynamicResource MutedBrush}" StrokeThickness="2.2" Style="{StaticResource Icon}"/>
-                                </Viewbox>
+                            <Button Grid.Column="2" Style="{StaticResource IconButton}" Width="28" Height="28" BorderThickness="0"
+                                    ToolTip="Hide package files" Click="ToggleTree_Click">
+                                <controls:LineIcon Data="{DynamicResource IconChevL}" Width="14" Height="14" StrokeThickness="2.2"/>
                             </Button>
                         </Grid>
 
                         <!-- Search across the package: file names and file contents -->
-                        <Grid Grid.Row="1" Margin="0,4,0,6">
-                            <TextBox Style="{StaticResource TextField}" Height="34" FontSize="12" Padding="11,0,10,0"
-                                     AutomationProperties.Name="Search package files"
-                                     local:PlaceholderText.Text="Search names and contents…"
-                                     Text="{Binding Editor.SearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                        </Grid>
+                        <TextBox Grid.Row="1" Margin="0,0,4,8" Style="{StaticResource TextField}" Height="34" FontSize="12" Padding="11,0,10,0"
+                                 AutomationProperties.Name="Search package files"
+                                 local:PlaceholderText.Text="Search names and contents…"
+                                 Text="{Binding Editor.SearchQuery, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
                         <TreeView x:Name="FileTree" Grid.Row="2" BorderThickness="0" Background="Transparent"
                                   Foreground="{DynamicResource InkBrush}" FontSize="12.5"
+                                  AutomationProperties.Name="Package files"
                                   ScrollViewer.VerticalScrollBarVisibility="Auto"
                                   Visibility="{Binding Editor.ShowTree, Converter={StaticResource BoolToVis}}"
                                   SelectedItemChanged="FileTree_SelectedItemChanged"/>
 
                         <ListBox x:Name="SearchResults" Grid.Row="2" BorderThickness="0" Background="Transparent"
+                                 AutomationProperties.Name="Search results"
                                  ItemsSource="{Binding Editor.SearchHits}"
                                  ItemTemplate="{StaticResource SearchHitTemplate}" HorizontalContentAlignment="Stretch"
                                  ScrollViewer.VerticalScrollBarVisibility="Auto"
@@ -162,16 +224,19 @@
                     </Grid>
                 </Border>
 
-                <!-- Code editor (Monaco in WebView2) -->
-                <Border Grid.Column="2" Background="{DynamicResource CodeBgBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4">
+                <!-- Tab strip, Monaco (WebView2) and the status bar in one panel. The tab strip
+                     and status bar keep the WebView2 HWND clear of the panel's rounded corners,
+                     which it cannot be clipped to. -->
+                <Border Grid.Column="2" Style="{StaticResource PanelCard}">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                             <RowDefinition Height="Auto"/>
                         </Grid.RowDefinitions>
-                        <!-- Tab strip + file actions -->
-                        <Border Grid.Row="0" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1" Padding="8,6">
+
+                        <!-- Tab strip -->
+                        <Border Grid.Row="0" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1" Padding="8,6,8,0">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -186,48 +251,39 @@
                                         </ItemsControl.ItemsPanel>
                                     </ItemsControl>
                                 </ScrollViewer>
-                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <Button Style="{StaticResource MiniButton}" Content="Changed on disk — reload" Margin="0,0,8,0"
-                                            Command="{Binding Editor.ReloadCommand}"
-                                            Visibility="{Binding Editor.ShowChangedOnDisk, Converter={StaticResource BoolToVis}}"
-                                            Background="{DynamicResource WarnSoftBrush}" BorderBrush="{DynamicResource WarnLineBrush}"
-                                            Foreground="{DynamicResource WarnBrush}"
-                                            ToolTip="This file was modified outside Packman"/>
-                                    <Button Style="{StaticResource MiniButton}" Content="Reload" Margin="0,0,6,0"
-                                            Command="{Binding Editor.ReloadCommand}" ToolTip="Re-read this file from disk"/>
-                                    <Button Style="{StaticResource MiniButton}" Content="Revert" Margin="0,0,6,0"
-                                            Command="{Binding Editor.RevertCommand}"/>
-                                    <Button Style="{StaticResource MiniPrimaryButton}" Content="Save" ToolTip="Save (Ctrl+S)"
-                                            Command="{Binding Editor.SaveCommand}"/>
-                                </StackPanel>
+                                <Button Grid.Column="1" Style="{StaticResource MiniButton}" Content="Changed on disk: reload"
+                                        Margin="8,0,0,6" VerticalAlignment="Center"
+                                        Command="{Binding Editor.ReloadCommand}"
+                                        Visibility="{Binding Editor.ShowChangedOnDisk, Converter={StaticResource BoolToVis}}"
+                                        Background="{DynamicResource WarnSoftBrush}" BorderBrush="{DynamicResource WarnLineBrush}"
+                                        Foreground="{DynamicResource WarnBrush}"
+                                        ToolTip="This file was modified outside Packman"/>
                             </Grid>
                         </Border>
 
                         <!-- Monaco editor. -->
-                        <Grid Grid.Row="1" MinHeight="300">
+                        <Grid Grid.Row="1" MinHeight="300" Background="{DynamicResource CodeBgBrush}">
                             <wv2:WebView2 x:Name="EditorWebView" Margin="1,0,1,0"/>
                             <TextBlock x:Name="EditorFallbackText" Visibility="Collapsed" Margin="16,14" TextWrapping="Wrap"
                                        FontFamily="{StaticResource MonoFontFamily}" FontSize="12.5" Foreground="{DynamicResource CodeBarTxtBrush}">
                                 <Run Text="The in-app editor needs the Microsoft Edge WebView2 Runtime, which was not found on this machine."/>
                                 <LineBreak/><LineBreak/>
-                                <Run Text="Use &quot;Open in VS Code&quot; to edit the script externally, or "/>
+                                <Run Text="Use &quot;Open externally&quot; to edit the script in another editor, or "/>
                                 <Hyperlink NavigateUri="https://developer.microsoft.com/microsoft-edge/webview2/"
                                            RequestNavigate="Hyperlink_RequestNavigate" Foreground="{DynamicResource AccentTextBrush}">
                                     install the WebView2 Runtime</Hyperlink><Run Text="."/>
                             </TextBlock>
                         </Grid>
 
-                        <!-- Status bar. The bottom padding also keeps the WebView2 HWND clear of
-                             the border's rounded corners, which it cannot be clipped to. -->
-                        <Border Grid.Row="2" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0" Padding="14,5,14,7">
+                        <!-- Status bar -->
+                        <Border Grid.Row="2" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0" Padding="14,6,14,8">
                             <Grid>
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding Editor.CursorText}" FontSize="12" Foreground="{DynamicResource CodeBarTxtBrush}"/>
-                                    <TextBlock Text="{Binding Editor.SelectionText}" Margin="12,0,0,0" FontSize="12" Foreground="{DynamicResource CodeBarTxtBrush}"/>
-                                    <TextBlock Text="{Binding Editor.StatusProblems}" Margin="12,0,0,0" FontSize="12">
+                                    <TextBlock Text="{Binding Editor.CursorText}" Style="{StaticResource StatusText}"/>
+                                    <TextBlock Text="{Binding Editor.SelectionText}" Margin="12,0,0,0" Style="{StaticResource StatusText}"/>
+                                    <TextBlock Text="{Binding Editor.StatusProblems}" Margin="12,0,0,0">
                                         <TextBlock.Style>
-                                            <Style TargetType="TextBlock">
-                                                <Setter Property="Foreground" Value="{DynamicResource CodeBarTxtBrush}"/>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource StatusText}">
                                                 <Style.Triggers>
                                                     <DataTrigger Binding="{Binding Editor.HasProblems}" Value="True">
                                                         <Setter Property="Foreground" Value="{DynamicResource BadBrush}"/>
@@ -238,10 +294,11 @@
                                     </TextBlock>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                    <TextBlock Text="{Binding Editor.StatusEol}" FontSize="12" Foreground="{DynamicResource CodeBarTxtBrush}"/>
-                                    <TextBlock Text="{Binding Editor.StatusEncoding}" Margin="12,0,0,0" FontSize="12" Foreground="{DynamicResource CodeBarTxtBrush}"/>
-                                    <TextBlock Text="{Binding Editor.StatusLanguage}" Margin="12,0,0,0" FontSize="12" Foreground="{DynamicResource CodeBarTxtBrush}"/>
-                                    <Border Background="{DynamicResource PrimaryDimBrush}" BorderBrush="{DynamicResource PrimaryLineBrush}" BorderThickness="1" CornerRadius="4" Padding="7,1" Margin="12,0,0,0" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Editor.StatusEol}" Style="{StaticResource StatusText}"/>
+                                    <TextBlock Text="{Binding Editor.StatusEncoding}" Margin="12,0,0,0" Style="{StaticResource StatusText}"/>
+                                    <TextBlock Text="{Binding Editor.StatusLanguage}" Margin="12,0,0,0" Style="{StaticResource StatusText}"/>
+                                    <Border Background="{DynamicResource PrimaryFaintBrush}" BorderBrush="{DynamicResource PrimaryLineBrush}" BorderThickness="1"
+                                            CornerRadius="4" Padding="7,1" Margin="12,0,0,0" VerticalAlignment="Center">
                                         <TextBlock Text="PSADT IntelliSense" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource AccentTextBrush}"/>
                                     </Border>
                                 </StackPanel>
@@ -251,5 +308,5 @@
                 </Border>
             </Grid>
         </Grid>
-    </Border>
+    </Grid>
 </UserControl>

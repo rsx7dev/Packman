@@ -5,235 +5,308 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:local="clr-namespace:Packman"
              xmlns:vm="clr-namespace:Packman.ViewModels"
+             xmlns:controls="clr-namespace:Packman.Views.Controls"
+             xmlns:services="clr-namespace:Packman.Services"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:ApplicationsViewModel}"
              FontFamily="{StaticResource UIFontFamily}">
 
-    <Grid Margin="26,20,26,22">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>
+    <UserControl.Resources>
+        <!-- Column head that sorts: text plus the arrow the view model adds. -->
+        <Style x:Key="SortHead" TargetType="Button" BasedOn="{StaticResource Breadcrumb}">
+            <Setter Property="FontFamily" Value="{StaticResource UIFontFamily}"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource Muted2Brush}"/>
+        </Style>
+        <Style x:Key="PlainHead" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource Muted2Brush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="CellText" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{DynamicResource Text2Brush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            <Setter Property="Margin" Value="0,0,12,0"/>
+        </Style>
 
-        <!-- Header -->
-        <Grid Grid.Row="0" Margin="0,0,0,18">
-            <StackPanel HorizontalAlignment="Left">
-                <TextBlock Text="Applications" Style="{StaticResource H1}"/>
-                <TextBlock Text="Browse and manage Win32 applications in your connected Intune tenant" Style="{StaticResource SubText}" Margin="0,5,0,0"/>
-            </StackPanel>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
-                <TextBlock Text="{Binding RangeText}" Style="{StaticResource Caption}" Margin="0,0,14,0"/>
-                <Button Style="{StaticResource GhostButton}" Content="Refresh"
-                        Command="{Binding RefreshCommand}" ToolTip="Reload from Intune"/>
-            </StackPanel>
-        </Grid>
+        <!-- Table row: hairline under, accent edge + faint fill when selected. -->
+        <Style x:Key="AppRow" TargetType="ListBoxItem">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusVisualInset}"/>
+            <Setter Property="AutomationProperties.Name" Value="{Binding DisplayName}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="rb" Height="56" Background="Transparent" BorderBrush="{DynamicResource Line2Brush}" BorderThickness="0,0,0,1">
+                            <Grid>
+                                <Border x:Name="edge" Width="3" HorizontalAlignment="Left" Background="Transparent"/>
+                                <ContentPresenter Margin="16,0,16,0" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="rb" Property="Background" Value="{DynamicResource Card2Brush}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="rb" Property="Background" Value="{DynamicResource PrimaryFaintBrush}"/>
+                                <Setter TargetName="rb" Property="BorderBrush" Value="{DynamicResource PrimaryLineBrush}"/>
+                                <Setter TargetName="edge" Property="Background" Value="{DynamicResource AccentTextBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
 
-        <!-- Search + filters -->
-        <Grid Grid.Row="1" Margin="0,0,0,20">
-            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="12"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-            <TextBox Grid.ColumnSpan="5" Style="{StaticResource TextField}" AutomationProperties.Name="Search applications"
-                local:PlaceholderText.Text="Search applications by name or publisher…" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}"/>
-            <ComboBox Grid.Row="2" AutomationProperties.Name="Filter by manufacturer" ItemsSource="{Binding Manufacturers}" SelectedItem="{Binding SelectedManufacturer, Mode=TwoWay}"/>
-            <ComboBox Grid.Row="2" Grid.Column="2" AutomationProperties.Name="Filter by category" ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"/>
-            <ComboBox Grid.Row="2" Grid.Column="4" AutomationProperties.Name="Filter by last updated" ItemsSource="{Binding UpdatedWindows}" SelectedItem="{Binding SelectedUpdatedWindow, Mode=TwoWay}"/>
-        </Grid>
+    <controls:PageFrame Title="Applications" Subtitle="Browse and manage Win32 applications in Microsoft Intune"
+                        IsBodyScrollable="False">
 
-        <!-- Table -->
-        <Border Grid.Row="2" Background="{DynamicResource ShellBrush}"
-                BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4">
+        <controls:PageFrame.Footer>
             <Grid>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="34"/>
-                    <RowDefinition Height="*"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding RangeText}" Style="{StaticResource SubText}" VerticalAlignment="Center"
+                           TextTrimming="CharacterEllipsis"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0"
+                            Visibility="{Binding ShowPager, Converter={StaticResource BoolToVis}}">
+                    <Button Style="{StaticResource MiniButton}" Command="{Binding PrevPageCommand}" ToolTip="Previous page"
+                            AutomationProperties.Name="Previous page">
+                        <controls:LineIcon Data="{DynamicResource IconChevL}" Width="14" Height="14"/>
+                    </Button>
+                    <TextBlock Text="{Binding PageDisplay}" Style="{StaticResource SubText}" VerticalAlignment="Center" Margin="12,0"/>
+                    <Button Style="{StaticResource MiniButton}" Command="{Binding NextPageCommand}" ToolTip="Next page"
+                            AutomationProperties.Name="Next page">
+                        <controls:LineIcon Data="{DynamicResource IconChevR}" Width="14" Height="14"/>
+                    </Button>
+                </StackPanel>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center"
+                            TextElement.Foreground="{DynamicResource Muted2Brush}"
+                            Visibility="{Binding LastRefreshedText, Converter={StaticResource NonEmptyToVis}}">
+                    <controls:LineIcon Data="{DynamicResource IconRefresh}" Width="15" Height="15"/>
+                    <TextBlock Text="{Binding LastRefreshedText}" Style="{StaticResource SubText}" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Grid>
+        </controls:PageFrame.Footer>
 
-                <!-- Column heads -->
-                <Border Grid.Row="0" Background="{DynamicResource CardBrush}"
-                        BorderBrush="{DynamicResource EdgeBrush}" BorderThickness="0,0,0,1" Padding="14,0">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="26"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="130"/>
-                            <ColumnDefinition Width="130"/>
-                            <ColumnDefinition Width="110"/>
-                            <ColumnDefinition Width="18"/>
-                        </Grid.ColumnDefinitions>
-                        <Button Grid.Column="1" Style="{StaticResource Breadcrumb}" Command="{Binding SortByNameCommand}"
-                                Margin="12,0,0,0" ToolTip="Sort by name">
-                            <TextBlock Text="{Binding NameHeader}" Style="{StaticResource ColHead}"
-                                       FontSize="12" Foreground="{DynamicResource MutedBrush}" Margin="0"/>
-                        </Button>
-                        <TextBlock Grid.Column="2" Text="Category" Style="{StaticResource ColHead}" FontSize="12" Margin="0"/>
-                        <TextBlock Grid.Column="3" Text="Version" Style="{StaticResource ColHead}" FontSize="12" Margin="0"/>
-                        <Button Grid.Column="4" Style="{StaticResource Breadcrumb}" Command="{Binding SortByUpdatedCommand}"
-                                ToolTip="Sort by last updated">
-                            <TextBlock Text="{Binding UpdatedHeader}" Style="{StaticResource ColHead}" FontSize="12" Margin="0"/>
-                        </Button>
+        <!-- Rail: the selected application. -->
+        <controls:PageFrame.Rail>
+            <StackPanel>
+                <TextBlock Text="Application" Style="{StaticResource RailTitle}"/>
+
+                <TextBlock Text="Select an application to see its details." TextWrapping="Wrap" Margin="0,12,0,0">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock" BasedOn="{StaticResource SubText}">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SelectedApp}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+
+                <StackPanel Visibility="{Binding SelectedApp, Converter={StaticResource NonEmptyToVis}}" Margin="0,18,0,0">
+                    <controls:AppIdentity Title="{Binding SelectedApp.DisplayName}" Subtitle="{Binding SelectedApp.Publisher}"
+                                          Meta="{Binding SelectedMeta}" TileSize="56"/>
+                    <StackPanel Margin="0,16,0,0">
+                        <ContentControl Style="{StaticResource KvRow}" Tag="Type" Content="Win32 (.intunewin)"/>
+                        <ContentControl Style="{StaticResource KvRow}" Tag="State" Content="{Binding SelectedStateText}"/>
+                        <ContentControl Style="{StaticResource KvRow}" Tag="Category" Content="{Binding SelectedCategoryText}"/>
+                        <ContentControl Style="{StaticResource KvRow}" Tag="Last modified" Content="{Binding SelectedApp.UpdatedText}"/>
+                        <ContentControl Style="{StaticResource KvRowMono}" Tag="App ID" Content="{Binding SelectedApp.Id}"/>
+                    </StackPanel>
+
+                    <TextBlock Text="Actions" Style="{StaticResource H3}" Margin="0,24,0,10"/>
+                    <Button Style="{StaticResource GhostButton}" HorizontalContentAlignment="Left"
+                            Command="{Binding OpenCommand}" CommandParameter="{Binding SelectedApp}">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:LineIcon Data="{DynamicResource IconArrowR}"/>
+                            <TextBlock Text="Open details" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource GhostButton}" HorizontalContentAlignment="Left" Margin="0,8,0,0"
+                            Command="{Binding ViewInIntuneCommand}" ToolTip="Open this app in the Intune admin center">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:LineIcon Data="{DynamicResource IconExternal}"/>
+                            <TextBlock Text="View in Intune" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </StackPanel>
+        </controls:PageFrame.Rail>
+
+        <DockPanel>
+            <!-- Toolbar: search, filters, refresh -->
+            <Border DockPanel.Dock="Top" Style="{StaticResource PanelCard}" Padding="16,12" Margin="0,0,0,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" MaxWidth="360"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid MinWidth="180">
+                        <TextBox Style="{StaticResource TextField}" Padding="38,0,11,0" AutomationProperties.Name="Search applications"
+                                 local:PlaceholderText.Text="Search applications"
+                                 Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}"/>
+                        <controls:LineIcon Data="{DynamicResource IconSearch}" HorizontalAlignment="Left" Margin="13,0,0,0"
+                                           Foreground="{DynamicResource Muted2Brush}" IsHitTestVisible="False"/>
                     </Grid>
-                </Border>
+                    <ComboBox Grid.Column="1" MinWidth="150" Margin="10,0,0,0" AutomationProperties.Name="Filter by publisher"
+                              ItemsSource="{Binding Manufacturers}" SelectedItem="{Binding SelectedManufacturer, Mode=TwoWay}"/>
+                    <ComboBox Grid.Column="2" MinWidth="140" Margin="10,0,0,0" AutomationProperties.Name="Filter by category"
+                              ItemsSource="{Binding Categories}" SelectedItem="{Binding SelectedCategory, Mode=TwoWay}"/>
+                    <ComboBox Grid.Column="3" MinWidth="160" Margin="10,0,0,0" AutomationProperties.Name="Filter by last updated"
+                              ItemsSource="{Binding UpdatedWindows}" SelectedItem="{Binding SelectedUpdatedWindow, Mode=TwoWay}"/>
+                    <Button Grid.Column="5" Style="{StaticResource GhostButton}" Margin="10,0,0,0"
+                            Command="{Binding RefreshCommand}" ToolTip="Reload from Intune">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:LineIcon Data="{DynamicResource IconRefresh}"/>
+                            <TextBlock Text="Refresh" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </Border>
 
-                <!-- Rows -->
-                <ItemsControl Grid.Row="1" ItemsSource="{Binding Page}" AlternationCount="2"
-                              VirtualizingPanel.IsVirtualizing="True"
-                              VirtualizingPanel.VirtualizationMode="Recycling"
-                              VirtualizingPanel.ScrollUnit="Pixel">
-                    <ItemsControl.Template>
-                        <ControlTemplate TargetType="ItemsControl">
-                            <ScrollViewer CanContentScroll="True" Focusable="False"
-                                          VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                <ItemsPresenter/>
-                            </ScrollViewer>
-                        </ControlTemplate>
-                    </ItemsControl.Template>
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <VirtualizingStackPanel/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Button Command="{Binding DataContext.OpenCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                    CommandParameter="{Binding}" FocusVisualStyle="{StaticResource FocusVisualInset}" AutomationProperties.Name="{Binding DisplayName}" Cursor="Hand" HorizontalContentAlignment="Stretch" Height="60">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border x:Name="rb" BorderThickness="2,0,0,1" Padding="12,0,14,0"
-                                                Background="Transparent" BorderBrush="{DynamicResource Line2Brush}">
-                                            <ContentPresenter VerticalAlignment="Center"/>
-                                        </Border>
-                                        <ControlTemplate.Triggers>
-                                            <!-- Zebra striping via alternation, hover lights the left edge. -->
-                                            <DataTrigger Binding="{Binding (ItemsControl.AlternationIndex), RelativeSource={RelativeSource AncestorType=ContentPresenter}}" Value="1">
-                                                <Setter TargetName="rb" Property="Background" Value="{DynamicResource Card2Brush}"/>
-                                            </DataTrigger>
-                                            <Trigger Property="IsMouseOver" Value="True">
-                                                <Setter TargetName="rb" Property="Background" Value="{DynamicResource PrimaryFaintBrush}"/>
-                                                <Setter TargetName="rb" Property="BorderBrush" Value="{DynamicResource AccentTextBrush}"/>
-                                            </Trigger>
-                                        </ControlTemplate.Triggers>
-                                    </ControlTemplate>
-                                </Button.Template>
+            <!-- Table -->
+            <Border Style="{StaticResource PanelCard}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="44"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Column heads -->
+                    <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1" Padding="16,0">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="0.45*" MaxWidth="200"/>
+                                <ColumnDefinition Width="110"/>
+                                <ColumnDefinition Width="120"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Style="{StaticResource SortHead}" Content="{Binding NameHeader}"
+                                    Command="{Binding SortByNameCommand}" ToolTip="Sort by name"/>
+                            <TextBlock Grid.Column="1" Text="Publisher" Style="{StaticResource PlainHead}"/>
+                            <TextBlock Grid.Column="2" Text="Version" Style="{StaticResource PlainHead}"/>
+                            <Button Grid.Column="3" Style="{StaticResource SortHead}" Content="{Binding UpdatedHeader}"
+                                    Command="{Binding SortByUpdatedCommand}" ToolTip="Sort by last updated"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Rows: click selects, double click or Enter opens. -->
+                    <ListBox x:Name="AppList" Grid.Row="1" ItemsSource="{Binding Page}" SelectionMode="Single"
+                             SelectedItem="{Binding SelectedApp, Mode=TwoWay}"
+                             ItemContainerStyle="{StaticResource AppRow}"
+                             AutomationProperties.Name="Applications"
+                             MouseDoubleClick="AppList_MouseDoubleClick" KeyDown="AppList_KeyDown"
+                             VirtualizingPanel.IsVirtualizing="True"
+                             VirtualizingPanel.VirtualizationMode="Recycling"
+                             VirtualizingPanel.ScrollUnit="Pixel">
+                        <ListBox.Template>
+                            <ControlTemplate TargetType="ListBox">
+                                <ScrollViewer CanContentScroll="True" Focusable="False"
+                                              VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                    <ItemsPresenter/>
+                                </ScrollViewer>
+                            </ControlTemplate>
+                        </ListBox.Template>
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <VirtualizingStackPanel/>
+                            </ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="26"/>
                                         <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="130"/>
-                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="0.45*" MaxWidth="200"/>
                                         <ColumnDefinition Width="110"/>
-                                        <ColumnDefinition Width="18"/>
+                                        <ColumnDefinition Width="120"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <Border Grid.Column="0" Width="26" Height="26" BorderBrush="{DynamicResource Edge2Brush}" BorderThickness="1" CornerRadius="4">
-                                        <TextBlock Text="{Binding Initial}" FontFamily="{StaticResource LabelFontFamily}"
-                                                   FontSize="12" FontWeight="Medium" Foreground="{DynamicResource MutedBrush}"
-                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                    </Border>
-
-                                    <Grid Grid.Column="1" Margin="12,0,12,0" VerticalAlignment="Center"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                        <StackPanel VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding DisplayName}" FontSize="12.5" FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource InkBrush}" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock Text="{Binding Publisher}" FontSize="12" Margin="0,4,0,0"
-                                                       Foreground="{DynamicResource Muted3Brush}" TextTrimming="CharacterEllipsis"/>
-                                        </StackPanel>
-                                        <Border Grid.Column="1" BorderBrush="{DynamicResource WarnLineBrush}" BorderThickness="1" Padding="7,4" Margin="9,0,0,0"
-                                                VerticalAlignment="Center"
-                                                Visibility="{Binding ShowStateWarning, Converter={StaticResource BoolToVis}}" CornerRadius="4">
-                                            <TextBlock Text="{Binding StateWarningText}" FontFamily="{StaticResource LabelFontFamily}"
-                                                       FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource WarnBrush}"/>
+                                    <DockPanel Margin="0,0,12,0">
+                                        <Border DockPanel.Dock="Left" Width="30" Height="30" CornerRadius="5" VerticalAlignment="Center"
+                                                Background="{DynamicResource ControlBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1">
+                                            <TextBlock Text="{Binding Initial}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource Text2Brush}"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
-                                    </Grid>
-
-                                    <TextBlock Grid.Column="2" Text="{Binding Category}" VerticalAlignment="Center" Margin="0,0,12,0"
-                                               FontSize="12" Foreground="{DynamicResource MutedBrush}" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Grid.Column="3" Text="{Binding Version}" VerticalAlignment="Center" Margin="0,0,12,0"
-                                               FontFamily="{StaticResource MonoFontFamily}" FontSize="12"
-                                               Foreground="{DynamicResource Text2Brush}" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Grid.Column="4" Text="{Binding UpdatedText}" VerticalAlignment="Center" Margin="0,0,12,0"
-                                               FontFamily="{StaticResource MonoFontFamily}" FontSize="12"
-                                               Foreground="{DynamicResource Muted3Brush}" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Grid.Column="5" Text="›" VerticalAlignment="Center" HorizontalAlignment="Right"
-                                               FontFamily="{StaticResource MonoFontFamily}" FontSize="12"
-                                               Foreground="{DynamicResource FaintBrush}"/>
+                                        <Border DockPanel.Dock="Right" Style="{StaticResource Chip}" Margin="10,0,0,0" VerticalAlignment="Center"
+                                                BorderBrush="{DynamicResource WarnLineBrush}" Background="{DynamicResource WarnSoftBrush}"
+                                                Visibility="{Binding ShowStateWarning, Converter={StaticResource BoolToVis}}">
+                                            <TextBlock Text="{Binding StateWarningText}" Foreground="{DynamicResource WarnBrush}"/>
+                                        </Border>
+                                        <TextBlock Text="{Binding DisplayName}" Margin="12,0,0,0" FontSize="13.5" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                                                   ToolTip="{Binding DisplayName}"/>
+                                    </DockPanel>
+                                    <TextBlock Grid.Column="1" Text="{Binding Publisher}" Style="{StaticResource CellText}"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding Version}" Style="{StaticResource CellText}"
+                                               FontFamily="{StaticResource MonoFontFamily}" FontSize="12.5"/>
+                                    <TextBlock Grid.Column="3" Text="{Binding LastModified, StringFormat='MMM d, yyyy'}" Style="{StaticResource CellText}"
+                                               ToolTip="{Binding UpdatedText}"/>
                                 </Grid>
-                            </Button>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
 
-                <!-- Loading / empty / not-connected all paint over the list area. -->
-                <StackPanel Grid.Row="1" Margin="18,34" Background="{DynamicResource ShellBrush}"
+                    <!-- Loading / empty / not-connected all paint over the list area. -->
+                    <!-- Covers the previous rows while a refresh runs. -->
+                    <Border Grid.Row="1" Background="{DynamicResource PanelBrush}" CornerRadius="0,0,8,8"
                             Visibility="{Binding IsLoading, Converter={StaticResource BoolToVis}}">
-                    <Ellipse Width="34" Height="34" Stroke="{DynamicResource AccentTextBrush}" StrokeThickness="2"
-                             StrokeDashArray="22 8" StrokeDashCap="Round" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Center">
-                        <Ellipse.RenderTransform>
-                            <RotateTransform Angle="0"/>
-                        </Ellipse.RenderTransform>
-                        <Ellipse.Triggers>
-                            <EventTrigger RoutedEvent="Ellipse.Loaded">
-                                <BeginStoryboard>
-                                    <Storyboard>
-                                        <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
-                                                         From="0" To="360" Duration="0:0:0.9" RepeatBehavior="Forever"/>
-                                    </Storyboard>
-                                </BeginStoryboard>
-                            </EventTrigger>
-                        </Ellipse.Triggers>
-                    </Ellipse>
-                    <TextBlock Text="{Binding LoadStatus}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12"
-                               Foreground="{DynamicResource Muted2Brush}" HorizontalAlignment="Center" Margin="0,16,0,0"/>
-                </StackPanel>
-
-                <StackPanel Grid.Row="1" Margin="18,28" Background="{DynamicResource ShellBrush}"
-                            Visibility="{Binding ShowEmpty, Converter={StaticResource BoolToVis}}">
-                    <TextBlock Text="No applications to show" Foreground="{DynamicResource InkBrush}" FontSize="13.5"
-                               FontWeight="SemiBold" HorizontalAlignment="Center"/>
-                    <TextBlock Text="{Binding StatusText}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12"
-                               Foreground="{DynamicResource Muted2Brush}" Margin="0,8,0,0" LineHeight="18"
-                               HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="420" TextAlignment="Center"/>
-                </StackPanel>
-
-                <StackPanel Grid.Row="1" Margin="18,40" Background="{DynamicResource ShellBrush}"
-                            Visibility="{Binding ShowConnectPrompt, Converter={StaticResource BoolToVis}}">
-                    <!-- Same mark as the title bar, scaled up. -->
-                    <Border Width="34" Height="34" CornerRadius="6" BorderBrush="{DynamicResource AccentTextBrush}"
-                            BorderThickness="1.5" HorizontalAlignment="Center">
-                        <Rectangle Width="10" Height="10" RadiusX="2" RadiusY="2" Fill="{DynamicResource MarkBrush}"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                    </Border>
-                    <TextBlock Text="Not connected to Microsoft Intune" Foreground="{DynamicResource InkBrush}" FontSize="13.5"
-                               FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,16,0,0"/>
-                    <TextBlock Text="Connect to your tenant on the Settings page to browse applications from Intune."
-                               FontFamily="{StaticResource MonoFontFamily}" FontSize="12" LineHeight="18"
-                               Foreground="{DynamicResource Muted2Brush}" Margin="0,8,0,0"
-                               HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="420" TextAlignment="Center"/>
-                    <Button Style="{StaticResource PrimaryButton}" Command="{Binding ConnectCommand}"
-                            Content="Open Settings" HorizontalAlignment="Center" Margin="0,18,0,0"/>
-                </StackPanel>
-
-                <!-- Pager -->
-                <Border Grid.Row="2" Height="56" Background="{DynamicResource CardBrush}"
-                        BorderBrush="{DynamicResource EdgeBrush}" BorderThickness="0,1,0,0" Padding="14,0"
-                        Visibility="{Binding ShowPager, Converter={StaticResource BoolToVis}}">
-                    <Grid>
-                        <TextBlock Text="{Binding RangeText}" VerticalAlignment="Center" HorizontalAlignment="Left"
-                                   FontFamily="{StaticResource MonoFontFamily}" FontSize="12"
-                                   Foreground="{DynamicResource Muted3Brush}"/>
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                            <Button Style="{StaticResource GhostButton}" Content="← Previous" Padding="11,7"
-                                    Command="{Binding PrevPageCommand}"/>
-                            <TextBlock Text="{Binding PageDisplay}" VerticalAlignment="Center" Margin="14,0"
-                                       FontFamily="{StaticResource MonoFontFamily}" FontSize="12"
-                                       Foreground="{DynamicResource Text2Brush}"/>
-                            <Button Style="{StaticResource GhostButton}" Content="Next →" Padding="11,7"
-                                    Command="{Binding NextPageCommand}"/>
+                        <StackPanel Margin="18,48" VerticalAlignment="Top">
+                            <Ellipse Width="34" Height="34" Stroke="{DynamicResource AccentTextBrush}" StrokeThickness="2"
+                                     StrokeDashArray="22 8" StrokeDashCap="Round" RenderTransformOrigin="0.5,0.5" HorizontalAlignment="Center">
+                                <Ellipse.RenderTransform>
+                                    <RotateTransform Angle="0"/>
+                                </Ellipse.RenderTransform>
+                                <Ellipse.Triggers>
+                                    <EventTrigger RoutedEvent="Ellipse.Loaded">
+                                        <BeginStoryboard>
+                                            <Storyboard>
+                                                <DoubleAnimation Storyboard.TargetProperty="(UIElement.RenderTransform).(RotateTransform.Angle)"
+                                                                 From="0" To="360" Duration="0:0:0.9" RepeatBehavior="Forever"/>
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </EventTrigger>
+                                </Ellipse.Triggers>
+                            </Ellipse>
+                            <TextBlock Text="{Binding LoadStatus}" Style="{StaticResource SubText}" HorizontalAlignment="Center" Margin="0,16,0,0"/>
                         </StackPanel>
-                    </Grid>
-                </Border>
-            </Grid>
-        </Border>
-    </Grid>
+                    </Border>
+
+                    <StackPanel Grid.Row="1" Margin="18,48" VerticalAlignment="Top"
+                                Visibility="{Binding ShowEmpty, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="No applications to show" Style="{StaticResource H3}" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding StatusText}" Style="{StaticResource SubText}" Margin="0,6,0,0"
+                                   HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="420" TextAlignment="Center"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Margin="18,56" VerticalAlignment="Top"
+                                Visibility="{Binding ShowConnectPrompt, Converter={StaticResource BoolToVis}}">
+                        <controls:LineIcon Data="{DynamicResource IconUser}" Width="30" Height="30" HorizontalAlignment="Center"
+                                           Foreground="{DynamicResource Muted2Brush}"/>
+                        <TextBlock Text="Not connected to Microsoft Intune" Style="{StaticResource H3}" HorizontalAlignment="Center" Margin="0,14,0,0"/>
+                        <TextBlock Text="Sign in to browse the applications in your tenant." Style="{StaticResource SubText}"
+                                   Margin="0,6,0,0" HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="420" TextAlignment="Center"/>
+                        <Button Style="{StaticResource PrimaryButton}" Command="{x:Static services:AppNavigation.OpenSettings}"
+                                Content="Sign in" HorizontalAlignment="Center" Margin="0,18,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </DockPanel>
+    </controls:PageFrame>
 </UserControl>
