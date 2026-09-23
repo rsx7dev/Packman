@@ -87,6 +87,10 @@
             </StackPanel>
         </controls:PageFrame.Breadcrumb>
 
+        <controls:PageFrame.Leading>
+            <controls:AppIdentity Title="{Binding Detail.DisplayName}" TileSize="64" IsTileOnly="True"/>
+        </controls:PageFrame.Leading>
+
         <controls:PageFrame.HeaderActions>
             <StackPanel Orientation="Horizontal">
                 <Button Style="{StaticResource PrimaryButton}" Click="Update_Click" IsEnabled="{Binding CanRepublish}"

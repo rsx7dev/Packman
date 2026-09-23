@@ -319,8 +319,6 @@
                                     <TextBlock Text="Ctrl+S saves the active file" Style="{StaticResource SubText}" VerticalAlignment="Center"/>
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" Orientation="Horizontal">
-                                    <Button Style="{StaticResource GhostButton}" Content="{Binding ToolActionLabel}"
-                                            Click="ToolAction_Click" Margin="0,0,10,0"/>
                                     <Button Style="{StaticResource PrimaryButton}" Command="{Binding ContinueToUploadCommand}">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="Continue to configure" VerticalAlignment="Center"/>

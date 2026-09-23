@@ -43,6 +43,14 @@ public partial class MainWindow : FluentWindow
                 SettingsNavBtn.IsChecked = true;
                 SettingsPage.ShowAuthentication();
                 break;
+            case AppNavigation.SettingsPaths:
+                SettingsNavBtn.IsChecked = true;
+                SettingsPage.ShowNetworkPaths();
+                break;
+            case AppNavigation.SettingsDefaults:
+                SettingsNavBtn.IsChecked = true;
+                SettingsPage.ShowIntuneDefaults();
+                break;
             case AppNavigation.Upload:
                 UploadIntuneNavBtn.IsChecked = true;
                 break;
@@ -119,12 +127,6 @@ public partial class MainWindow : FluentWindow
     }
 
     private void SettingsNavBtn_Checked(object sender, RoutedEventArgs e) => ShowOnly(SettingsPage, "Settings");
-
-    /// <summary>The footer action belongs to whichever tool is open.</summary>
-    private void ToolAction_Click(object sender, RoutedEventArgs e)
-    {
-        if (DataContext is MainViewModel { IsEditToolOpen: true } vm) vm.Editor.OpenInExternalEditor();
-    }
 
     /// <summary>
     /// Separate from the wizard's tool of the same name: this one starts with no package,

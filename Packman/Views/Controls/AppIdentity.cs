@@ -53,6 +53,12 @@ public class AppIdentity : Control
         d.SetValue(IconProperty, image);
     }
 
+    public static readonly DependencyProperty IsTileOnlyProperty =
+        DependencyProperty.Register(nameof(IsTileOnly), typeof(bool), typeof(AppIdentity), new PropertyMetadata(false));
+
+    /// <summary>Just the tile, for places where the name is already shown beside it.</summary>
+    public bool IsTileOnly { get => (bool)GetValue(IsTileOnlyProperty); set => SetValue(IsTileOnlyProperty, value); }
+
     public string Title { get => (string)GetValue(TitleProperty); set => SetValue(TitleProperty, value); }
     public string Subtitle { get => (string)GetValue(SubtitleProperty); set => SetValue(SubtitleProperty, value); }
     public string Meta { get => (string)GetValue(MetaProperty); set => SetValue(MetaProperty, value); }

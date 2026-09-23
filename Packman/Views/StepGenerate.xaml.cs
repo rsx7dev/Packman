@@ -47,6 +47,9 @@ public partial class StepGenerate : UserControl
         }
     }
 
+    private void OpenSettings_Click(object sender, RoutedEventArgs e)
+        => Services.AppNavigation.Go(Services.AppNavigation.SettingsPaths);
+
     private void UploadExisting_Click(object sender, RoutedEventArgs e)
         => (Window.GetWindow(this) as MainWindow)?.NavigateToUploadIntune();
 

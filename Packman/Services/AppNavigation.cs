@@ -10,6 +10,8 @@ namespace Packman.Services;
 public static class AppNavigation
 {
     public const string Settings = "settings";
+    public const string SettingsPaths = "settings-paths";
+    public const string SettingsDefaults = "settings-defaults";
     public const string Upload = "upload";
     public const string Applications = "applications";
 

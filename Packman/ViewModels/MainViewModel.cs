@@ -46,7 +46,7 @@ public sealed class MainViewModel : ObservableObject
         set
         {
             if (!Set(ref _isUpgradeMode, value)) return;
-            RaiseAll(nameof(PrimaryLabel), nameof(StepHint));
+            RaiseAll(nameof(PrimaryLabel), nameof(StepHint), nameof(ShowNoSupersedenceNote));
         }
     }
 
@@ -101,7 +101,6 @@ public sealed class MainViewModel : ObservableObject
             OnPropertyChanged(nameof(IsTestToolOpen));
             OnPropertyChanged(nameof(ToolTitle));
             OnPropertyChanged(nameof(ToolSubtitle));
-            OnPropertyChanged(nameof(ToolActionLabel));
         }
     }
 
@@ -125,12 +124,6 @@ public sealed class MainViewModel : ObservableObject
         _ => "",
     };
 
-    public string ToolActionLabel => _activeTool switch
-    {
-        PackageTool.EditScript => "Open in VS Code",
-        PackageTool.RemoteTest => "Run install",
-        _ => "",
-    };
 
     // ── Package state surfaced to the Generate screen ───────────────────
     public bool HasPackage => !string.IsNullOrEmpty(CreatePackage.CurrentPackagePath);
@@ -145,6 +138,9 @@ public sealed class MainViewModel : ObservableObject
             return string.IsNullOrEmpty(path) ? "" : Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar));
         }
     }
+
+    /// <summary>An upgrade whose previous version has no recorded Intune app: it publishes as a new app.</summary>
+    public bool ShowNoSupersedenceNote => IsUpgradeMode && HasPackage && !Upload.HasSupersedence;
 
     public string PackagePathShort => HasPackage ? CreatePackage.CurrentPackagePath : "no package yet";
 

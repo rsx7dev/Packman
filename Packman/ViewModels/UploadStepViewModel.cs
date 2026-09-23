@@ -383,8 +383,13 @@ public class UploadStepViewModel : ObservableObject
 
     public string RequirementsSummary =>
         $"Disk: {Constraint(MinFreeDiskSpaceMB, "MB")} · Memory: {Constraint(MinMemoryMB, "MB")} · " +
-        $"Processors: {Constraint(MinProcessors, "")} · CPU: {Constraint(MinCpuSpeedMHz, "MHz")}\n" +
-        $"Restart: {RestartBehaviorLabel} · Max install time: {_settingsService.Settings.IntuneDefaults.MaxRunTimeMinutes} min (Settings ▸ Intune Defaults)";
+        $"Processors: {Constraint(MinProcessors, "")} · CPU: {Constraint(MinCpuSpeedMHz, "MHz")}";
+
+    /// <summary>Read-only facts the Configure step shows beside the editable fields.</summary>
+    public string InstallContextText => _create.UserInstall ? "User" : "System";
+    public string ArchitectureText => _create.Architecture;
+    public string RestartBehaviorText => RestartBehaviorLabel;
+    public string MaxRunTimeText => $"{_settingsService.Settings.IntuneDefaults.MaxRunTimeMinutes} minutes";
 
     private string RestartBehaviorLabel
     {
@@ -418,7 +423,8 @@ public class UploadStepViewModel : ObservableObject
         nameof(IsSignedIn), nameof(IsNotSignedIn), nameof(SignedInUser), nameof(TenantName),
         nameof(CanAttemptPublish), nameof(ShowSignInCallout), nameof(CommandsReady), nameof(CommandsState),
         nameof(AssignmentCount), nameof(HasAssignment), nameof(AssignmentState), nameof(AssignmentDetail),
-        nameof(HasSupersedence), nameof(SupersedenceSummary));
+        nameof(HasSupersedence), nameof(SupersedenceSummary), nameof(InstallContextText), nameof(ArchitectureText),
+        nameof(RestartBehaviorText), nameof(MaxRunTimeText), nameof(InstallCommandPreview), nameof(UninstallCommandPreview));
 
     /// <summary>
     /// Why the detection settings can't produce a usable rule, or null when they can.

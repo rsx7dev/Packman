@@ -4,7 +4,7 @@
     xmlns:local="clr-namespace:Packman"
     xmlns:controls="clr-namespace:Packman.Views.Controls"
     >
-    <Border Style="{StaticResource Card}">
+    <Border Style="{StaticResource SectionPanel}">
         <StackPanel>
             <TextBlock Text="{Binding Title}" Style="{StaticResource H2}" TextWrapping="Wrap"/>
             <TextBlock Text="{Binding StatusText}" Style="{StaticResource SubText}" Margin="0,8,0,0" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>

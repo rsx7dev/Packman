@@ -1185,7 +1185,7 @@
                                 </Viewbox>
                             </Grid>
                         </Border>
-                        <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
+                        <StackPanel x:Name="text" Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
                             <TextBlock Text="{TemplateBinding Title}" FontFamily="{StaticResource UIFontFamily}" FontSize="16" FontWeight="SemiBold"
                                        Foreground="{DynamicResource InkBrush}" TextTrimming="CharacterEllipsis"
                                        ToolTip="{Binding Title, RelativeSource={RelativeSource TemplatedParent}}"/>
@@ -1207,6 +1207,9 @@
                         </Trigger>
                         <Trigger Property="Meta" Value="">
                             <Setter TargetName="meta" Property="Visibility" Value="Collapsed"/>
+                        </Trigger>
+                        <Trigger Property="IsTileOnly" Value="True">
+                            <Setter TargetName="text" Property="Visibility" Value="Collapsed"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>
@@ -1237,17 +1240,19 @@
                             <StackPanel>
                                 <Grid Margin="28,18,24,18">
                                     <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center">
+                                    <ContentPresenter x:Name="leading" Content="{TemplateBinding Leading}" VerticalAlignment="Bottom" Margin="0,0,18,0"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                         <ContentPresenter x:Name="crumb" Content="{TemplateBinding Breadcrumb}" Margin="0,0,0,8"
                                                           TextElement.FontSize="13" TextElement.Foreground="{DynamicResource Muted2Brush}"/>
                                         <TextBlock Text="{TemplateBinding Title}" Style="{StaticResource H1}" TextTrimming="CharacterEllipsis"/>
                                         <TextBlock x:Name="sub" Text="{TemplateBinding Subtitle}" Style="{StaticResource SubText}" FontSize="14"
                                                    Margin="0,4,0,0" TextWrapping="Wrap"/>
                                     </StackPanel>
-                                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
                                         <ContentPresenter Content="{TemplateBinding HeaderActions}" VerticalAlignment="Center"/>
                                         <!-- Compact only: brings the rail over the body. -->
                                         <ToggleButton x:Name="railToggle" Style="{x:Null}" Visibility="Collapsed" Margin="12,0,0,0"
@@ -1303,6 +1308,9 @@
                         </Border>
                     </Grid>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="Leading" Value="{x:Null}">
+                            <Setter TargetName="leading" Property="Visibility" Value="Collapsed"/>
+                        </Trigger>
                         <Trigger Property="Breadcrumb" Value="{x:Null}">
                             <Setter TargetName="crumb" Property="Visibility" Value="Collapsed"/>
                         </Trigger>

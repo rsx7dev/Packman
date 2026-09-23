@@ -17,6 +17,7 @@ public class PageFrame : ContentControl
 
     public static readonly DependencyProperty TitleProperty = Register<string>(nameof(Title), "");
     public static readonly DependencyProperty SubtitleProperty = Register<string>(nameof(Subtitle), "");
+    public static readonly DependencyProperty LeadingProperty = Register<object?>(nameof(Leading), null);
     public static readonly DependencyProperty BreadcrumbProperty = Register<object?>(nameof(Breadcrumb), null);
     public static readonly DependencyProperty HeaderActionsProperty = Register<object?>(nameof(HeaderActions), null);
     public static readonly DependencyProperty HeaderBottomProperty = Register<object?>(nameof(HeaderBottom), null);
@@ -28,6 +29,9 @@ public class PageFrame : ContentControl
 
     public string Title { get => (string)GetValue(TitleProperty); set => SetValue(TitleProperty, value); }
     public string Subtitle { get => (string)GetValue(SubtitleProperty); set => SetValue(SubtitleProperty, value); }
+
+    /// <summary>Shown left of the title, e.g. the app tile on Application detail.</summary>
+    public object? Leading { get => GetValue(LeadingProperty); set => SetValue(LeadingProperty, value); }
 
     /// <summary>Small trail above the title, e.g. "Applications / Contoso Reader".</summary>
     public object? Breadcrumb { get => GetValue(BreadcrumbProperty); set => SetValue(BreadcrumbProperty, value); }
