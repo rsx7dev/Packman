@@ -2,23 +2,14 @@
     <Border Background="Transparent" BorderThickness="0" Padding="0">
         <StackPanel>
             <!-- Card header -->
-            <Grid Margin="0,0,0,18">
+            <Grid Margin="0,0,0,20">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <Border Grid.Column="0" Width="42" Height="42" CornerRadius="4" Background="{DynamicResource PrimaryDimBrush}">
-                    <Viewbox Width="20" Height="20">
-                        <Path Data="{StaticResource IconShield}" Stroke="{DynamicResource AccentTextBrush}" StrokeThickness="1.9" Style="{StaticResource Icon}"/>
-                    </Viewbox>
-                </Border>
-                <StackPanel Grid.Column="1" Margin="13,0,0,0" VerticalAlignment="Center">
-                    <TextBlock Text="Code Signing" Style="{StaticResource H2}"/>
-                    <TextBlock Text="Authenticode certificate used to sign packaged applications" FontSize="12.5" Foreground="{DynamicResource MutedBrush}" Margin="0,2,0,0"/>
-                </StackPanel>
+                <controls:SectionHeader Title="Code signing" Caption="Authenticode certificate used to sign packaged applications." Margin="0,0,16,0"/>
                 <!-- Enable / Disable toggle -->
-                <Border Grid.Column="2" Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4" Padding="4" VerticalAlignment="Center">
+                <Border Grid.Column="1" Style="{StaticResource SegmentGroup}" Padding="3" VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal">
                         <RadioButton Style="{StaticResource ContextToggle}" IsChecked="{Binding CodeSigningDisabled}">
                             <TextBlock Text="Disabled" VerticalAlignment="Center"/>

@@ -2,12 +2,10 @@
     <Border Background="Transparent" BorderThickness="0" Padding="0">
         <StackPanel>
             <!-- Card header -->
-            <StackPanel Margin="0,0,0,14">
-                <controls:SectionHeader Title="Appearance"/>
-                <TextBlock Text="How Packman looks on this machine" Style="{StaticResource SubText}" Margin="0,8,0,0" TextWrapping="Wrap"/>
-            </StackPanel>
+            <controls:SectionHeader Title="Appearance" Caption="How Packman looks on this machine." Margin="0,0,0,20"/>
             <!-- Theme (System | Dark | Light) -->
-            <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4" Padding="4" HorizontalAlignment="Left">
+            <TextBlock Text="Theme" Style="{StaticResource FieldLabel}"/>
+            <Border Style="{StaticResource SegmentGroup}" Padding="3">
                 <StackPanel Orientation="Horizontal">
                     <RadioButton Style="{StaticResource ModeToggle}" Content="System" IsChecked="{Binding IsThemeSystem}"/>
                     <RadioButton Style="{StaticResource ModeToggle}" Content="Dark" IsChecked="{Binding IsThemeDark}"/>
