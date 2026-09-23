@@ -7,8 +7,8 @@ using System.IO;
 namespace Packman.ViewModels;
 
 /// <summary>
-/// The standalone "Upload to Intune" page: pick a built package, review its detection
-/// rules, choose assignment groups and publish.
+/// The standalone "Upload to Intune" page: pick a built package, set its deploy mode,
+/// detection rules, requirements, return codes and assignment groups, and publish.
 /// </summary>
 public sealed class UploadToIntuneViewModel : ObservableObject
 {
@@ -26,11 +26,22 @@ public sealed class UploadToIntuneViewModel : ObservableObject
         AddRuleCommand = new RelayCommand(AddDetectionRule, () => CanAddRule);
         RemoveRuleCommand = new RelayCommand<DetectionRule>(r => { if (r != null) DetectionRules.Remove(r); });
         UploadCommand = new AsyncRelayCommand(UploadAsync, () => UploadEnabled);
+        AddReturnCodeCommand = new RelayCommand(AddReturnCode);
+        RestoreDefaultsCommand = new RelayCommand(ApplyIntuneDefaults);
+        ApplyIntuneDefaults();
+
+        DetectionRules.CollectionChanged += (_, _) =>
+            RaiseAll(nameof(HasDetectionRule), nameof(DetectionState), nameof(DetectionDetail));
+        GroupPicker.SelectedGroups.CollectionChanged += (_, _) =>
+            RaiseAll(nameof(HasAssignment), nameof(AssignmentState), nameof(AssignmentDetail));
+        _auth.StateChanged += RaiseConnection;
 
         Publish.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName == nameof(PublishRunViewModel.IsPublishing))
                 UploadCommand.RaiseCanExecuteChanged();
+            if (e.PropertyName is nameof(PublishRunViewModel.IsPublishing) or nameof(PublishRunViewModel.StatusText))
+                OnPropertyChanged(nameof(FooterText));
         };
         Publish.Dismissed += succeeded =>
         {
@@ -44,13 +55,31 @@ public sealed class UploadToIntuneViewModel : ObservableObject
     public bool IsNotSignedIn => !_auth.IsSignedIn;
     public string SignedInUser => _auth.SignedInUser ?? "";
     public string TenantName => _auth.TenantName;
+    public string ConnectionLabel => _auth.IsSignedIn ? "Connected" : "Not connected";
+    public string ConnectionDetail => _auth.IsSignedIn ? _auth.TenantName : "";
 
-    /// <summary>Refreshes sign-in dependent text.</summary>
+    /// <summary>Signed in, or app-registration mode, which connects on its own when the publish starts.</summary>
+    public bool CanAttemptPublish => _auth.IsSignedIn || _settings.Settings.AuthMode == AuthMode.AppRegistration;
+    public bool ShowSignInCallout => !CanAttemptPublish;
+
+    /// <summary>Refreshes sign-in and settings dependent text.</summary>
     public void Refresh()
     {
-        RaiseAll(nameof(IsSignedIn), nameof(IsNotSignedIn), nameof(SignedInUser), nameof(TenantName));
+        RaiseConnection();
+        RaiseAll(nameof(InstallCommandPreview), nameof(UninstallCommandPreview), nameof(CommandsReady), nameof(CommandsState));
         UploadCommand.RaiseCanExecuteChanged();
     }
+
+    // Property changes only: the auth service can raise this off the UI thread.
+    private void RaiseConnection() => RaiseAll(
+        nameof(IsSignedIn), nameof(IsNotSignedIn), nameof(SignedInUser), nameof(TenantName),
+        nameof(ConnectionLabel), nameof(ConnectionDetail), nameof(CanAttemptPublish), nameof(ShowSignInCallout));
+
+    /// <summary>Centre of the footer: the publish status while publishing, else the last problem, else the idle note.</summary>
+    public string FooterText =>
+        Publish.IsPublishing ? Publish.StatusText
+        : HasValidationError ? ValidationError
+        : "Nothing has been uploaded yet.";
 
     // ── Package selection ───────────────────────────────
     private string _packageRoot = "";
@@ -70,7 +99,7 @@ public sealed class UploadToIntuneViewModel : ObservableObject
     public string ValidationError
     {
         get => _validationError;
-        private set => Set(ref _validationError, value, [nameof(HasValidationError)]);
+        private set => Set(ref _validationError, value, [nameof(HasValidationError), nameof(FooterText)]);
     }
     public bool HasValidationError => !string.IsNullOrEmpty(ValidationError);
 
@@ -88,6 +117,14 @@ public sealed class UploadToIntuneViewModel : ObservableObject
 
     // AppArch from the script; empty when it has none, which lets the upload allow every architecture.
     private string _architecture = "";
+
+    private string _packageMeta = "";
+    /// <summary>"version · arch · context" for the identity tile.</summary>
+    public string PackageMeta { get => _packageMeta; private set => Set(ref _packageMeta, value); }
+
+    private string _packageIconPath = "";
+    /// <summary>First file in the package's Icon folder, if any.</summary>
+    public string PackageIconPath { get => _packageIconPath; private set => Set(ref _packageIconPath, value); }
 
     private string _sizeText = "";
     public string SizeText { get => _sizeText; private set => Set(ref _sizeText, value); }
@@ -127,6 +164,17 @@ public sealed class UploadToIntuneViewModel : ObservableObject
             Version = script.AppVersion;
             InstallContext = script.InstallContext;
             _architecture = script.AppArch;
+            PackageMeta = string.Join(" · ", new[] { Version, _architecture, InstallContext }.Where(v => !string.IsNullOrWhiteSpace(v)));
+
+            var iconDir = Path.Combine(root, "Icon");
+            PackageIconPath = Directory.Exists(iconDir) ? Directory.EnumerateFiles(iconDir).FirstOrDefault() ?? "" : "";
+
+            // A different package starts from the saved defaults, as the wizard does.
+            if (root != PackageRoot)
+            {
+                ApplyIntuneDefaults();
+                SelectedDeployMode = PsadtLayout.DeployModeDefault;
+            }
 
             IntuneDisplayName = GroupAssignmentNamer.Build(
                 _settings.Settings.IntuneDefaults.DisplayNameTemplate, Manufacturer, AppName, Version);
@@ -279,16 +327,108 @@ public sealed class UploadToIntuneViewModel : ObservableObject
         }
     }
 
+    public bool HasDetectionRule => DetectionRules.Count > 0;
+    public string DetectionState => HasDetectionRule ? "Ready" : "Incomplete";
+    public string DetectionDetail => DetectionRules.Count switch
+    {
+        0 => "Add a detection rule",
+        1 => "1 rule",
+        var n => $"{n} rules",
+    };
+
+    // ── Install behavior ────────────────────────────────
+    public IReadOnlyList<string> DeployModes => PsadtLayout.DeployModes;
+
+    private string _selectedDeployMode = PsadtLayout.DeployModeDefault;
+    /// <summary>Deploy mode baked into the install and uninstall command lines.</summary>
+    public string SelectedDeployMode
+    {
+        get => _selectedDeployMode;
+        set => Set(ref _selectedDeployMode, value, [nameof(DeployModeHint), nameof(InstallCommandPreview), nameof(UninstallCommandPreview)]);
+    }
+
+    public string DeployModeHint => _selectedDeployMode switch
+    {
+        "Interactive" => "For attended testing. Intune deployments must not require user interaction.",
+        "NonInteractive" => "Does not wait for user input; PSADT may show progress when a user session is available.",
+        "Silent" => "No dialogs at all.",
+        _ => "PSADT selects the mode from the session and toolkit configuration. Use Silent for unattended Intune deployment.",
+    };
+
+    /// <summary>The command lines the upload sends: Settings ▸ Intune Defaults with the deploy mode applied.</summary>
+    public string InstallCommandPreview => PsadtLayout.WithDeployMode(_settings.Settings.IntuneDefaults.InstallCommand, _selectedDeployMode);
+    public string UninstallCommandPreview => PsadtLayout.WithDeployMode(_settings.Settings.IntuneDefaults.UninstallCommand, _selectedDeployMode);
+
+    public bool CommandsReady => !string.IsNullOrWhiteSpace(_settings.Settings.IntuneDefaults.InstallCommand)
+                              && !string.IsNullOrWhiteSpace(_settings.Settings.IntuneDefaults.UninstallCommand);
+    public string CommandsState => CommandsReady ? "Ready" : "Set in Settings";
+
+    // ── Requirements & return codes (seeded from Settings ▸ Intune Defaults) ──
+    public IReadOnlyList<string> OperatingSystems { get; } = RequirementInfo.SupportedOperatingSystems;
+
+    private string _selectedOperatingSystem = RequirementInfo.SupportedOperatingSystems[0];
+    public string SelectedOperatingSystem { get => _selectedOperatingSystem; set => Set(ref _selectedOperatingSystem, value); }
+
+    private string _minFreeDiskSpaceMB = "";
+    public string MinFreeDiskSpaceMB { get => _minFreeDiskSpaceMB; set => Set(ref _minFreeDiskSpaceMB, value); }
+
+    private string _minMemoryMB = "";
+    public string MinMemoryMB { get => _minMemoryMB; set => Set(ref _minMemoryMB, value); }
+
+    private string _minProcessors = "";
+    public string MinProcessors { get => _minProcessors; set => Set(ref _minProcessors, value); }
+
+    private string _minCpuSpeedMHz = "";
+    public string MinCpuSpeedMHz { get => _minCpuSpeedMHz; set => Set(ref _minCpuSpeedMHz, value); }
+
+    private string _newReturnCodeInput = "";
+    public string NewReturnCodeInput { get => _newReturnCodeInput; set => Set(ref _newReturnCodeInput, value); }
+
+    public ObservableCollection<ReturnCodeRow> ReturnCodes { get; } = new();
+
+    /// <summary>Re-seeds requirements and return codes from the saved defaults.</summary>
+    private void ApplyIntuneDefaults()
+    {
+        var defaults = _settings.Settings.IntuneDefaults;
+        var req = defaults.Requirements;
+        SelectedOperatingSystem = req.MinimumOperatingSystem;
+        MinFreeDiskSpaceMB = req.MinimumFreeDiskSpaceMB?.ToString() ?? "";
+        MinMemoryMB = req.MinimumMemoryMB?.ToString() ?? "";
+        MinProcessors = req.MinimumNumberOfProcessors?.ToString() ?? "";
+        MinCpuSpeedMHz = req.MinimumCpuSpeedMHz?.ToString() ?? "";
+
+        ReturnCodes.Clear();
+        foreach (var c in defaults.ReturnCodes)
+            ReturnCodes.Add(new ReturnCodeRow(c.Code, c.Type, c.Description, r => ReturnCodes.Remove(r)));
+    }
+
+    private void AddReturnCode()
+    {
+        if (!int.TryParse(NewReturnCodeInput.Trim(), out var code)) return;
+        if (ReturnCodes.Any(r => r.Code == code.ToString())) return;
+        ReturnCodes.Add(new ReturnCodeRow(code, ReturnCodeType.Success, "", r => ReturnCodes.Remove(r)));
+        NewReturnCodeInput = "";
+    }
+
     // ── Assignment groups ───────────────────────────────
     /// <summary>Shared group picker; each group carries its own intent.</summary>
     public GroupPickerViewModel GroupPicker { get; } = new();
+
+    public bool HasAssignment => GroupPicker.SelectedGroups.Count > 0;
+    public string AssignmentState => GroupPicker.SelectedGroups.Count switch
+    {
+        0 => "Unassigned",
+        1 => "1 group",
+        var n => $"{n} groups",
+    };
+    public string AssignmentDetail => HasAssignment ? "" : "Publishes without an assignment.";
 
     // ── Publishing ──────────────────────────────────────
     /// <summary>The "Publishing…" overlay: steps, progress, cancel and done.</summary>
     public PublishRunViewModel Publish { get; } = new();
 
     public bool UploadEnabled =>
-        IsValidated && (_auth.IsSignedIn || _settings.Settings.AuthMode == AuthMode.AppRegistration) && !Publish.IsPublishing &&
+        IsValidated && CanAttemptPublish && !Publish.IsPublishing &&
         !string.IsNullOrWhiteSpace(_settings.Settings.NetworkPaths.IntuneWinAppUtil);
 
     private async Task UploadAsync()
@@ -298,6 +438,13 @@ public sealed class UploadToIntuneViewModel : ObservableObject
         if (DetectionRules.Count == 0)
         {
             ValidationError = "Add at least one detection rule before publishing; Intune would accept the app and never detect it.";
+            return;
+        }
+
+        var invalidCode = ReturnCodes.FirstOrDefault(r => r.ToInfo() == null);
+        if (invalidCode != null)
+        {
+            ValidationError = $"Return code '{invalidCode.Code}' is not a number.";
             return;
         }
         ValidationError = "";
@@ -334,15 +481,19 @@ public sealed class UploadToIntuneViewModel : ObservableObject
         var packageRoot = PackageRoot;
         var rules = DetectionRules.ToList();
         var groups = GroupPicker.AssignableGroups;
+        var installCommand = InstallCommandPreview;
+        var uninstallCommand = UninstallCommandPreview;
+        var requirements = RequirementInfo.Parse(SelectedOperatingSystem, MinFreeDiskSpaceMB, MinMemoryMB, MinProcessors, MinCpuSpeedMHz);
+        var returnCodes = ReturnCodes.Select(r => r.ToInfo()).OfType<ReturnCodeInfo>().ToList();
 
         await Publish.RunAsync(
             $"Publishing {DisplayTitle}…",
             TenantName,
             (progress, ct) => uploadService.UploadWin32ApplicationAsync(
                 appInfo, packageRoot, rules,
-                settings.IntuneDefaults.InstallCommand, settings.IntuneDefaults.UninstallCommand,
+                installCommand, uninstallCommand,
                 appInfo.DisplayName, appInfo.InstallContext, null, progress, null, null,
-                settings.IntuneDefaults.Requirements, settings.IntuneDefaults.ReturnCodes,
+                requirements, returnCodes,
                 settings.IntuneDefaults.PrivacyUrl, settings.IntuneDefaults.InformationUrl,
                 groups, settings.IntuneDefaults.RestartBehavior, settings.IntuneDefaults.MaxRunTimeMinutes, ct),
             appId => groups.Count > 0
@@ -368,6 +519,8 @@ public sealed class UploadToIntuneViewModel : ObservableObject
         Version = "";
         InstallContext = "System";
         _architecture = "";
+        PackageMeta = "";
+        PackageIconPath = "";
         SizeText = "";
         IntuneDisplayName = "";
         DetectionRules.Clear();
@@ -378,10 +531,14 @@ public sealed class UploadToIntuneViewModel : ObservableObject
         NewRuleHive = RegistryHiveNames.LocalMachine;
         NewRuleOperator = DetectionRuleFactory.DefaultVersionOperator;
         OnPropertyChanged(nameof(HasNoMsiProductCode));
+        ApplyIntuneDefaults();
+        SelectedDeployMode = PsadtLayout.DeployModeDefault;
     }
 
     // ── Commands ────────────────────────────────────────
     public RelayCommand AddRuleCommand { get; }
     public RelayCommand<DetectionRule> RemoveRuleCommand { get; }
     public AsyncRelayCommand UploadCommand { get; }
+    public RelayCommand AddReturnCodeCommand { get; }
+    public RelayCommand RestoreDefaultsCommand { get; }
 }
