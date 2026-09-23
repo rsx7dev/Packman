@@ -378,6 +378,8 @@ public partial class StepEdit : UserControl, IMonacoHost
 
     private void RefreshTree_Click(object sender, RoutedEventArgs e) => ErrorReporter.FireAndForget(RefreshTreeAsync);
 
+    private void OpenExternally_Click(object sender, RoutedEventArgs e) => _session?.OpenInExternalEditor();
+
     private void FileTree_SelectedItemChanged(object sender, RoutedPropertyChangedEventArgs<object> e)
     {
         if (_suppressTreeSelection) return;
