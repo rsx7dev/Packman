@@ -83,6 +83,7 @@ public sealed class MainViewModel : ObservableObject
             OnPropertyChanged(nameof(StepPosition));
             OnPropertyChanged(nameof(ShowPrimaryKeyHint));
             BackCommand.RaiseCanExecuteChanged();
+            PrimaryCommand.RaiseCanExecuteChanged();
         }
     }
 
@@ -112,15 +113,15 @@ public sealed class MainViewModel : ObservableObject
 
     public string ToolTitle => _activeTool switch
     {
-        PackageTool.EditScript => "Edit Script",
-        PackageTool.RemoteTest => "Remote Test",
+        PackageTool.EditScript => "Edit script",
+        PackageTool.RemoteTest => "Remote test",
         _ => "",
     };
 
     public string ToolSubtitle => _activeTool switch
     {
-        PackageTool.EditScript => "Edit the generated PSADT deployment script — completions come from the PSADT v4 catalog",
-        PackageTool.RemoteTest => "Deploy the built package to a test machine and watch the result",
+        PackageTool.EditScript => "Review and customize the generated PSADT deployment files",
+        PackageTool.RemoteTest => "Test the generated package on a remote Windows device",
         _ => "",
     };
 
@@ -156,16 +157,16 @@ public sealed class MainViewModel : ObservableObject
                 if (HasPackage) return "Continue to configure";
                 return IsUpgradeMode ? "Upgrade package" : "Generate package";
             }
-            if (CurrentStepIndex == UploadStep) return "Review deployment";
-            return "Build & publish";
+            if (CurrentStepIndex == UploadStep) return "Continue to review";
+            return "Publish to Intune";
         }
     }
 
     public string StepHint => CurrentStepIndex switch
     {
-        GenerateStep => HasPackage ? "Package ready. Review the script and test before publishing." : "Creates files on your share. Nothing is uploaded yet.",
-        UploadStep => "Configure detection and assignments. Publish after review.",
-        _ => "Build the .intunewin and publish to your connected tenant."
+        GenerateStep => HasPackage ? "Package ready. Edit or test it before you configure." : "Creates files on your share. Nothing is uploaded yet.",
+        UploadStep => "Configuration only. Nothing has been uploaded.",
+        _ => "Publishing builds the .intunewin and creates the app and assignment in Microsoft Intune."
     };
 
     public bool IsLastStep => CurrentStepIndex == Steps.Count - 1;
@@ -178,11 +179,50 @@ public sealed class MainViewModel : ObservableObject
 
     public string StepPosition => $"step {CurrentStepIndex + 1} of {Steps.Count}";
 
-    // ── Intune connection status (footer) ──────────────────────────────
+    // ── Intune connection (title bar pill and rails) ────────────────────
     public bool IsConnected => _auth.IsSignedIn;
+    public string ConnectionLabel => _auth.IsSignedIn ? "Connected" : "Not connected";
+    public string TenantName => _auth.IsSignedIn ? _auth.TenantName : "Not signed in";
     public string ConnectionStatusText => _auth.IsSignedIn
         ? $"Connected to Microsoft Intune · {_auth.SignedInUser}"
-        : "Not connected — sign in on the Settings page";
+        : "Not connected. Sign in on the Settings page.";
+
+    // ── Package preview (rail beside the Package step) ──────────────────
+    public bool OutputShareReady => !string.IsNullOrWhiteSpace(_settingsService.Settings.NetworkPaths.IntuneApplications);
+    public bool TemplateReady => !string.IsNullOrWhiteSpace(_settingsService.Settings.NetworkPaths.PSADTTemplate);
+    public string OutputShare => OutputShareReady ? _settingsService.Settings.NetworkPaths.IntuneApplications : "Not set";
+
+    /// <summary>
+    /// Where the package lands: the real folder once generated, otherwise the folder the
+    /// current name and version resolve to on the output share.
+    /// </summary>
+    public string PackageFolderPreview
+    {
+        get
+        {
+            if (HasPackage) return CreatePackage.CurrentPackagePath;
+            if (!OutputShareReady) return "Set the output share in Settings";
+            if (string.IsNullOrWhiteSpace(CreatePackage.AppName)) return "Enter the application name";
+            try
+            {
+                var app = CreatePackage.BuildApplicationInfo();
+                return PackagePaths.VersionFolder(_settingsService.Settings.NetworkPaths.IntuneApplications,
+                    PackagePaths.AppFolderName(app.Manufacturer, app.Name), app.Version);
+            }
+            catch (Exception)
+            {
+                return "Check the name and version";
+            }
+        }
+    }
+
+    /// <summary>Settings saved: paths and defaults the rails summarise may have changed.</summary>
+    public void RefreshFromSettings()
+    {
+        RaiseAll(nameof(OutputShareReady), nameof(TemplateReady), nameof(OutputShare), nameof(PackageFolderPreview));
+        Upload.RaiseReadiness();
+        PrimaryCommand.RaiseCanExecuteChanged();
+    }
 
     public MainViewModel()
     {
@@ -199,7 +239,8 @@ public sealed class MainViewModel : ObservableObject
         };
 
         BackCommand     = new RelayCommand(() => CurrentStepIndex--, () => CurrentStepIndex > 0);
-        PrimaryCommand  = new AsyncRelayCommand(OnPrimaryAsync, () => !CreatePackage.IsGenerating && !Upgrade.IsBusy && !Upload.Publish.IsPublishing);
+        PrimaryCommand  = new AsyncRelayCommand(OnPrimaryAsync, () => !CreatePackage.IsGenerating && !Upgrade.IsBusy && !Upload.Publish.IsPublishing
+                                                                    && (CurrentStepIndex != ReviewStep || Upload.CanAttemptPublish));
         GoToStepCommand = new RelayCommand<int>(i => CurrentStepIndex = i);
 
         OpenEditToolCommand      = new RelayCommand(() => ActiveTool = PackageTool.EditScript, () => HasPackage);
@@ -216,10 +257,12 @@ public sealed class MainViewModel : ObservableObject
 
         Steps[GenerateStep].IsCurrent = true;
 
+        _settingsService.Saved += RefreshFromSettings;
+
         _auth.StateChanged += () =>
         {
-            OnPropertyChanged(nameof(IsConnected));
-            OnPropertyChanged(nameof(ConnectionStatusText));
+            RaiseAll(nameof(IsConnected), nameof(ConnectionLabel), nameof(TenantName), nameof(ConnectionStatusText));
+            PrimaryCommand.RaiseCanExecuteChanged();
         };
 
         CreatePackage.PropertyChanged += (_, e) =>
@@ -231,6 +274,9 @@ public sealed class MainViewModel : ObservableObject
             }
             if (e.PropertyName == nameof(CreatePackageViewModel.CurrentPackagePath))
                 RaisePackageDependents();
+            if (e.PropertyName is nameof(CreatePackageViewModel.AppName) or nameof(CreatePackageViewModel.Manufacturer)
+                                or nameof(CreatePackageViewModel.Version))
+                OnPropertyChanged(nameof(PackageFolderPreview));
         };
         Upgrade.PropertyChanged += (_, e) =>
         {
@@ -259,6 +305,7 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanEditPackageInputs));
         OnPropertyChanged(nameof(PackageName));
         OnPropertyChanged(nameof(PackagePathShort));
+        OnPropertyChanged(nameof(PackageFolderPreview));
         OnPropertyChanged(nameof(PrimaryLabel));
         OnPropertyChanged(nameof(StepHint));
         OpenEditToolCommand.RaiseCanExecuteChanged();

@@ -65,6 +65,10 @@ public class UploadStepViewModel : ObservableObject
         _settingsService = settingsService;
         _auth = auth;
 
+        GroupPicker.SelectedGroups.CollectionChanged += (_, _) =>
+            RaiseAll(nameof(AssignmentCount), nameof(HasAssignment), nameof(AssignmentState), nameof(AssignmentDetail));
+        _auth.StateChanged += RaiseReadiness;
+
         AddReturnCodeCommand = new RelayCommand(AddReturnCode);
         RestoreDefaultsCommand = new RelayCommand(ApplyIntuneDefaults);
         ApplyIntuneDefaults();
@@ -86,6 +90,42 @@ public class UploadStepViewModel : ObservableObject
     public bool IsNotSignedIn => !_auth.IsSignedIn;
     public string SignedInUser => _auth.SignedInUser ?? "";
     public string TenantName => _auth.TenantName;
+
+    /// <summary>
+    /// Publishing can start: signed in, or app-registration mode, which connects on its own
+    /// when the publish starts. Drives the disabled Publish button and the sign-in callout.
+    /// </summary>
+    public bool CanAttemptPublish => _auth.IsSignedIn || _settingsService.Settings.AuthMode == AuthMode.AppRegistration;
+    public bool ShowSignInCallout => !CanAttemptPublish;
+
+    // ── Readiness, for the rail beside Configure and Review ─────────────
+    public bool CommandsReady => !string.IsNullOrWhiteSpace(_settingsService.Settings.IntuneDefaults.InstallCommand)
+                              && !string.IsNullOrWhiteSpace(_settingsService.Settings.IntuneDefaults.UninstallCommand);
+    public string CommandsState => CommandsReady ? "Ready" : "Set in Settings";
+
+    public bool DetectionReady => DescribeDetectionProblem() == null;
+    public string DetectionState => DetectionReady ? "Ready" : "Incomplete";
+    public string DetectionIssue => DescribeDetectionProblem() ?? "";
+
+    /// <summary>What the Detection line says about the chosen method, e.g. "MSI product code".</summary>
+    public string DetectionMethodLabel => SelectedDetectionMethod;
+
+    public int AssignmentCount => GroupPicker.SelectedGroups.Count;
+    public bool HasAssignment => AssignmentCount > 0 || _settingsService.Settings.GroupAssignment.CreateGroupPerPackage;
+    public string AssignmentState => AssignmentCount switch
+    {
+        0 when _settingsService.Settings.GroupAssignment.CreateGroupPerPackage => "Per-package group",
+        0 => "Unassigned",
+        1 => "1 group",
+        var n => $"{n} groups",
+    };
+    public string AssignmentDetail => HasAssignment ? "" : "Publishes without an assignment. Add a group to deploy it.";
+
+    /// <summary>Upgrade only: the Intune app this version replaces.</summary>
+    public bool HasSupersedence => !string.IsNullOrEmpty(_create.PredecessorAppId);
+    public string SupersedenceSummary => HasSupersedence
+        ? $"Supersedes app {_create.PredecessorAppId} (update: the previous version is replaced, not uninstalled first)"
+        : "";
 
     /// <summary>The "Publishing…" overlay: steps, progress, cancel and done.</summary>
     public PublishRunViewModel Publish { get; } = new();
@@ -263,7 +303,7 @@ public class UploadStepViewModel : ObservableObject
     /// <summary>Refreshes the summary from the package produced earlier in the wizard.</summary>
     public void RefreshFromPackage()
     {
-        RaiseAll(nameof(IsSignedIn), nameof(IsNotSignedIn), nameof(SignedInUser), nameof(TenantName));
+        RaiseReadiness();
 
         if (string.IsNullOrEmpty(_create.CurrentPackagePath))
         {
@@ -361,16 +401,24 @@ public class UploadStepViewModel : ObservableObject
     /// <summary>Refreshes the Review step without touching the edited fields.</summary>
     public void RefreshReview()
     {
-        RaiseAll(nameof(IsSignedIn), nameof(IsNotSignedIn), nameof(SignedInUser), nameof(TenantName),
-                 nameof(InstallCommandPreview), nameof(UninstallCommandPreview), nameof(PerPackageGroupsSummary), nameof(RequirementsSummary));
+        RaiseReadiness();
+        RaiseAll(nameof(InstallCommandPreview), nameof(UninstallCommandPreview), nameof(PerPackageGroupsSummary), nameof(RequirementsSummary));
         RefreshDetectionSummary();
     }
 
     private void RefreshDetectionSummary()
     {
+        RaiseAll(nameof(DetectionReady), nameof(DetectionState), nameof(DetectionIssue), nameof(DetectionMethodLabel));
         if (string.IsNullOrEmpty(_create.CurrentPackagePath)) return;
         DetectionSummary = DescribeDetectionProblem() ?? (BuildSelectedDetectionRule()?.Title ?? "No detection rule");
     }
+
+    /// <summary>Settings or sign-in changed underneath the wizard.</summary>
+    public void RaiseReadiness() => RaiseAll(
+        nameof(IsSignedIn), nameof(IsNotSignedIn), nameof(SignedInUser), nameof(TenantName),
+        nameof(CanAttemptPublish), nameof(ShowSignInCallout), nameof(CommandsReady), nameof(CommandsState),
+        nameof(AssignmentCount), nameof(HasAssignment), nameof(AssignmentState), nameof(AssignmentDetail),
+        nameof(HasSupersedence), nameof(SupersedenceSummary));
 
     /// <summary>
     /// Why the detection settings can't produce a usable rule, or null when they can.

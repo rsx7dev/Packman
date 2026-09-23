@@ -24,13 +24,18 @@ public class CreatePackageViewModel : ObservableObject
     public string SourcesPath
     {
         get => _sourcesPath;
-        set { if (Set(ref _sourcesPath, value)) CurrentMsiInfo = null; }
+        set
+        {
+            if (!Set(ref _sourcesPath, value)) return;
+            CurrentMsiInfo = null;
+            RaiseAll(nameof(InstallerType), nameof(IsExeInstaller), nameof(HasSourceFile));
+        }
     }
 
     public string AppName
     {
         get => _appName;
-        set => Set(ref _appName, value);
+        set => Set(ref _appName, value, [nameof(PreviewTitle)]);
     }
 
     public string Manufacturer
@@ -42,13 +47,13 @@ public class CreatePackageViewModel : ObservableObject
     public string Version
     {
         get => _version;
-        set => Set(ref _version, value);
+        set => Set(ref _version, value, [nameof(PreviewMeta)]);
     }
 
     public bool UserInstall
     {
         get => _userInstall;
-        set { if (Set(ref _userInstall, value)) OnPropertyChanged(nameof(InstallContextHelp)); }
+        set { if (Set(ref _userInstall, value)) RaiseAll(nameof(InstallContextHelp), nameof(PreviewMeta)); }
     }
 
     /// <summary>One line under the SYSTEM / USER toggle.</summary>
@@ -60,13 +65,13 @@ public class CreatePackageViewModel : ObservableObject
     public string Architecture
     {
         get => _architecture;
-        set => Set(ref _architecture, value);
+        set => Set(ref _architecture, value, [nameof(PreviewMeta)]);
     }
 
     public MsiInfoService.MsiInfo? CurrentMsiInfo
     {
         get => _currentMsiInfo;
-        set => Set(ref _currentMsiInfo, value);
+        set => Set(ref _currentMsiInfo, value, [nameof(ProductCode), nameof(HasProductCode)]);
     }
 
     public string CurrentPackagePath
@@ -102,6 +107,35 @@ public class CreatePackageViewModel : ObservableObject
         get => _predecessorAppId;
         set => Set(ref _predecessorAppId, value);
     }
+
+    // ── Package preview (the rail beside the Package step) ──────────────
+    /// <summary>Installer kind read from the file extension.</summary>
+    public string InstallerType => Path.GetExtension(_sourcesPath.Trim()).ToLowerInvariant() switch
+    {
+        ".msi" => "MSI",
+        ".exe" => "EXE",
+        _ when string.IsNullOrWhiteSpace(_sourcesPath) => "Not selected",
+        var ext => ext.TrimStart('.').ToUpperInvariant(),
+    };
+
+    /// <summary>EXE installers need their silent switches written into the script by hand.</summary>
+    public bool IsExeInstaller => InstallerType == "EXE";
+
+    public bool HasSourceFile
+    {
+        get
+        {
+            try { return !string.IsNullOrWhiteSpace(_sourcesPath) && File.Exists(_sourcesPath.Trim()); }
+            catch { return false; }
+        }
+    }
+
+    public string ProductCode => _currentMsiInfo?.IsValid == true ? _currentMsiInfo.ProductCode : "";
+    public bool HasProductCode => ProductCode.Length > 0;
+
+    public string PreviewTitle => string.IsNullOrWhiteSpace(_appName) ? "New package" : _appName.Trim();
+    public string PreviewMeta =>
+        $"{(string.IsNullOrWhiteSpace(_version) ? "no version" : _version.Trim())} · {_architecture} · {(_userInstall ? "User" : "System")}";
 
     public void LoadFromFile(string filePath)
     {

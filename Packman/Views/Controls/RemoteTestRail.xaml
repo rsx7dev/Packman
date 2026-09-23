@@ -1,0 +1,61 @@
+<UserControl x:Class="Packman.Views.Controls.RemoteTestRail"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Packman.Views.Controls"
+             FontFamily="{StaticResource UIFontFamily}">
+    <!-- Inspector beside Remote test, in the wizard and on its own page. DataContext: RemoteTestViewModel. -->
+    <StackPanel>
+        <TextBlock Text="Test session" Style="{StaticResource RailTitle}"/>
+
+        <controls:AppIdentity Margin="0,18,0,8" Subtitle="{Binding PackageSourceCaption}">
+            <controls:AppIdentity.Style>
+                <Style TargetType="controls:AppIdentity" BasedOn="{StaticResource {x:Type controls:AppIdentity}}">
+                    <Setter Property="Title" Value="{Binding PackageLabel}"/>
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding NeedsPackage}" Value="True">
+                            <Setter Property="Title" Value="No package selected"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </controls:AppIdentity.Style>
+        </controls:AppIdentity>
+
+        <ContentControl Style="{StaticResource KvRow}" Tag="Computer">
+            <TextBlock Text="{Binding TargetComputer}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12" TextWrapping="Wrap" TextAlignment="Right"/>
+        </ContentControl>
+        <ContentControl Style="{StaticResource KvRow}" Tag="Status" Content="{Binding StatusText}"/>
+        <ContentControl Style="{StaticResource KvRow}" Tag="Context"
+                        Content="{Binding RunAsUser, Converter={StaticResource BoolToText}, ConverterParameter='User|System'}"/>
+        <ContentControl Style="{StaticResource KvRow}" Tag="Deploy mode" Content="{Binding SelectedDeployMode}"/>
+        <ContentControl Style="{StaticResource KvRow}" Tag="Cleanup"
+                        Content="{Binding CleanupAfterRun, Converter={StaticResource BoolToText}, ConverterParameter='After test|Keep staged files'}"/>
+        <ContentControl Style="{StaticResource KvRowMono}" Tag="Package folder" Content="{Binding PackagePath}"
+                        Visibility="{Binding HasPackage, Converter={StaticResource BoolToVis}}"/>
+
+        <TextBlock Text="Recent computers" Margin="0,24,0,8">
+            <TextBlock.Style>
+                <Style TargetType="TextBlock" BasedOn="{StaticResource H3}">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding RecentComputers.Count}" Value="0">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </TextBlock.Style>
+        </TextBlock>
+        <ItemsControl ItemsSource="{Binding RecentComputers}" Focusable="False">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Button Style="{StaticResource PickerRow}" Padding="0" Margin="0,0,0,2"
+                            Command="{Binding DataContext.UseComputerCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            CommandParameter="{Binding}" AutomationProperties.Name="{Binding}">
+                        <StackPanel Orientation="Horizontal" Margin="8,8" TextElement.Foreground="{DynamicResource Text2Brush}">
+                            <controls:LineIcon Data="{DynamicResource IconLaptop}"/>
+                            <TextBlock Text="{Binding}" Margin="10,0,0,0" FontSize="13" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </StackPanel>
+</UserControl>

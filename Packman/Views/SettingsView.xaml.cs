@@ -11,4 +11,7 @@ public partial class SettingsView : UserControl
         InitializeComponent();
         DataContext = new SettingsViewModel(AppServices.Settings, AppServices.Auth);
     }
+
+    /// <summary>Opens the Authentication section; the "Sign in" links land here.</summary>
+    public void ShowAuthentication() => TabAuth.IsChecked = true;
 }

@@ -61,6 +61,9 @@ public sealed class RemoteTestViewModel : ObservableObject
     public ObservableCollection<RemoteTestLine> Lines { get; } = new();
     public ObservableCollection<string> RecentComputers { get; } = new();
 
+    /// <summary>Picks a computer from the recent list in the rail.</summary>
+    public RelayCommand<string> UseComputerCommand { get; }
+
     public AsyncRelayCommand InstallCommand { get; }
     public AsyncRelayCommand UninstallCommand { get; }
     public AsyncRelayCommand DetectCommand { get; }
@@ -90,6 +93,7 @@ public sealed class RemoteTestViewModel : ObservableObject
         CheckOnlineCommand    = new AsyncRelayCommand(CheckOnlineAsync, () => !_isRunning && IsValidTarget);
         ApplyDetectionCommand = new RelayCommand(ApplyDetection, () => !_isRunning && _discoveredRule != null && _isGeneratedPackage);
         ClearLogCommand       = new RelayCommand(() => { Lines.Clear(); lock (_pending) _pending.Clear(); });
+        UseComputerCommand = new RelayCommand<string>(c => { if (!string.IsNullOrWhiteSpace(c)) TargetComputer = c; });
 
         // Nothing to follow on the standalone page.
         if (_create == null) return;

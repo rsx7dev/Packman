@@ -29,6 +29,27 @@ public partial class MainWindow : FluentWindow
             ErrorReporter.FireAndForget(() => ApplicationsPage.ViewModel.LoadAsync(force: true));
 
         AdvancedPage.ConnectRequested += () => SettingsNavBtn.IsChecked = true;
+
+        AppNavigation.Requested += Navigate;
+        Closed += (_, _) => AppNavigation.Requested -= Navigate;
+    }
+
+    /// <summary>Page switches asked for from a rail, the title bar or another page.</summary>
+    private void Navigate(string page)
+    {
+        switch (page)
+        {
+            case AppNavigation.Settings:
+                SettingsNavBtn.IsChecked = true;
+                SettingsPage.ShowAuthentication();
+                break;
+            case AppNavigation.Upload:
+                UploadIntuneNavBtn.IsChecked = true;
+                break;
+            case AppNavigation.Applications:
+                ApplicationsNavBtn.IsChecked = true;
+                break;
+        }
     }
 
     /// <summary>
@@ -75,7 +96,7 @@ public partial class MainWindow : FluentWindow
     /// <summary>A tool covers the wizard, so returning here closes it.</summary>
     private void CreatePackageNavBtn_Checked(object sender, RoutedEventArgs e)
     {
-        ShowOnly(CreatePackagePage, "Create Package");
+        ShowOnly(CreatePackagePage, "Create package");
         (DataContext as MainViewModel)?.CloseToolCommand.Execute(null);
     }
 
@@ -111,7 +132,7 @@ public partial class MainWindow : FluentWindow
     /// </summary>
     private void RemoteTestNavBtn_Checked(object sender, RoutedEventArgs e)
     {
-        ShowOnly(RemoteTestPage, "Remote Test");
+        ShowOnly(RemoteTestPage, "Remote test");
         RemoteTestPage.Refresh();
     }
 }

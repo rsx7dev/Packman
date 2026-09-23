@@ -5,12 +5,14 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
         xmlns:views="clr-namespace:Packman.Views"
+        xmlns:controls="clr-namespace:Packman.Views.Controls"
+        xmlns:services="clr-namespace:Packman.Services"
         xmlns:vm="clr-namespace:Packman.ViewModels"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel, IsDesignTimeCreatable=True}"
-        Title="{Binding ScreenTitle, StringFormat='PACKMAN — {0}'}"
-        Width="1320" Height="860"
-        MinWidth="1180" MinHeight="720"
+        Title="{Binding ScreenTitle, StringFormat='Packman — {0}'}"
+        Width="1440" Height="860"
+        MinWidth="1080" MinHeight="600"
         WindowStartupLocation="CenterScreen"
         ExtendsContentIntoTitleBar="True"
         WindowBackdropType="Mica"
@@ -23,6 +25,9 @@
         Foreground="{DynamicResource TextBrush}"
         Closing="MainWindow_Closing">
 
+    <!-- Shell: title bar with the connection pill, the navigation pane, and one page at a
+         time. Every page is a PageFrame (Views/Controls/PageFrame.cs): header, body, footer
+         and an inspector rail, as panels on the Mica backdrop. -->
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -30,378 +35,352 @@
         </Grid.RowDefinitions>
 
         <!-- ═══════════ TITLE BAR ═══════════ -->
-        <!-- On the Mica backdrop, so no fill of its own. -->
-        <ui:TitleBar Grid.Row="0" Height="44" Padding="16,0,0,0">
+        <ui:TitleBar Grid.Row="0" Height="48" Padding="18,0,0,0">
             <ui:TitleBar.Header>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <!-- Mark: an outlined square holding a live-state dot. -->
-                    <Border Width="16" Height="16" CornerRadius="3"
-                            BorderBrush="{DynamicResource AccentTextBrush}" BorderThickness="1.5">
-                        <Rectangle Width="5" Height="5" RadiusX="1" RadiusY="1" Fill="{DynamicResource OkBrush}"
+                    <Border Width="18" Height="18" CornerRadius="4"
+                            BorderBrush="{DynamicResource AccentTextBrush}" BorderThickness="1.6">
+                        <Rectangle Width="6" Height="6" RadiusX="1" RadiusY="1" Fill="{DynamicResource OkBrush}"
                                    HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <TextBlock Text="Packman" Margin="12,0,0,0" VerticalAlignment="Center"
-                               FontSize="12" Foreground="{DynamicResource Text2Brush}"/>
-                    <Border Width="1" Height="14" Background="{DynamicResource EdgeBrush}" Margin="12,0"/>
-                    <TextBlock Text="{Binding ScreenTitle}" VerticalAlignment="Center"
-                               FontSize="12" Foreground="{DynamicResource DimBrush}"/>
+                               FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}"/>
                 </StackPanel>
             </ui:TitleBar.Header>
+            <ui:TitleBar.TrailingContent>
+                <!-- Connection pill. Clickable: WPF UI treats trailing content as client area. -->
+                <Border Margin="0,0,14,0" VerticalAlignment="Center" CornerRadius="15" Padding="12,5"
+                        Background="{DynamicResource ControlBrush}" BorderBrush="{DynamicResource ControlStrokeBrush}" BorderThickness="1"
+                        AutomationProperties.Name="{Binding ConnectionStatusText}" ToolTip="{Binding ConnectionStatusText}">
+                    <StackPanel Orientation="Horizontal">
+                        <Ellipse Width="7" Height="7" VerticalAlignment="Center">
+                            <Ellipse.Style>
+                                <Style TargetType="Ellipse">
+                                    <Setter Property="Fill" Value="{DynamicResource MarkBrush}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsConnected}" Value="True">
+                                            <Setter Property="Fill" Value="{DynamicResource OkBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Ellipse.Style>
+                        </Ellipse>
+                        <TextBlock Text="{Binding ConnectionLabel}" Margin="8,0,0,0" FontSize="12.5" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource Muted2Brush}"/>
+                        <Border Width="1" Height="14" Margin="10,0" Background="{DynamicResource EdgeBrush}"/>
+                        <Button Style="{StaticResource LinkButton}" Content="Sign in" FontSize="12.5" Padding="0"
+                                Command="{x:Static services:AppNavigation.OpenSettings}"
+                                Visibility="{Binding IsConnected, Converter={StaticResource InverseBoolToVis}}"/>
+                        <TextBlock Text="{Binding TenantName}" FontSize="12.5" VerticalAlignment="Center" MaxWidth="220"
+                                   TextTrimming="CharacterEllipsis" Foreground="{DynamicResource AccentTextBrush}"
+                                   Visibility="{Binding IsConnected, Converter={StaticResource BoolToVis}}"/>
+                    </StackPanel>
+                </Border>
+            </ui:TitleBar.TrailingContent>
         </ui:TitleBar>
 
         <!-- ═══════════ BODY ═══════════ -->
         <Grid Grid.Row="1">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="218"/>
+                <ColumnDefinition Width="212"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
             <!-- Navigation pane: transparent so the backdrop carries it. -->
-            <DockPanel Grid.Column="0" LastChildFill="False" Margin="0,0,0,10">
+            <DockPanel Grid.Column="0" LastChildFill="False" Margin="8,4,8,14">
                 <StackPanel DockPanel.Dock="Top">
                     <RadioButton x:Name="CreatePackageNavBtn" Style="{StaticResource NavItem}" IsChecked="True" GroupName="Nav"
-                                 Checked="CreatePackageNavBtn_Checked">
+                                 Checked="CreatePackageNavBtn_Checked" AutomationProperties.Name="Create package">
                         <StackPanel Orientation="Horizontal">
-                            <Viewbox Width="18" Height="18">
-                                <Path Data="{StaticResource IconBox}" Fill="Transparent" StrokeThickness="1.5"
-                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type RadioButton}}}"
-                                      StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
-                            </Viewbox>
-                            <TextBlock Text="Create package" Margin="14,0,0,0" VerticalAlignment="Center"/>
+                            <controls:LineIcon Data="{DynamicResource IconBox}" Width="19" Height="19" StrokeThickness="1.6"/>
+                            <TextBlock Text="Create" Margin="14,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </RadioButton>
                     <RadioButton x:Name="UploadIntuneNavBtn" Style="{StaticResource NavItem}" GroupName="Nav"
-                                 Checked="UploadIntuneNavBtn_Checked">
+                                 Checked="UploadIntuneNavBtn_Checked" AutomationProperties.Name="Upload to Intune">
                         <StackPanel Orientation="Horizontal">
-                            <Viewbox Width="18" Height="18">
-                                <Path Data="{StaticResource IconUpload}" Fill="Transparent" StrokeThickness="1.5"
-                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type RadioButton}}}"
-                                      StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
-                            </Viewbox>
-                            <TextBlock Text="Upload to Intune" Margin="14,0,0,0" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </RadioButton>
-                    <RadioButton x:Name="ApplicationsNavBtn" Style="{StaticResource NavItem}" GroupName="Nav"
-                                 Checked="ApplicationsNavBtn_Checked">
-                        <StackPanel Orientation="Horizontal">
-                            <Viewbox Width="18" Height="18">
-                                <Path Data="{StaticResource IconLaptop}" Fill="Transparent" StrokeThickness="1.5"
-                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type RadioButton}}}"
-                                      StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
-                            </Viewbox>
-                            <TextBlock Text="Applications" Margin="14,0,0,0" VerticalAlignment="Center"/>
+                            <controls:LineIcon Data="{DynamicResource IconUpload}" Width="19" Height="19" StrokeThickness="1.6"/>
+                            <TextBlock Text="Upload" Margin="14,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </RadioButton>
                     <RadioButton x:Name="RemoteTestNavBtn" Style="{StaticResource NavItem}" GroupName="Nav"
-                                 Checked="RemoteTestNavBtn_Checked">
+                                 Checked="RemoteTestNavBtn_Checked" AutomationProperties.Name="Remote test">
                         <StackPanel Orientation="Horizontal">
-                            <Viewbox Width="18" Height="18">
-                                <Path Data="{StaticResource IconPulse}" Fill="Transparent" StrokeThickness="1.5"
-                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type RadioButton}}}"
-                                      StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
-                            </Viewbox>
-                            <TextBlock Text="Remote Test" Margin="14,0,0,0" VerticalAlignment="Center"/>
+                            <controls:LineIcon Data="{DynamicResource IconLaptop}" Width="19" Height="19" StrokeThickness="1.6"/>
+                            <TextBlock Text="Remote test" Margin="14,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton x:Name="ApplicationsNavBtn" Style="{StaticResource NavItem}" GroupName="Nav"
+                                 Checked="ApplicationsNavBtn_Checked" AutomationProperties.Name="Applications">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:LineIcon Data="{DynamicResource IconList}" Width="19" Height="19" StrokeThickness="1.6"/>
+                            <TextBlock Text="Applications" Margin="14,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </RadioButton>
                     <RadioButton x:Name="AdvancedNavBtn" Style="{StaticResource NavItem}" GroupName="Nav"
-                                 Checked="AdvancedNavBtn_Checked">
+                                 Checked="AdvancedNavBtn_Checked" AutomationProperties.Name="Advanced">
                         <StackPanel Orientation="Horizontal">
-                            <Viewbox Width="18" Height="18">
-                                <Path Data="{StaticResource IconApp}" Fill="Transparent" StrokeThickness="1.5"
-                                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type RadioButton}}}"
-                                      StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
-                            </Viewbox>
+                            <controls:LineIcon Data="{DynamicResource IconSliders}" Width="19" Height="19" StrokeThickness="1.6"/>
                             <TextBlock Text="Advanced" Margin="14,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
                     </RadioButton>
                 </StackPanel>
 
-                <!-- Footer: settings, the signed-in account, then the build stamp. -->
-                <StackPanel DockPanel.Dock="Bottom" Margin="16,10,16,0">
-                    <TextBlock Text="PSADT v4 · GRAPH BETA" FontFamily="{StaticResource LabelFontFamily}" FontSize="10"
+                <!-- Footer: build stamps under Settings. -->
+                <StackPanel DockPanel.Dock="Bottom" Margin="18,14,12,0">
+                    <TextBlock Text="PSADT v4 · GRAPH BETA" FontFamily="{StaticResource LabelFontFamily}" FontSize="10.5"
                                FontWeight="SemiBold" Foreground="{DynamicResource FaintBrush}"/>
-                    <TextBlock Text="{Binding RuntimeStamp}" FontFamily="{StaticResource MonoFontFamily}" FontSize="10"
-                               Foreground="{DynamicResource FaintBrush}" Margin="0,4,0,0"/>
+                    <TextBlock FontFamily="{StaticResource MonoFontFamily}" FontSize="10.5" Foreground="{DynamicResource FaintBrush}"
+                               Margin="0,4,0,0" TextTrimming="CharacterEllipsis">
+                        <Run Text="{Binding AppVersion, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding RuntimeStamp, Mode=OneWay}"/>
+                    </TextBlock>
                 </StackPanel>
 
                 <RadioButton x:Name="SettingsNavBtn" DockPanel.Dock="Bottom" Style="{StaticResource NavItem}" GroupName="Nav"
-                             Checked="SettingsNavBtn_Checked">
+                             Checked="SettingsNavBtn_Checked" AutomationProperties.Name="Settings">
                     <StackPanel Orientation="Horizontal">
-                        <Viewbox Width="18" Height="18">
-                            <Path Data="{StaticResource IconGear}" Fill="Transparent" StrokeThickness="1.5"
-                                  Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType={x:Type RadioButton}}}"
-                                  StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
-                        </Viewbox>
+                        <controls:LineIcon Data="{DynamicResource IconGear}" Width="19" Height="19" StrokeThickness="1.6"/>
                         <TextBlock Text="Settings" Margin="14,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
                 </RadioButton>
             </DockPanel>
 
-            <!-- Content surface: the one opaque layer, rounded into the pane. -->
-            <Border Grid.Column="1" Background="{DynamicResource SurfaceBrush}"
-                    BorderBrush="{DynamicResource LineBrush}" BorderThickness="1,1,0,0"
-                    CornerRadius="8,0,0,0">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="*"/>
-                        <RowDefinition Height="28"/>
-                    </Grid.RowDefinitions>
-
-                    <Grid Grid.Row="0">
-                        <!-- ═══════ CREATE PACKAGE ═══════ -->
-                        <Grid x:Name="CreatePackagePage">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-
-                            <!-- Wizard header + stepper -->
-                            <Border Grid.Row="0" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1"
-                                    Padding="30,22,30,0" Visibility="{Binding IsWizard, Converter={StaticResource BoolToVis}}">
-                                <StackPanel>
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0" HorizontalAlignment="Left">
-                                            <TextBlock Text="Create package" Style="{StaticResource H1}"/>
-                                            <TextBlock Text="Prepare, test and publish a PSADT application to Microsoft Intune"
-                                                       Style="{StaticResource SubText}" Margin="0,5,0,0"/>
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="1" Text="{Binding PackagePathShort}" Style="{StaticResource Caption}"
-                                                   MaxWidth="420" Margin="16,0,0,0" TextTrimming="CharacterEllipsis"
-                                                   ToolTip="{Binding PackagePathShort}"
-                                                   HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
-                                    </Grid>
-
-                                    <!-- Stepper: a top rule per step, filled once the step is reached. -->
-                                    <ItemsControl ItemsSource="{Binding Steps}" Margin="0,18,0,0">
-                                        <ItemsControl.ItemsPanel>
-                                            <ItemsPanelTemplate>
-                                                <UniformGrid Rows="1"/>
-                                            </ItemsPanelTemplate>
-                                        </ItemsControl.ItemsPanel>
-                                        <ItemsControl.ItemTemplate>
-                                            <DataTemplate DataType="{x:Type vm:StepViewModel}">
-                                                <Button FocusVisualStyle="{StaticResource FocusVisual}" Cursor="Hand" Margin="0,0,20,0"
-                                                        Command="{Binding DataContext.GoToStepCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
-                                                        CommandParameter="{Binding Index}">
-                                                    <Button.Template>
-                                                        <ControlTemplate TargetType="Button">
-                                                            <Border Background="Transparent">
-                                                                <ContentPresenter/>
-                                                            </Border>
-                                                        </ControlTemplate>
-                                                    </Button.Template>
-                                                    <StackPanel>
-                                                        <Border Height="3" CornerRadius="2">
-                                                            <Border.Style>
-                                                                <Style TargetType="Border">
-                                                                    <Setter Property="Background" Value="{DynamicResource EdgeBrush}"/>
-                                                                    <Style.Triggers>
-                                                                        <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                                                            <Setter Property="Background" Value="{DynamicResource PrimaryBrush}"/>
-                                                                        </DataTrigger>
-                                                                        <DataTrigger Binding="{Binding IsDone}" Value="True">
-                                                                            <Setter Property="Opacity" Value="0.45"/>
-                                                                        </DataTrigger>
-                                                                    </Style.Triggers>
-                                                                </Style>
-                                                            </Border.Style>
+            <!-- Pages. Each draws its own panels, so this area stays transparent. -->
+            <Grid Grid.Column="1" Margin="4,4,14,14">
+                <!-- ═══════ CREATE PACKAGE ═══════ -->
+                <Grid x:Name="CreatePackagePage">
+                    <!-- The wizard. Each step scrolls on its own so switching steps
+                         doesn't inherit the previous step's scroll position. -->
+                    <controls:PageFrame Title="Create package"
+                                        Subtitle="Prepare, test and publish a PSADT application to Microsoft Intune"
+                                        IsBodyScrollable="False"
+                                        Visibility="{Binding IsWizard, Converter={StaticResource BoolToVis}}">
+                        <controls:PageFrame.HeaderBottom>
+                            <!-- Stepper: numbered discs joined by a rule that fills as steps complete. -->
+                            <ItemsControl ItemsSource="{Binding Steps}" Margin="0,14" Focusable="False">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <UniformGrid Rows="1"/>
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:StepViewModel}">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Button FocusVisualStyle="{StaticResource FocusVisual}" Cursor="Hand"
+                                                    AutomationProperties.Name="{Binding Title}"
+                                                    Command="{Binding DataContext.GoToStepCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
+                                                    CommandParameter="{Binding Index}">
+                                                <Button.Template>
+                                                    <ControlTemplate TargetType="Button">
+                                                        <Border Background="Transparent">
+                                                            <ContentPresenter/>
                                                         </Border>
-                                                        <StackPanel Orientation="Horizontal" Margin="0,9,0,11">
-                                                            <TextBlock FontFamily="{StaticResource MonoFontFamily}" FontSize="11" VerticalAlignment="Center">
-                                                                <TextBlock.Style>
-                                                                    <Style TargetType="TextBlock">
-                                                                        <Setter Property="Text" Value="{Binding Number}"/>
-                                                                        <Setter Property="Foreground" Value="{DynamicResource Dim2Brush}"/>
-                                                                        <Style.Triggers>
-                                                                            <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                                                                <Setter Property="Foreground" Value="{DynamicResource AccentTextBrush}"/>
-                                                                            </DataTrigger>
-                                                                            <DataTrigger Binding="{Binding IsDone}" Value="True">
-                                                                                <Setter Property="Text" Value="&#x2713;"/>
-                                                                            </DataTrigger>
-                                                                        </Style.Triggers>
-                                                                    </Style>
-                                                                </TextBlock.Style>
-                                                            </TextBlock>
-                                                            <TextBlock Text="{Binding Title}" Margin="8,0,0,0" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center">
-                                                                <TextBlock.Style>
-                                                                    <Style TargetType="TextBlock">
-                                                                        <Setter Property="Foreground" Value="{DynamicResource Muted3Brush}"/>
-                                                                        <Style.Triggers>
-                                                                            <DataTrigger Binding="{Binding IsActive}" Value="True">
-                                                                                <Setter Property="Foreground" Value="{DynamicResource Text2Brush}"/>
-                                                                            </DataTrigger>
-                                                                            <DataTrigger Binding="{Binding IsCurrent}" Value="True">
-                                                                                <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
-                                                                            </DataTrigger>
-                                                                        </Style.Triggers>
-                                                                    </Style>
-                                                                </TextBlock.Style>
-                                                            </TextBlock>
-                                                        </StackPanel>
-                                                    </StackPanel>
-                                                </Button>
-                                            </DataTemplate>
-                                        </ItemsControl.ItemTemplate>
-                                    </ItemsControl>
-                                </StackPanel>
-                            </Border>
+                                                    </ControlTemplate>
+                                                </Button.Template>
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Grid Width="30" Height="30">
+                                                        <Ellipse x:Name="disc" Fill="{DynamicResource ControlBrush}"
+                                                                 Stroke="{DynamicResource ControlStrokeBrush}" StrokeThickness="1"/>
+                                                        <TextBlock x:Name="num" Text="{Binding Number}" FontSize="13" FontWeight="SemiBold"
+                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                                   Foreground="{DynamicResource Muted2Brush}"/>
+                                                        <Path x:Name="tick" Data="M9.5 15.2l3.6 3.6 7.4-7.6" StrokeThickness="2"
+                                                              Stroke="{DynamicResource PrimaryFgBrush}" Visibility="Collapsed"
+                                                              StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                                                    </Grid>
+                                                    <TextBlock x:Name="title" Text="{Binding Title}" Margin="12,0,0,0" FontSize="14"
+                                                               VerticalAlignment="Center" Foreground="{DynamicResource Muted2Brush}"/>
+                                                </StackPanel>
+                                            </Button>
+                                            <Border x:Name="line" Grid.Column="1" Height="2" CornerRadius="1" Margin="18,0"
+                                                    VerticalAlignment="Center" Background="{DynamicResource EdgeBrush}"/>
+                                        </Grid>
+                                        <DataTemplate.Triggers>
+                                            <DataTrigger Binding="{Binding IsDone}" Value="True">
+                                                <Setter TargetName="disc" Property="Fill" Value="{DynamicResource PrimaryBrush}"/>
+                                                <Setter TargetName="disc" Property="Stroke" Value="{DynamicResource PrimaryBrush}"/>
+                                                <Setter TargetName="num" Property="Visibility" Value="Collapsed"/>
+                                                <Setter TargetName="tick" Property="Visibility" Value="Visible"/>
+                                                <Setter TargetName="line" Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+                                                <Setter TargetName="title" Property="Foreground" Value="{DynamicResource Text2Brush}"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                                                <Setter TargetName="disc" Property="Fill" Value="{DynamicResource PrimaryBrush}"/>
+                                                <Setter TargetName="disc" Property="Stroke" Value="{DynamicResource PrimaryBrush}"/>
+                                                <Setter TargetName="num" Property="Foreground" Value="{DynamicResource PrimaryFgBrush}"/>
+                                                <Setter TargetName="title" Property="Foreground" Value="{DynamicResource InkBrush}"/>
+                                                <Setter TargetName="title" Property="FontWeight" Value="SemiBold"/>
+                                            </DataTrigger>
+                                            <!-- The last step has nothing to join. -->
+                                            <DataTrigger Binding="{Binding Index}" Value="2">
+                                                <Setter TargetName="line" Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </DataTemplate.Triggers>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </controls:PageFrame.HeaderBottom>
 
-                            <!-- Tool header (Edit Script / Remote Test) -->
-                            <Border Grid.Row="0" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1"
-                                    Padding="30,20,30,16" Visibility="{Binding IsToolOpen, Converter={StaticResource BoolToVis}}">
-                                <StackPanel>
-                                    <Button Style="{StaticResource Breadcrumb}" Command="{Binding CloseToolCommand}">
-                                        <TextBlock>
-                                            <Run Text="← Create Package /"/><Run Text=" "/><Run Text="{Binding PackageName, Mode=OneWay}"/>
-                                        </TextBlock>
-                                    </Button>
-                                    <Grid Margin="0,12,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel Grid.Column="0" HorizontalAlignment="Left">
-                                            <TextBlock Text="{Binding ToolTitle}" Style="{StaticResource H1}"/>
-                                            <TextBlock Text="{Binding ToolSubtitle}" Style="{StaticResource SubText}"
-                                                       Margin="0,5,0,0" TextTrimming="CharacterEllipsis"/>
+                        <controls:PageFrame.Footer>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Button Style="{StaticResource BackButton}" Command="{Binding BackCommand}" MinWidth="104">
+                                    <StackPanel Orientation="Horizontal">
+                                        <controls:LineIcon Data="{DynamicResource IconArrowL}" Width="15" Height="15"/>
+                                        <TextBlock Text="Back" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <TextBlock Grid.Column="1" Text="{Binding StepHint}" Style="{StaticResource FooterHint}" Margin="18,0"/>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                    <Button Style="{StaticResource GhostButton}" Content="Publishing…" IsEnabled="False"
+                                            Visibility="{Binding IsUploadRunning, Converter={StaticResource BoolToVis}}"/>
+                                    <Button Command="{Binding PrimaryCommand}" MinWidth="180">
+                                        <Button.Style>
+                                            <Style TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding IsUploadRunning}" Value="True">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Button.Style>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding PrimaryLabel}" VerticalAlignment="Center"/>
+                                            <controls:LineIcon Data="{DynamicResource IconArrowR}" Width="15" Height="15" Margin="10,0,0,0"/>
                                         </StackPanel>
-                                        <TextBlock Grid.Column="1" Text="Package tool" Style="{StaticResource Caption}"
-                                                   Margin="16,0,0,0" HorizontalAlignment="Right" VerticalAlignment="Bottom"/>
-                                    </Grid>
+                                    </Button>
                                 </StackPanel>
-                            </Border>
-
-                            <!-- Step and tool content share the row; one is visible at a time.
-                                 StepEdit hosts a WebView2, which is HWND-based and ignores WPF
-                                 clipping, so it fills the viewport and scrolls internally
-                                 instead of sitting in a ScrollViewer. -->
-                            <Grid Grid.Row="1">
-                                <!-- The wizard steps go away entirely while a tool covers them; left
-                                     visible they render and take clicks underneath the open tool. -->
-                                <Grid Visibility="{Binding IsWizard, Converter={StaticResource BoolToVis}}">
-                                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                                                  Visibility="{Binding Steps[0].IsCurrent, Converter={StaticResource BoolToVis}}">
-                                        <views:StepGenerate Margin="30,22,30,26"/>
-                                    </ScrollViewer>
-                                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                                                  Visibility="{Binding Steps[1].IsCurrent, Converter={StaticResource BoolToVis}}">
-                                        <views:StepUpload Margin="30,22,30,26"/>
-                                    </ScrollViewer>
-                                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                                                  Visibility="{Binding Steps[2].IsCurrent, Converter={StaticResource BoolToVis}}">
-                                        <views:StepReview Margin="30,22,30,26"/>
-                                    </ScrollViewer>
-                                </Grid>
-                                <views:StepEdit x:Name="EditStep" Margin="30,18,30,22"
-                                                Visibility="{Binding IsEditToolOpen, Converter={StaticResource BoolToVis}}"/>
-                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                                              Visibility="{Binding IsTestToolOpen, Converter={StaticResource BoolToVis}}">
-                                    <views:StepTest Margin="30,18,30,22" DataContext="{Binding RemoteTest}"/>
-                                </ScrollViewer>
                             </Grid>
+                        </controls:PageFrame.Footer>
 
-                            <!-- Wizard footer -->
-                            <Border Grid.Row="2" MinHeight="76" Background="{DynamicResource CardBrush}"
-                                    BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0" Padding="30,0"
-                                    Visibility="{Binding IsWizard, Converter={StaticResource BoolToVis}}">
-                                <Grid>
-                                    <Button Style="{StaticResource BackButton}" Content="← Back"
-                                            HorizontalAlignment="Left" VerticalAlignment="Center" Command="{Binding BackCommand}"/>
-                                    <TextBlock Text="{Binding StepHint}" Style="{StaticResource SubText}" TextWrapping="Wrap"
-                                               MaxWidth="340" Margin="100,0,235,0" VerticalAlignment="Center"/>
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                        <Button Style="{StaticResource GhostButton}" Content="Uploading…" IsEnabled="False"
-                                                Visibility="{Binding IsUploadRunning, Converter={StaticResource BoolToVis}}"/>
-                                        <Button Command="{Binding PrimaryCommand}">
-                                            <Button.Style>
-                                                <Style TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
-                                                    <Style.Triggers>
-                                                        <DataTrigger Binding="{Binding IsUploadRunning}" Value="True">
-                                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                                        </DataTrigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </Button.Style>
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="{Binding PrimaryLabel}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                                <TextBlock Text="↵" Margin="9,0,0,0" Opacity="0.55" VerticalAlignment="Center"
-                                                           FontFamily="{StaticResource MonoFontFamily}" FontSize="11"
-                                                           Visibility="{Binding ShowPrimaryKeyHint, Converter={StaticResource BoolToVis}}"/>
-                                            </StackPanel>
-                                        </Button>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
+                        <controls:PageFrame.Rail>
+                            <controls:WizardRail/>
+                        </controls:PageFrame.Rail>
 
-                            <!-- Tool footer -->
-                            <Border Grid.Row="2" MinHeight="76" Background="{DynamicResource CardBrush}"
-                                    BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0" Padding="30,0"
-                                    Visibility="{Binding IsToolOpen, Converter={StaticResource BoolToVis}}">
-                                <Grid>
-                                    <Button Style="{StaticResource BackButton}" Content="← Back to package"
-                                            HorizontalAlignment="Left" VerticalAlignment="Center" Command="{Binding CloseToolCommand}"/>
-                                    <TextBlock Text="Save script changes before continuing" Style="{StaticResource Caption}"
-                                               MaxWidth="220" Margin="175,0,390,0" TextWrapping="Wrap" VerticalAlignment="Center"
-                                               Visibility="{Binding IsEditToolOpen, Converter={StaticResource BoolToVis}}"/>
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                        <Button Style="{StaticResource GhostButton}" Content="{Binding ToolActionLabel}"
-                                                Click="ToolAction_Click" Margin="0,0,12,0"
-                                                Visibility="{Binding IsEditToolOpen, Converter={StaticResource BoolToVis}}"/>
-                                        <Button Style="{StaticResource PrimaryButton}" Command="{Binding ContinueToUploadCommand}">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="Continue to configure" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                                <TextBlock Text="↵" Margin="9,0,0,0" Opacity="0.55" VerticalAlignment="Center"
-                                                           FontFamily="{StaticResource MonoFontFamily}" FontSize="11"/>
-                                            </StackPanel>
-                                        </Button>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
+                        <Grid>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                          Visibility="{Binding Steps[0].IsCurrent, Converter={StaticResource BoolToVis}}">
+                                <views:StepGenerate/>
+                            </ScrollViewer>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                          Visibility="{Binding Steps[1].IsCurrent, Converter={StaticResource BoolToVis}}">
+                                <views:StepUpload/>
+                            </ScrollViewer>
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                          Visibility="{Binding Steps[2].IsCurrent, Converter={StaticResource BoolToVis}}">
+                                <views:StepReview/>
+                            </ScrollViewer>
                         </Grid>
+                    </controls:PageFrame>
 
-                        <views:RemoteTestView x:Name="RemoteTestPage" Visibility="Collapsed"/>
-                        <views:SettingsView x:Name="SettingsPage" Visibility="Collapsed"/>
-                        <views:UploadToIntuneView x:Name="UploadIntunePage" Visibility="Collapsed"/>
-                        <views:ApplicationsView x:Name="ApplicationsPage" Visibility="Collapsed"/>
-                        <views:ApplicationDetailView x:Name="AppDetailPage" Visibility="Collapsed"/>
-                        <views:AdvancedView x:Name="AdvancedPage" Visibility="Collapsed"/>
-                    </Grid>
+                    <!-- Edit script: covers the wizard. No rail, so the editor gets the width.
+                         StepEdit hosts a WebView2, which is HWND-based and ignores WPF clipping,
+                         so the body does not scroll; the editor scrolls internally. -->
+                    <controls:PageFrame Title="{Binding ToolTitle}" Subtitle="{Binding ToolSubtitle}" IsBodyScrollable="False"
+                                        Visibility="{Binding IsEditToolOpen, Converter={StaticResource BoolToVis}}">
+                        <controls:PageFrame.Breadcrumb>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{StaticResource Breadcrumb}" Content="Create package" FontFamily="{StaticResource UIFontFamily}"
+                                        FontSize="13" Command="{Binding CloseToolCommand}"/>
+                                <TextBlock Text="  /  " VerticalAlignment="Center"/>
+                                <TextBlock Text="Edit script" VerticalAlignment="Center" Foreground="{DynamicResource Text2Brush}"/>
+                            </StackPanel>
+                        </controls:PageFrame.Breadcrumb>
+                        <controls:PageFrame.Footer>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Button Style="{StaticResource BackButton}" Command="{Binding CloseToolCommand}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <controls:LineIcon Data="{DynamicResource IconArrowL}" Width="15" Height="15"/>
+                                        <TextBlock Text="Back to package" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <!-- Save lives in the editor toolbar (Ctrl+S). The footer only reports it. -->
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="18,0">
+                                    <StackPanel Orientation="Horizontal" Visibility="{Binding Editor.HasUnsavedChanges, Converter={StaticResource BoolToVis}}">
+                                        <Ellipse Width="8" Height="8" Fill="{DynamicResource WarnBrush}" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Unsaved changes" Margin="8,0,0,0" FontSize="13" FontWeight="SemiBold"
+                                                   Foreground="{DynamicResource WarnBrush}" VerticalAlignment="Center"/>
+                                        <Border Width="1" Height="14" Margin="14,0" Background="{DynamicResource EdgeBrush}"/>
+                                    </StackPanel>
+                                    <TextBlock Text="Ctrl+S saves the active file" Style="{StaticResource SubText}" VerticalAlignment="Center"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                    <Button Style="{StaticResource GhostButton}" Content="{Binding ToolActionLabel}"
+                                            Click="ToolAction_Click" Margin="0,0,10,0"/>
+                                    <Button Style="{StaticResource PrimaryButton}" Command="{Binding ContinueToUploadCommand}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="Continue to configure" VerticalAlignment="Center"/>
+                                            <controls:LineIcon Data="{DynamicResource IconArrowR}" Width="15" Height="15" Margin="10,0,0,0"/>
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </controls:PageFrame.Footer>
+                        <views:StepEdit x:Name="EditStep"/>
+                    </controls:PageFrame>
 
-                    <!-- ═══════════ STATUS BAR ═══════════ -->
-                    <Border Grid.Row="1" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0">
-                        <DockPanel Margin="18,0" LastChildFill="True">
-                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center" Margin="16,0,0,0">
-                                <TextBlock Text="{Binding AppVersion}" FontFamily="{StaticResource MonoFontFamily}" FontSize="11"
-                                           Foreground="{DynamicResource Dim2Brush}" VerticalAlignment="Center"/>
+                    <!-- Remote test from inside the wizard: the package is the one just generated. -->
+                    <controls:PageFrame Title="{Binding ToolTitle}" Subtitle="{Binding ToolSubtitle}"
+                                        Visibility="{Binding IsTestToolOpen, Converter={StaticResource BoolToVis}}">
+                        <controls:PageFrame.Breadcrumb>
+                            <StackPanel Orientation="Horizontal">
+                                <Button Style="{StaticResource Breadcrumb}" Content="Create package" FontFamily="{StaticResource UIFontFamily}"
+                                        FontSize="13" Command="{Binding CloseToolCommand}"/>
+                                <TextBlock Text="  /  " VerticalAlignment="Center"/>
+                                <TextBlock Text="Remote test" VerticalAlignment="Center" Foreground="{DynamicResource Text2Brush}"/>
                             </StackPanel>
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left">
-                                <Ellipse Width="6" Height="6">
-                                    <Ellipse.Style>
-                                        <Style TargetType="Ellipse">
-                                            <Setter Property="Fill" Value="{DynamicResource MarkBrush}"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsConnected}" Value="True">
-                                                    <Setter Property="Fill" Value="{DynamicResource OkBrush}"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </Ellipse.Style>
-                                </Ellipse>
-                                <TextBlock Text="{Binding ConnectionStatusText}" Margin="9,0,0,0"
-                                           FontFamily="{StaticResource MonoFontFamily}" FontSize="11"
-                                           Foreground="{DynamicResource Muted2Brush}" VerticalAlignment="Center"
-                                           TextTrimming="CharacterEllipsis" ToolTip="{Binding ConnectionStatusText}"/>
-                            </StackPanel>
-                        </DockPanel>
-                    </Border>
+                        </controls:PageFrame.Breadcrumb>
+                        <controls:PageFrame.Footer>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Button Style="{StaticResource BackButton}" Command="{Binding CloseToolCommand}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <controls:LineIcon Data="{DynamicResource IconArrowL}" Width="15" Height="15"/>
+                                        <TextBlock Text="Back to package" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </Button>
+                                <TextBlock Grid.Column="1" Style="{StaticResource FooterHint}" Margin="18,0"
+                                           Text="Tests run on the device only. Nothing is uploaded to Intune."/>
+                                <Button Grid.Column="2" Style="{StaticResource PrimaryButton}" Command="{Binding ContinueToUploadCommand}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="Continue to configure" VerticalAlignment="Center"/>
+                                        <controls:LineIcon Data="{DynamicResource IconArrowR}" Width="15" Height="15" Margin="10,0,0,0"/>
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                        </controls:PageFrame.Footer>
+                        <controls:PageFrame.Rail>
+                            <controls:RemoteTestRail DataContext="{Binding RemoteTest}"/>
+                        </controls:PageFrame.Rail>
+                        <views:StepTest DataContext="{Binding RemoteTest}"/>
+                    </controls:PageFrame>
                 </Grid>
-            </Border>
+
+                <views:RemoteTestView x:Name="RemoteTestPage" Visibility="Collapsed"/>
+                <views:SettingsView x:Name="SettingsPage" Visibility="Collapsed"/>
+                <views:UploadToIntuneView x:Name="UploadIntunePage" Visibility="Collapsed"/>
+                <views:ApplicationsView x:Name="ApplicationsPage" Visibility="Collapsed"/>
+                <views:ApplicationDetailView x:Name="AppDetailPage" Visibility="Collapsed"/>
+                <views:AdvancedView x:Name="AdvancedPage" Visibility="Collapsed"/>
+            </Grid>
         </Grid>
     </Grid>
 </ui:FluentWindow>
