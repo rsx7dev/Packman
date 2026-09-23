@@ -32,7 +32,7 @@
   --pm-primary-button-size:         13px;                           /* PrimaryButton.FontSize */
   --pm-primary-button-weight:       600;                            /* PrimaryButton.FontWeight */
   --pm-primary-button-padding:      8px 18px;                       /* PrimaryButton.Padding */
-  --pm-primary-button-min-height:   34px;                           /* PrimaryButton.MinHeight */
+  --pm-primary-button-min-height:   40px;                           /* PrimaryButton.MinHeight */
   --pm-primary-button-radius:       4px;                            /* PrimaryButton.CornerRadius */
 
   --pm-ghost-button-family:       var(--pm-font-ui);              /* GhostButton.FontFamily */
@@ -43,15 +43,26 @@
   --pm-ghost-button-size:         13px;                           /* GhostButton.FontSize */
   --pm-ghost-button-weight:       600;                            /* GhostButton.FontWeight */
   --pm-ghost-button-padding:      7px 16px;                       /* GhostButton.Padding */
-  --pm-ghost-button-min-height:   34px;                           /* GhostButton.MinHeight */
+  --pm-ghost-button-min-height:   40px;                           /* GhostButton.MinHeight */
   --pm-ghost-button-radius:       4px;                            /* GhostButton.CornerRadius */
+
+  --pm-danger-button-family:       var(--pm-font-ui);              /* DangerButton.FontFamily */
+  --pm-danger-button-color:        var(--pm-danger);               /* DangerButton.Foreground */
+  --pm-danger-button-bg:           var(--pm-bad-soft);             /* DangerButton.Background */
+  --pm-danger-button-border-color: var(--pm-bad-line);             /* DangerButton.BorderBrush */
+  --pm-danger-button-border-width: 1px;                            /* DangerButton.BorderThickness */
+  --pm-danger-button-size:         13px;                           /* DangerButton.FontSize */
+  --pm-danger-button-weight:       600;                            /* DangerButton.FontWeight */
+  --pm-danger-button-padding:      7px 16px;                       /* DangerButton.Padding */
+  --pm-danger-button-min-height:   40px;                           /* DangerButton.MinHeight */
+  --pm-danger-button-radius:       4px;                            /* DangerButton.CornerRadius */
 
   --pm-bar-button-family:       var(--pm-font-ui);              /* BarButton.FontFamily */
   --pm-bar-button-color:        var(--pm-muted-2);              /* BarButton.Foreground */
   --pm-bar-button-bg:           transparent;                    /* BarButton.Background */
   --pm-bar-button-border-width: 0;                              /* BarButton.BorderThickness */
-  --pm-bar-button-size:         11px;                           /* BarButton.FontSize */
-  --pm-bar-button-weight:       700;                            /* BarButton.FontWeight */
+  --pm-bar-button-size:         12px;                           /* BarButton.FontSize */
+  --pm-bar-button-weight:       600;                            /* BarButton.FontWeight */
   --pm-bar-button-padding:      6px 4px;                        /* BarButton.Padding */
 
   --pm-icon-button-family:       var(--pm-font-ui);              /* IconButton.FontFamily */
@@ -59,20 +70,21 @@
   --pm-icon-button-bg:           transparent;                    /* IconButton.Background */
   --pm-icon-button-border-color: var(--pm-control-stroke);       /* IconButton.BorderBrush */
   --pm-icon-button-border-width: 1px;                            /* IconButton.BorderThickness */
-  --pm-icon-button-width:        26px;                           /* IconButton.Width */
-  --pm-icon-button-height:       26px;                           /* IconButton.Height */
+  --pm-icon-button-width:        30px;                           /* IconButton.Width */
+  --pm-icon-button-height:       30px;                           /* IconButton.Height */
   --pm-icon-button-radius:       4px;                            /* IconButton.CornerRadius */
 
   --pm-back-button-family:       var(--pm-font-ui);              /* BackButton.FontFamily */
-  --pm-back-button-color:        var(--pm-text-2);               /* BackButton.Foreground */
-  --pm-back-button-bg:           var(--pm-control);              /* BackButton.Background */
+  --pm-back-button-color:        var(--pm-accent-text);          /* BackButton.Foreground */
+  --pm-back-button-bg:           var(--pm-primary-faint);        /* BackButton.Background */
   --pm-back-button-border-color: var(--pm-control-stroke);       /* BackButton.BorderBrush */
   --pm-back-button-border-width: 1px;                            /* BackButton.BorderThickness */
   --pm-back-button-size:         13px;                           /* BackButton.FontSize */
   --pm-back-button-weight:       600;                            /* BackButton.FontWeight */
-  --pm-back-button-padding:      6px 10px;                       /* BackButton.Padding */
-  --pm-back-button-min-height:   34px;                           /* BackButton.MinHeight */
+  --pm-back-button-padding:      7px 14px;                       /* BackButton.Padding */
+  --pm-back-button-min-height:   40px;                           /* BackButton.MinHeight */
   --pm-back-button-radius:       4px;                            /* BackButton.CornerRadius */
+  --pm-back-button-min-width:    88px;                           /* BackButton.MinWidth */
 
   --pm-card-action-button-family:       var(--pm-font-ui);              /* CardActionButton.FontFamily */
   --pm-card-action-button-color:        var(--pm-text-2);               /* CardActionButton.Foreground */
@@ -82,7 +94,7 @@
   --pm-card-action-button-size:         13px;                           /* CardActionButton.FontSize */
   --pm-card-action-button-weight:       600;                            /* CardActionButton.FontWeight */
   --pm-card-action-button-padding:      8px 12px;                       /* CardActionButton.Padding */
-  --pm-card-action-button-min-height:   34px;                           /* CardActionButton.MinHeight */
+  --pm-card-action-button-min-height:   40px;                           /* CardActionButton.MinHeight */
   --pm-card-action-button-radius:       4px;                            /* CardActionButton.CornerRadius */
 
   --pm-mini-button-family:       var(--pm-font-ui);              /* MiniButton.FontFamily */
@@ -116,8 +128,8 @@
   --pm-text-field-border-color: var(--pm-control-stroke);       /* TextField.BorderBrush */
   --pm-text-field-color:        var(--pm-text);                 /* TextField.Foreground */
   --pm-text-field-border-width: 1px;                            /* TextField.BorderThickness */
-  --pm-text-field-size:         12.5px;                         /* TextField.FontSize */
-  --pm-text-field-height:       36px;                           /* TextField.Height */
+  --pm-text-field-size:         14px;                           /* TextField.FontSize */
+  --pm-text-field-height:       40px;                           /* TextField.Height */
   --pm-text-field-padding:      0 11px;                         /* TextField.Padding */
   --pm-text-field-radius:       4px;                            /* TextField.CornerRadius */
 
@@ -126,8 +138,8 @@
   --pm-mono-field-border-color: var(--pm-control-stroke);       /* MonoField.BorderBrush */
   --pm-mono-field-color:        var(--pm-text);                 /* MonoField.Foreground */
   --pm-mono-field-border-width: 1px;                            /* MonoField.BorderThickness */
-  --pm-mono-field-size:         12.5px;                         /* MonoField.FontSize */
-  --pm-mono-field-height:       36px;                           /* MonoField.Height */
+  --pm-mono-field-size:         14px;                           /* MonoField.FontSize */
+  --pm-mono-field-height:       40px;                           /* MonoField.Height */
   --pm-mono-field-padding:      0 11px;                         /* MonoField.Padding */
   --pm-mono-field-radius:       4px;                            /* MonoField.CornerRadius */
 
@@ -136,23 +148,23 @@
   --pm-nav-item-color:      var(--pm-muted-2);              /* NavItem.Foreground */
   --pm-nav-item-size:       14px;                           /* NavItem.FontSize */
   --pm-nav-item-weight:     400;                            /* NavItem.FontWeight */
-  --pm-nav-item-min-height: 38px;                           /* NavItem.MinHeight */
+  --pm-nav-item-min-height: 42px;                           /* NavItem.MinHeight */
   --pm-nav-item-padding:    0 14px;                         /* NavItem.Padding */
   --pm-nav-item-radius:     5px;                            /* NavItem.CornerRadius */
 
   --pm-mode-toggle-family:  var(--pm-font-ui);              /* ModeToggle.FontFamily */
   --pm-mode-toggle-bg:      transparent;                    /* ModeToggle.Background */
   --pm-mode-toggle-color:   var(--pm-muted-2);              /* ModeToggle.Foreground */
-  --pm-mode-toggle-size:    11px;                           /* ModeToggle.FontSize */
-  --pm-mode-toggle-weight:  700;                            /* ModeToggle.FontWeight */
+  --pm-mode-toggle-size:    12px;                           /* ModeToggle.FontSize */
+  --pm-mode-toggle-weight:  600;                            /* ModeToggle.FontWeight */
   --pm-mode-toggle-padding: 9px 14px;                       /* ModeToggle.Padding */
   --pm-mode-toggle-radius:  3px;                            /* ModeToggle.CornerRadius */
 
   --pm-context-toggle-family:       var(--pm-font-ui);              /* ContextToggle.FontFamily */
   --pm-context-toggle-bg:           transparent;                    /* ContextToggle.Background */
   --pm-context-toggle-color:        var(--pm-muted-2);              /* ContextToggle.Foreground */
-  --pm-context-toggle-size:         11px;                           /* ContextToggle.FontSize */
-  --pm-context-toggle-weight:       700;                            /* ContextToggle.FontWeight */
+  --pm-context-toggle-size:         12px;                           /* ContextToggle.FontSize */
+  --pm-context-toggle-weight:       600;                            /* ContextToggle.FontWeight */
   --pm-context-toggle-padding:      9px 14px;                       /* ContextToggle.Padding */
   --pm-context-toggle-radius:       5px;                            /* ContextToggle.CornerRadius */
   --pm-context-toggle-border-color: var(--pm-control-stroke);       /* ContextToggle.BorderBrush */
@@ -160,26 +172,26 @@
 
   --pm-page-tab-family:  var(--pm-font-ui);              /* PageTab.FontFamily */
   --pm-page-tab-color:   var(--pm-muted-2);              /* PageTab.Foreground */
-  --pm-page-tab-size:    12.5px;                         /* PageTab.FontSize */
+  --pm-page-tab-size:    14px;                           /* PageTab.FontSize */
   --pm-page-tab-weight:  600;                            /* PageTab.FontWeight */
   --pm-page-tab-padding: 11px 16px;                      /* PageTab.Padding */
 
   --pm-detail-tab-family:  var(--pm-font-ui);              /* DetailTab.FontFamily */
   --pm-detail-tab-color:   var(--pm-muted-2);              /* DetailTab.Foreground */
-  --pm-detail-tab-size:    12.5px;                         /* DetailTab.FontSize */
+  --pm-detail-tab-size:    14px;                           /* DetailTab.FontSize */
   --pm-detail-tab-weight:  600;                            /* DetailTab.FontWeight */
   --pm-detail-tab-padding: 10px 13px;                      /* DetailTab.Padding */
 
   --pm-row-icon-button-bg:     transparent;                    /* RowIconButton.Background */
   --pm-row-icon-button-color:  var(--pm-muted-2);              /* RowIconButton.Foreground */
-  --pm-row-icon-button-width:  26px;                           /* RowIconButton.Width */
-  --pm-row-icon-button-height: 26px;                           /* RowIconButton.Height */
+  --pm-row-icon-button-width:  30px;                           /* RowIconButton.Width */
+  --pm-row-icon-button-height: 30px;                           /* RowIconButton.Height */
   --pm-row-icon-button-radius: 4px;                            /* RowIconButton.CornerRadius */
 
   --pm-breadcrumb-family: var(--pm-font-mono);            /* Breadcrumb.FontFamily */
   --pm-breadcrumb-bg:     transparent;                    /* Breadcrumb.Background */
   --pm-breadcrumb-color:  var(--pm-dim);                  /* Breadcrumb.Foreground */
-  --pm-breadcrumb-size:   11px;                           /* Breadcrumb.FontSize */
+  --pm-breadcrumb-size:   12px;                           /* Breadcrumb.FontSize */
 
   --pm-stat-row-color: var(--pm-ok);                   /* StatRow.Foreground */
 
@@ -188,4 +200,63 @@
   --pm-stat-row-bad-color: var(--pm-bad);                  /* StatRowBad.Foreground */
 
   --pm-stat-row-mut-color: var(--pm-muted-3);              /* StatRowMut.Foreground */
+
+  --pm-panel-card-bg:           var(--pm-panel);                /* PanelCard.Background */
+  --pm-panel-card-border-color: var(--pm-line);                 /* PanelCard.BorderBrush */
+  --pm-panel-card-border-width: 1px;                            /* PanelCard.BorderThickness */
+  --pm-panel-card-radius:       8px;                            /* PanelCard.CornerRadius */
+  --pm-panel-card-padding:      0;                              /* PanelCard.Padding */
+
+  --pm-section-panel-bg:           var(--pm-panel);                /* SectionPanel.Background */
+  --pm-section-panel-border-color: var(--pm-line);                 /* SectionPanel.BorderBrush */
+  --pm-section-panel-border-width: 1px;                            /* SectionPanel.BorderThickness */
+  --pm-section-panel-radius:       8px;                            /* SectionPanel.CornerRadius */
+  --pm-section-panel-padding:      22px 28px 24px 28px;            /* SectionPanel.Padding */
+
+  --pm-section-rule-height: 1px;                            /* SectionRule.Height */
+  --pm-section-rule-bg:     var(--pm-line);                 /* SectionRule.Background */
+
+  --pm-link-button-family:       var(--pm-font-ui);              /* LinkButton.FontFamily */
+  --pm-link-button-color:        var(--pm-accent-text);          /* LinkButton.Foreground */
+  --pm-link-button-bg:           transparent;                    /* LinkButton.Background */
+  --pm-link-button-border-width: 0;                              /* LinkButton.BorderThickness */
+  --pm-link-button-size:         13px;                           /* LinkButton.FontSize */
+  --pm-link-button-weight:       600;                            /* LinkButton.FontWeight */
+  --pm-link-button-padding:      4px 2px;                        /* LinkButton.Padding */
+
+  --pm-callout-bg:           var(--pm-primary-faint);        /* Callout.Background */
+  --pm-callout-border-color: var(--pm-primary-line);         /* Callout.BorderBrush */
+  --pm-callout-border-width: 1px;                            /* Callout.BorderThickness */
+  --pm-callout-radius:       6px;                            /* Callout.CornerRadius */
+  --pm-callout-padding:      12px 14px;                      /* Callout.Padding */
+
+  --pm-callout-ok-bg:           var(--pm-ok-soft);              /* CalloutOk.Background */
+  --pm-callout-ok-border-color: var(--pm-ok-line);              /* CalloutOk.BorderBrush */
+  --pm-callout-ok-border-width: 1px;                            /* CalloutOk.BorderThickness */
+  --pm-callout-ok-radius:       6px;                            /* CalloutOk.CornerRadius */
+  --pm-callout-ok-padding:      12px 14px;                      /* CalloutOk.Padding */
+
+  --pm-callout-warn-bg:           var(--pm-warn-soft);            /* CalloutWarn.Background */
+  --pm-callout-warn-border-color: var(--pm-warn-line);            /* CalloutWarn.BorderBrush */
+  --pm-callout-warn-border-width: 1px;                            /* CalloutWarn.BorderThickness */
+  --pm-callout-warn-radius:       6px;                            /* CalloutWarn.CornerRadius */
+  --pm-callout-warn-padding:      12px 14px;                      /* CalloutWarn.Padding */
+
+  --pm-callout-bad-bg:           var(--pm-bad-soft);             /* CalloutBad.Background */
+  --pm-callout-bad-border-color: var(--pm-bad-line);             /* CalloutBad.BorderBrush */
+  --pm-callout-bad-border-width: 1px;                            /* CalloutBad.BorderThickness */
+  --pm-callout-bad-radius:       6px;                            /* CalloutBad.CornerRadius */
+  --pm-callout-bad-padding:      12px 14px;                      /* CalloutBad.Padding */
+
+  --pm-callout-neutral-bg:           var(--pm-card-2);               /* CalloutNeutral.Background */
+  --pm-callout-neutral-border-color: var(--pm-line);                 /* CalloutNeutral.BorderBrush */
+  --pm-callout-neutral-border-width: 1px;                            /* CalloutNeutral.BorderThickness */
+  --pm-callout-neutral-radius:       6px;                            /* CalloutNeutral.CornerRadius */
+  --pm-callout-neutral-padding:      12px 14px;                      /* CalloutNeutral.Padding */
+
+  --pm-chip-bg:           var(--pm-control);              /* Chip.Background */
+  --pm-chip-border-color: var(--pm-control-stroke);       /* Chip.BorderBrush */
+  --pm-chip-border-width: 1px;                            /* Chip.BorderThickness */
+  --pm-chip-radius:       4px;                            /* Chip.CornerRadius */
+  --pm-chip-padding:      4px 9px;                        /* Chip.Padding */
 }

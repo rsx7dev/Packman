@@ -14,13 +14,23 @@
   /* Text styles - one group per keyed TextBlock style in Styles.xaml. */
   --pm-h1-family: var(--pm-font-ui);              /* H1.FontFamily */
   --pm-h1-color:  var(--pm-ink);                  /* H1.Foreground */
-  --pm-h1-size:   20px;                           /* H1.FontSize */
+  --pm-h1-size:   26px;                           /* H1.FontSize */
   --pm-h1-weight: 600;                            /* H1.FontWeight */
 
   --pm-h2-family: var(--pm-font-ui);              /* H2.FontFamily */
   --pm-h2-color:  var(--pm-ink);                  /* H2.Foreground */
-  --pm-h2-size:   14px;                           /* H2.FontSize */
+  --pm-h2-size:   16px;                           /* H2.FontSize */
   --pm-h2-weight: 600;                            /* H2.FontWeight */
+
+  --pm-h3-family: var(--pm-font-ui);              /* H3.FontFamily */
+  --pm-h3-color:  var(--pm-ink);                  /* H3.Foreground */
+  --pm-h3-size:   14px;                           /* H3.FontSize */
+  --pm-h3-weight: 600;                            /* H3.FontWeight */
+
+  --pm-rail-title-family: var(--pm-font-ui);              /* RailTitle.FontFamily */
+  --pm-rail-title-color:  var(--pm-ink);                  /* RailTitle.Foreground */
+  --pm-rail-title-size:   18px;                           /* RailTitle.FontSize */
+  --pm-rail-title-weight: 600;                            /* RailTitle.FontWeight */
 
   --pm-sub-text-family:      var(--pm-font-ui);              /* SubText.FontFamily */
   --pm-sub-text-color:       var(--pm-muted-2);              /* SubText.Foreground */
@@ -29,20 +39,25 @@
 
   --pm-section-label-family: var(--pm-font-label);           /* SectionLabel.FontFamily */
   --pm-section-label-color:  var(--pm-muted);                /* SectionLabel.Foreground */
-  --pm-section-label-size:   11px;                           /* SectionLabel.FontSize */
+  --pm-section-label-size:   12px;                           /* SectionLabel.FontSize */
   --pm-section-label-weight: 600;                            /* SectionLabel.FontWeight */
 
   --pm-caption-family: var(--pm-font-mono);            /* Caption.FontFamily */
   --pm-caption-color:  var(--pm-dim-2);                /* Caption.Foreground */
-  --pm-caption-size:   11px;                           /* Caption.FontSize */
+  --pm-caption-size:   12px;                           /* Caption.FontSize */
 
   --pm-field-label-family: var(--pm-font-ui);              /* FieldLabel.FontFamily */
   --pm-field-label-color:  var(--pm-muted);                /* FieldLabel.Foreground */
-  --pm-field-label-size:   11.5px;                         /* FieldLabel.FontSize */
+  --pm-field-label-size:   12px;                           /* FieldLabel.FontSize */
   --pm-field-label-weight: 500;                            /* FieldLabel.FontWeight */
 
   --pm-col-head-family: var(--pm-font-label);           /* ColHead.FontFamily */
   --pm-col-head-color:  var(--pm-dim-2);                /* ColHead.Foreground */
-  --pm-col-head-size:   10px;                           /* ColHead.FontSize */
+  --pm-col-head-size:   12px;                           /* ColHead.FontSize */
   --pm-col-head-weight: 600;                            /* ColHead.FontWeight */
+
+  --pm-footer-hint-family:      var(--pm-font-ui);              /* FooterHint.FontFamily */
+  --pm-footer-hint-color:       var(--pm-muted-2);              /* FooterHint.Foreground */
+  --pm-footer-hint-size:        13px;                           /* FooterHint.FontSize */
+  --pm-footer-hint-line-height: 20px;                           /* FooterHint.LineHeight */
 }

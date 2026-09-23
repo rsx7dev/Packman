@@ -75,3 +75,8 @@ Repo-specific facts for the next sync. Read before running anything.
   and the CardSoft, BrowseButton, FilterPill, PillCount and StatusListRow control styles, and
   restyled BackButton. Tokens regenerated; `conventions.md` edited to drop the removed names
   (counts, code colours, mono-value, filter pill, count pill, status row). 234 tokens now.
+- 2026-09-23: three-column redesign added the `PanelColor` role (both themes), 11 icons (IconList,
+  IconSliders, IconInfo, IconAlert, IconCopy, IconSave, IconUndo, IconArrowL, IconArrowR, IconPlay,
+  IconMore), H2 grew to 16px with new H3 and RailTitle styles, and new styles PanelCard,
+  SectionPanel, SectionRule, FooterHint, LinkButton, Callout*, Chip, KvRow(Mono), FieldRow.
+  Tokens regenerated.
