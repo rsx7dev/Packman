@@ -1,157 +1,194 @@
 <UserControl x:Class="Packman.Views.StepTest"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:Packman"
              xmlns:controls="clr-namespace:Packman.Views.Controls"
+             xmlns:vm="clr-namespace:Packman.ViewModels"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:RemoteTestViewModel}"
              FontFamily="{StaticResource UIFontFamily}">
+    <!-- Body of Remote test, in the wizard's tool frame and on the standalone page.
+         The host supplies the PageFrame, footer and the "Test session" rail. -->
 
-    <Grid>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="18"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
+    <Border Style="{StaticResource SectionPanel}">
+        <StackPanel>
 
-        <!-- Target device + actions -->
-        <StackPanel Grid.Column="0">
-            <Border Style="{StaticResource Card}">
-                <StackPanel>
-                    <controls:SectionHeader Title="Package" Caption="{Binding PackageSourceCaption}" Margin="0,0,0,14"/>
+            <!-- Package: the package root staged on the target. -->
+            <DockPanel Margin="0,0,0,7">
+                <TextBlock DockPanel.Dock="Right" Text="{Binding PackageSourceCaption}" Style="{StaticResource Caption}"/>
+                <TextBlock Text="Package" Style="{StaticResource FieldLabel}" Margin="0"/>
+            </DockPanel>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBox Style="{StaticResource MonoField}" IsReadOnly="True" FontSize="13"
+                         Text="{Binding PackagePath, Mode=OneWay}"
+                         local:PlaceholderText.Text="No package selected"
+                         AutomationProperties.Name="Package folder"
+                         ToolTip="The PSADT package folder staged on the target."/>
+                <Button Grid.Column="1" Style="{StaticResource FieldActionButton}" Content="Browse…"
+                        Click="BrowsePackage_Click" IsEnabled="{Binding IsIdle}"
+                        AutomationProperties.Name="Browse for package"
+                        ToolTip="Pick a PSADT package folder on the share to test."/>
+            </Grid>
+            <TextBlock Text="Generate a package on the Package step and it lands here automatically, or browse to a package already built on the share."
+                       Margin="0,8,0,0" FontSize="12" LineHeight="18" TextWrapping="Wrap" Foreground="{DynamicResource Muted2Brush}"
+                       Visibility="{Binding NeedsPackage, Converter={StaticResource BoolToVis}}"/>
 
-                    <StackPanel Visibility="{Binding HasPackage, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="{Binding PackageLabel}" FontSize="13" FontWeight="SemiBold"
-                                   Foreground="{DynamicResource InkBrush}" TextTrimming="CharacterEllipsis"/>
-                        <TextBlock Text="{Binding PackagePath}" Margin="0,6,0,0" FontSize="12" TextWrapping="Wrap"
-                                   FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource DimBrush}"/>
-                    </StackPanel>
+            <!-- Target: computer, run context and deploy mode on one row. -->
+            <Grid Margin="0,20,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="3*"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="2*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
 
-                    <TextBlock Text="No package selected. Generate one on the Package step and it lands here automatically, or browse to a package already built on the share."
-                               FontSize="12" LineHeight="18" TextWrapping="Wrap" Foreground="{DynamicResource Muted2Brush}"
-                               Visibility="{Binding NeedsPackage, Converter={StaticResource BoolToVis}}"/>
-
-                    <Button Style="{StaticResource GhostButton}" Content="Browse for package…" HorizontalAlignment="Stretch"
-                            Margin="0,12,0,0" Click="BrowsePackage_Click" IsEnabled="{Binding IsIdle}"
-                            ToolTip="Pick a PSADT package folder on the share to test."/>
-                </StackPanel>
-            </Border>
-
-            <Border Style="{StaticResource Card}" Margin="0,18,0,0">
-                <StackPanel>
-                    <controls:SectionHeader Title="Target device" Margin="0,0,0,14"/>
-
-                    <TextBlock Text="Use a test device with WinRM enabled and admin-share access. User context also needs a signed-in user."
-                        Style="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,0,0,16"/>
-                    <TextBlock Text="Computer name" Style="{StaticResource FieldLabel}"/>
-                    <Grid Margin="0,6,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
-                        <ComboBox Grid.Column="0" IsEditable="True" FontSize="13"
-                                  ItemsSource="{Binding RecentComputers}"
-                                  Text="{Binding TargetComputer, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                  IsEnabled="{Binding IsIdle}"
-                                  ToolTip="Name of the machine to test on. WinRM must be enabled (Enable-PSRemoting)."/>
-                        <Button Grid.Column="1" Style="{StaticResource GhostButton}" Content="Ping" Margin="8,0,0,0"
-                                Command="{Binding CheckOnlineCommand}"/>
-                    </Grid>
-
-                    <TextBlock Text="{Binding StatusText}" Style="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,10,0,0" AutomationProperties.LiveSetting="Polite"/>
-                    <TextBlock Text="Run context" Style="{StaticResource FieldLabel}" Margin="0,16,0,0"/>
-                    <Border Style="{StaticResource SegmentGroup}" Margin="0,6,0,0">
-                        <StackPanel Orientation="Horizontal">
-                            <RadioButton Style="{StaticResource ContextToggle}" Content="System"
-                                         IsChecked="{Binding IsSystemContext, Mode=TwoWay}" IsEnabled="{Binding IsIdle}"/>
-                            <RadioButton Style="{StaticResource ContextToggle}" Content="User"
-                                         IsChecked="{Binding RunAsUser, Mode=TwoWay}" IsEnabled="{Binding IsIdle}"/>
-                        </StackPanel>
-                    </Border>
-                    <TextBlock Text="{Binding ContextHelpText}" Margin="0,9,0,0" FontSize="12" LineHeight="18"
-                               TextWrapping="Wrap" Foreground="{DynamicResource Muted2Brush}"/>
-
-                    <TextBlock Text="PSADT deploy mode" Style="{StaticResource FieldLabel}" Margin="0,16,0,0"/>
-                    <ComboBox AutomationProperties.Name="PSADT deploy mode" Margin="0,6,0,0" Height="34" HorizontalAlignment="Left" MinWidth="220"
-                              ItemsSource="{Binding DeployModes}"
-                              SelectedItem="{Binding SelectedDeployMode, Mode=TwoWay}"
+                <TextBlock Text="Computer" Style="{StaticResource FieldLabel}"/>
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <ComboBox IsEditable="True"
+                              ItemsSource="{Binding RecentComputers}"
+                              Text="{Binding TargetComputer, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                               IsEnabled="{Binding IsIdle}"
-                              ToolTip="Appended to the command line as -DeployMode, the same way the publish step does it. Auto leaves the choice to PSADT."/>
-                    <TextBlock Margin="0,9,0,0" FontSize="12" LineHeight="18" TextWrapping="Wrap" Foreground="{DynamicResource Muted2Brush}">
-                        <Run Text="Runs the Intune command lines from the staged package: "/>
-                        <Run Text="{Binding CommandPreview, Mode=OneWay}" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource InkBrush}"/>
-                    </TextBlock>
+                              AutomationProperties.Name="Computer name"
+                              ToolTip="Name of the machine to test on. WinRM must be enabled (Enable-PSRemoting)."/>
+                    <Button Grid.Column="1" Style="{StaticResource IconButton}" Width="40" Height="40" Margin="8,0,0,0"
+                            Command="{Binding CheckOnlineCommand}"
+                            ToolTip="Check the computer is online (ping)">
+                        <controls:LineIcon Data="{DynamicResource IconPulse}"/>
+                    </Button>
+                </Grid>
 
-                    <CheckBox Content="Delete the staged package from the target after the run"
-                              Margin="0,16,0,0" FontSize="12"
-                              IsChecked="{Binding CleanupAfterRun, Mode=TwoWay}" IsEnabled="{Binding IsIdle}"
-                              AutomationProperties.Name="Delete the staged package from the target after the run"
-                              ToolTip="Off by default, so a re-run only copies the files that changed."/>
-                </StackPanel>
-            </Border>
+                <TextBlock Grid.Column="2" Text="Context" Style="{StaticResource FieldLabel}"/>
+                <Border Grid.Column="2" Grid.Row="1" Style="{StaticResource SegmentGroup}" Height="40">
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton Style="{StaticResource ContextToggle}" Content="System" MinWidth="72"
+                                     IsChecked="{Binding IsSystemContext, Mode=TwoWay}" IsEnabled="{Binding IsIdle}"
+                                     AutomationProperties.Name="Run as System"/>
+                        <RadioButton Style="{StaticResource ContextToggle}" Content="User" MinWidth="72"
+                                     IsChecked="{Binding RunAsUser, Mode=TwoWay}" IsEnabled="{Binding IsIdle}"
+                                     AutomationProperties.Name="Run as the logged-on user"/>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Grid.Column="4" Text="Deploy mode" Style="{StaticResource FieldLabel}"/>
+                <ComboBox Grid.Column="4" Grid.Row="1"
+                          ItemsSource="{Binding DeployModes}"
+                          SelectedItem="{Binding SelectedDeployMode, Mode=TwoWay}"
+                          IsEnabled="{Binding IsIdle}"
+                          AutomationProperties.Name="PSADT deploy mode"
+                          ToolTip="Appended to the command line as -DeployMode, the same way the publish step does it. Auto leaves the choice to PSADT."/>
+            </Grid>
+
+            <TextBlock Text="{Binding ContextHelpText}" Margin="0,10,0,0" FontSize="12" LineHeight="18"
+                       TextWrapping="Wrap" Foreground="{DynamicResource Muted2Brush}"/>
+            <TextBlock Margin="0,6,0,0" FontSize="12" LineHeight="18" TextWrapping="Wrap" Foreground="{DynamicResource Muted2Brush}">
+                <Run Text="Runs the Intune command lines from the staged package: "/>
+                <Run Text="{Binding CommandPreview, Mode=OneWay}" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource InkBrush}"/>
+            </TextBlock>
+            <CheckBox Content="Delete the staged package from the target after the run"
+                      Margin="0,12,0,0" FontSize="12" HorizontalAlignment="Left"
+                      IsChecked="{Binding CleanupAfterRun, Mode=TwoWay}" IsEnabled="{Binding IsIdle}"
+                      AutomationProperties.Name="Delete the staged package from the target after the run"
+                      ToolTip="Off by default, so a re-run only copies the files that changed."/>
+
+            <!-- Actions -->
+            <Grid Margin="0,20,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Button Style="{StaticResource PrimaryButton}" Content="Install" MinWidth="120"
+                        Command="{Binding InstallCommand}"
+                        ToolTip="Stage the package on the target and run the install command line."/>
+                <Button Grid.Column="1" Style="{StaticResource GhostButton}" Content="Uninstall" MinWidth="120" Margin="10,0,0,0"
+                        Command="{Binding UninstallCommand}"
+                        ToolTip="Stage the package on the target and run the uninstall command line."/>
+                <Button Grid.Column="3" Style="{StaticResource GhostButton}" Content="Discover detection" Margin="10,0,0,0"
+                        Command="{Binding DetectCommand}"
+                        ToolTip="Search the target for the installed executable and build a detection rule from it."/>
+            </Grid>
+
+            <StackPanel Margin="0,14,0,0" Visibility="{Binding IsCopying, Converter={StaticResource BoolToVis}}">
+                <TextBlock Style="{StaticResource Caption}">
+                    <Run Text="Copying package: "/><Run Text="{Binding CopyPercent, Mode=OneWay}"/><Run Text="%"/>
+                </TextBlock>
+                <ProgressBar Height="4" Margin="0,6,0,0" Minimum="0" Maximum="100"
+                             Value="{Binding CopyPercent, Mode=OneWay}"
+                             AutomationProperties.Name="Copying package"/>
+            </StackPanel>
 
             <!-- Detection rule discovered on the target -->
-            <Border Style="{StaticResource Card}" Margin="0,18,0,0"
+            <Border Style="{StaticResource CalloutOk}" Margin="0,16,0,0"
                     Visibility="{Binding HasDiscoveredRule, Converter={StaticResource BoolToVis}}">
-                <StackPanel>
-                    <controls:SectionHeader Title="Detection rule" Caption="found on the target" Margin="0,0,0,14"/>
-                    <TextBlock Text="{Binding DiscoveredSummary}" FontSize="12.5" TextWrapping="Wrap"
-                               FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource InkBrush}"/>
+                <DockPanel>
+                    <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconCheck}" Foreground="{DynamicResource OkBrush}"
+                                       VerticalAlignment="Top" Margin="0,2,12,0"/>
+                    <StackPanel>
+                        <TextBlock Text="Detection rule found on the target" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="{DynamicResource InkBrush}"/>
+                        <TextBlock Text="{Binding DiscoveredSummary}" Margin="0,4,0,0" FontSize="12.5" TextWrapping="Wrap"
+                                   FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource TextBrush}"/>
 
-                    <!-- Only the wizard has a publish step to hand the rule to. -->
-                    <StackPanel Visibility="{Binding HasPublishStep, Converter={StaticResource BoolToVis}}">
-                        <Button Style="{StaticResource GhostButton}" Content="Use for publishing" HorizontalAlignment="Left"
-                                Margin="0,12,0,0" Command="{Binding ApplyDetectionCommand}"
-                                ToolTip="Replace the publish step's detection rule with this one."/>
-                        <TextBlock Text="The publish step holds the wizard's own package, so a package picked from the share cannot feed it."
-                                   Margin="0,8,0,0" FontSize="12" LineHeight="18" TextWrapping="Wrap"
-                                   Foreground="{DynamicResource Muted2Brush}"
-                                   Visibility="{Binding IsSelectedPackage, Converter={StaticResource BoolToVis}}"/>
+                        <!-- Only the wizard has a publish step to hand the rule to. -->
+                        <StackPanel Visibility="{Binding HasPublishStep, Converter={StaticResource BoolToVis}}">
+                            <Button Style="{StaticResource LinkButton}" Content="Use this rule for publishing" HorizontalAlignment="Left"
+                                    Margin="-2,8,0,0" Command="{Binding ApplyDetectionCommand}"
+                                    ToolTip="Replace the publish step's detection rule with this one."/>
+                            <TextBlock Text="The publish step holds the wizard's own package, so a package picked from the share cannot feed it."
+                                       Margin="0,4,0,0" FontSize="12" LineHeight="18" TextWrapping="Wrap"
+                                       Foreground="{DynamicResource Muted2Brush}"
+                                       Visibility="{Binding IsSelectedPackage, Converter={StaticResource BoolToVis}}"/>
+                        </StackPanel>
                     </StackPanel>
-                </StackPanel>
-            </Border>
-        </StackPanel>
-
-        <!-- Actions stay beside device setup, above the live output. -->
-        <StackPanel Grid.Column="2">
-            <Border Style="{StaticResource Card}">
-                <StackPanel>
-                    <controls:SectionHeader Title="Test actions" Margin="0,0,0,14"/>
-
-                    <Grid>
-                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="8"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <Button Style="{StaticResource PrimaryButton}" Content="Run install" HorizontalAlignment="Stretch"
-                                Command="{Binding InstallCommand}"/>
-                        <Button Grid.Column="2" Style="{StaticResource GhostButton}" Content="Run uninstall" HorizontalAlignment="Stretch"
-                                Command="{Binding UninstallCommand}"/>
-                    </Grid>
-                    <Button Style="{StaticResource GhostButton}" Content="Discover detection rule" HorizontalAlignment="Stretch"
-                            Margin="0,8,0,0" Command="{Binding DetectCommand}"
-                            ToolTip="Search the target for the installed executable and build a detection rule from it."/>
-
-                    <StackPanel Margin="0,14,0,0" Visibility="{Binding IsCopying, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Style="{StaticResource Caption}">
-                            <Run Text="copying package —"/><Run Text=" "/><Run Text="{Binding CopyPercent, Mode=OneWay}"/><Run Text="%"/>
-                        </TextBlock>
-                        <ProgressBar Height="4" Margin="0,6,0,0" Minimum="0" Maximum="100"
-                                     Value="{Binding CopyPercent, Mode=OneWay}"/>
-                    </StackPanel>
-                </StackPanel>
-            </Border>
-
-        <Border Style="{StaticResource Card}" Margin="0,18,0,0">
-            <DockPanel>
-                <DockPanel DockPanel.Dock="Top" Margin="0,0,0,14">
-                    <TextBlock DockPanel.Dock="Left" Text="Live output" Style="{StaticResource SectionLabel}"/>
-                    <Button DockPanel.Dock="Right" Style="{StaticResource BarButton}" Content="Clear"
-                            Command="{Binding ClearLogCommand}"/>
-                    <Border Style="{StaticResource Rule}"/>
                 </DockPanel>
+            </Border>
 
-                <Border Background="{DynamicResource CodeBgBrush}" BorderBrush="{DynamicResource LineBrush}"
-                        BorderThickness="1" CornerRadius="4" Padding="14,12" MinHeight="380" MaxHeight="600">
-                    <ScrollViewer x:Name="ConsoleScroll" MinHeight="360" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <ItemsControl ItemsSource="{Binding Lines}">
+            <Border Style="{StaticResource SectionRule}"/>
+
+            <!-- Output -->
+            <DockPanel Margin="0,0,0,12">
+                <!-- The standalone page clears from its footer; the wizard's footer holds navigation. -->
+                <Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Content="Clear"
+                        Command="{Binding ClearLogCommand}" AutomationProperties.Name="Clear output"
+                        Visibility="{Binding HasPublishStep, Converter={StaticResource BoolToVis}}"/>
+                <TextBlock Text="Output" Style="{StaticResource H2}" VerticalAlignment="Center"/>
+            </DockPanel>
+
+            <Border Background="{DynamicResource CodeBgBrush}" BorderBrush="{DynamicResource LineBrush}"
+                    BorderThickness="1" CornerRadius="6" Padding="16,14" MinHeight="360" MaxHeight="600">
+                <Grid>
+                    <TextBlock Text="Output from the device appears here when a test runs."
+                               FontFamily="{StaticResource MonoFontFamily}" FontSize="12"
+                               Foreground="{DynamicResource CodeCommentBrush}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Lines.Count}" Value="0">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <ScrollViewer x:Name="ConsoleScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <ItemsControl ItemsSource="{Binding Lines}" Focusable="False">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <TextBlock FontFamily="{StaticResource MonoFontFamily}" FontSize="12" LineHeight="20"
@@ -184,9 +221,8 @@
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </ScrollViewer>
-                </Border>
-            </DockPanel>
-        </Border>
+                </Grid>
+            </Border>
         </StackPanel>
-    </Grid>
+    </Border>
 </UserControl>
