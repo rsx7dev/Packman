@@ -2,130 +2,154 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:controls="clr-namespace:Packman.Views.Controls"
-             xmlns:local="clr-namespace:Packman"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d"
              FontFamily="{StaticResource UIFontFamily}">
 
-    <Grid Margin="26,20,26,26">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <!-- The body keeps its own ScrollViewer (SectionScroll): the preview script scrolls it by name. -->
+    <controls:PageFrame Title="Settings"
+                        Subtitle="Configure authentication, paths, deployment defaults and appearance"
+                        IsBodyScrollable="False">
 
-        <!-- ══ Page header ══════════════════════════════════════════════ -->
-        <Grid Grid.Row="0" Margin="0,0,0,20">
-            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="24"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-            <StackPanel VerticalAlignment="Center">
-                <TextBlock Text="Settings" Style="{StaticResource H1}"/>
-                <TextBlock Text="Connections, package paths and deployment defaults"
-                           Style="{StaticResource SubText}" Margin="0,5,0,0"/>
-            </StackPanel>
-            <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
-                <!-- Reset -->
-                <Button Style="{StaticResource GhostButton}" Content="Reset" Command="{Binding ResetCommand}" Margin="0,0,8,0"/>
-                <!-- Save Settings -->
-                <Button Style="{StaticResource PrimaryButton}" Content="Save settings" Command="{Binding SaveCommand}"/>
-            </StackPanel>
-        </Grid>
+        <!-- ══ Section tabs ═════════════════════════════════════════════ -->
+        <controls:PageFrame.HeaderBottom>
+            <WrapPanel>
+                <RadioButton x:Name="TabAuth" Style="{StaticResource PageTab}" Content="Authentication" IsChecked="True"/>
+                <RadioButton x:Name="TabNetworkPaths" Style="{StaticResource PageTab}" Content="Network paths"/>
+                <RadioButton x:Name="TabIntuneDefaults" Style="{StaticResource PageTab}" Content="Intune defaults"/>
+                <RadioButton x:Name="TabGroupAssignment" Style="{StaticResource PageTab}" Content="Group assignment"/>
+                <RadioButton x:Name="TabCodeSign" Style="{StaticResource PageTab}" Content="Code signing"/>
+                <RadioButton x:Name="TabAppearance" Style="{StaticResource PageTab}" Content="Appearance"/>
+            </WrapPanel>
+        </controls:PageFrame.HeaderBottom>
 
-        <Border Grid.Row="0" VerticalAlignment="Bottom" Height="1" Background="{DynamicResource LineBrush}"/>
-
-        <!-- ══ Sections + content ═══════════════════════════════════════ -->
-        <Grid Grid.Row="1" Margin="0,22,0,0">
-            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="190"/>
-                <ColumnDefinition Width="28"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-
-<!-- ══ First-run setup banner ═══════════════════════════════════ -->
-        <Border Grid.ColumnSpan="3" Background="{DynamicResource WarnSoftBrush}"
-                BorderBrush="{DynamicResource WarnBrush}" BorderThickness="2,0,0,0"
-                Padding="12,11" Margin="0,0,0,20" CornerRadius="4"
-                Visibility="{Binding ShowFirstRunBanner, Converter={StaticResource BoolToVis}}">
+        <!-- ══ Footer: save feedback, Reset, Save ═══════════════════════ -->
+        <controls:PageFrame.Footer>
             <Grid>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <Viewbox Grid.Column="0" Width="15" Height="15" Margin="0,0,10,0" VerticalAlignment="Center">
-                    <Path Data="{StaticResource IconBulb}" Stroke="{DynamicResource AccentTextBrush}" StrokeThickness="1.8" Style="{StaticResource Icon}"/>
-                </Viewbox>
-                <TextBlock Grid.Column="1" VerticalAlignment="Center" TextWrapping="Wrap" FontSize="12.5">
-                    <Run Text="First-run setup" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}"/>
-                    <Run Text="  Set the package output folder, full PSADT v4 template and IntuneWinAppUtil path. Sign in to Intune, then save."
-                         Foreground="{DynamicResource MutedBrush}"/>
-                </TextBlock>
-                <Button Grid.Column="2" Style="{StaticResource RowIconButton}" Command="{Binding DismissFirstRunCommand}"
-                        VerticalAlignment="Center" ToolTip="Dismiss">
-                    <Viewbox Width="12" Height="12">
-                        <Path Data="{StaticResource IconX}" Stroke="{DynamicResource MutedBrush}" StrokeThickness="2" Style="{StaticResource Icon}"/>
-                    </Viewbox>
-                </Button>
-            </Grid>
-        </Border>
-            <ScrollViewer Grid.Column="0" Grid.Row="1" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"><StackPanel>
-                <RadioButton x:Name="TabAuth" Style="{StaticResource SectionItem}" IsChecked="True">
-                    <DockPanel LastChildFill="False" Width="160">
-                        <TextBlock DockPanel.Dock="Left" Text="Authentication" VerticalAlignment="Center"/>
+                <Border HorizontalAlignment="Left" VerticalAlignment="Center" Padding="14,9" Margin="0,0,18,0"
+                        Visibility="{Binding SaveStatus, Converter={StaticResource NonEmptyToVis}}">
+                    <Border.Style>
+                        <Style TargetType="Border" BasedOn="{StaticResource CalloutNeutral}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SaveStatusKind}" Value="ok">
+                                    <Setter Property="Background" Value="{DynamicResource OkSoftBrush}"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource OkLineBrush}"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding SaveStatusKind}" Value="warn">
+                                    <Setter Property="Background" Value="{DynamicResource WarnSoftBrush}"/>
+                                    <Setter Property="BorderBrush" Value="{DynamicResource WarnLineBrush}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <DockPanel>
+                        <controls:LineIcon DockPanel.Dock="Left" Margin="0,0,10,0">
+                            <controls:LineIcon.Style>
+                                <Style TargetType="controls:LineIcon" BasedOn="{StaticResource {x:Type controls:LineIcon}}">
+                                    <Setter Property="Data" Value="{DynamicResource IconInfo}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource Muted2Brush}"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding SaveStatusKind}" Value="ok">
+                                            <Setter Property="Data" Value="{DynamicResource IconCheck}"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource OkBrush}"/>
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding SaveStatusKind}" Value="warn">
+                                            <Setter Property="Data" Value="{DynamicResource IconAlert}"/>
+                                            <Setter Property="Foreground" Value="{DynamicResource WarnBrush}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </controls:LineIcon.Style>
+                        </controls:LineIcon>
+                        <TextBlock Text="{Binding SaveStatus}" FontSize="13" Foreground="{DynamicResource TextBrush}"
+                                   VerticalAlignment="Center" TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
                     </DockPanel>
-                </RadioButton>
-                <RadioButton x:Name="TabCodeSign" Style="{StaticResource SectionItem}">
-                    <DockPanel LastChildFill="False" Width="160">
-                        <TextBlock DockPanel.Dock="Left" Text="Code Signing" VerticalAlignment="Center"/>
-                    </DockPanel>
-                </RadioButton>
-                <RadioButton x:Name="TabNetworkPaths" Style="{StaticResource SectionItem}">
-                    <DockPanel LastChildFill="False" Width="160">
-                        <TextBlock DockPanel.Dock="Left" Text="Network Paths" VerticalAlignment="Center"/>
-                    </DockPanel>
-                </RadioButton>
-                <RadioButton x:Name="TabGroupAssignment" Style="{StaticResource SectionItem}">
-                    <DockPanel LastChildFill="False" Width="160">
-                        <TextBlock DockPanel.Dock="Left" Text="Group Assignment" VerticalAlignment="Center"/>
-                    </DockPanel>
-                </RadioButton>
-                <RadioButton x:Name="TabIntuneDefaults" Style="{StaticResource SectionItem}">
-                    <DockPanel LastChildFill="False" Width="160">
-                        <TextBlock DockPanel.Dock="Left" Text="Intune Defaults" VerticalAlignment="Center"/>
-                    </DockPanel>
-                </RadioButton>
-                <RadioButton x:Name="TabAppearance" Style="{StaticResource SectionItem}">
-                    <DockPanel LastChildFill="False" Width="160">
-                        <TextBlock DockPanel.Dock="Left" Text="Appearance" VerticalAlignment="Center"/>
-                    </DockPanel>
-                </RadioButton>
-            </StackPanel></ScrollViewer>
-
-        <!-- ══ Tab content ══════════════════════════════════════════════ -->
-        <ScrollViewer x:Name="SectionScroll" Grid.Column="2" Grid.Row="1" Margin="0"
-                      Padding="0,0,12,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel>
-
-                    <controls:AuthenticationSettings Visibility="{Binding IsChecked, ElementName=TabAuth, Converter={StaticResource BoolToVis}}"/>
-
-                    <controls:AppearanceSettings Visibility="{Binding IsChecked, ElementName=TabAppearance, Converter={StaticResource BoolToVis}}"/>
-
-                    <controls:CodeSigningSettings Visibility="{Binding IsChecked, ElementName=TabCodeSign, Converter={StaticResource BoolToVis}}"/>
-
-                    <controls:NetworkPathsSettings Visibility="{Binding IsChecked, ElementName=TabNetworkPaths, Converter={StaticResource BoolToVis}}"/>
-
-                    <controls:GroupAssignmentSettings Visibility="{Binding IsChecked, ElementName=TabGroupAssignment, Converter={StaticResource BoolToVis}}"/>
-
-                    <controls:IntuneDefaultsSettings Visibility="{Binding IsChecked, ElementName=TabIntuneDefaults, Converter={StaticResource BoolToVis}}"/>
-
-                    <!-- bottom padding -->
-                    <Border Height="16"/>
-
+                </Border>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Style="{StaticResource GhostButton}" Content="Reset" Command="{Binding ResetCommand}" Margin="0,0,10,0" MinWidth="96"/>
+                    <Button Style="{StaticResource PrimaryButton}" Content="Save settings" Command="{Binding SaveCommand}" MinWidth="150"/>
                 </StackPanel>
+            </Grid>
+        </controls:PageFrame.Footer>
+
+        <!-- ══ Rail: configuration status ═══════════════════════════════ -->
+        <controls:PageFrame.Rail>
+            <StackPanel>
+                <TextBlock Text="Configuration status" Style="{StaticResource RailTitle}" Margin="0,0,0,6"/>
+                <controls:StatusRow Label="Authentication"
+                                    Value="{Binding IsSignedIn, Converter={StaticResource BoolToText}, ConverterParameter='Connected|Not connected'}"
+                                    Kind="{Binding IsSignedIn, Converter={StaticResource BoolToText}, ConverterParameter='ok|pending'}"/>
+                <controls:StatusRow Label="Network paths"
+                                    Value="{Binding IsConfigured, Converter={StaticResource BoolToText}, ConverterParameter='Configured|Incomplete'}"
+                                    Kind="{Binding IsConfigured, Converter={StaticResource BoolToText}, ConverterParameter='ok|warn'}"/>
+                <controls:StatusRow Label="Intune defaults"
+                                    Value="{Binding IntuneDefaultsConfigured, Converter={StaticResource BoolToText}, ConverterParameter='Configured|Incomplete'}"
+                                    Kind="{Binding IntuneDefaultsConfigured, Converter={StaticResource BoolToText}, ConverterParameter='ok|warn'}"/>
+                <controls:StatusRow Label="Code signing" Detail="{Binding CodeSignCertDisplay}"
+                                    Value="{Binding CodeSigningEnabled, Converter={StaticResource BoolToText}, ConverterParameter='Enabled|Disabled'}"
+                                    Kind="{Binding CodeSigningEnabled, Converter={StaticResource BoolToText}, ConverterParameter='ok|off'}"/>
+
+                <ContentControl Style="{StaticResource KvRow}" Tag="Tenant" Content="{Binding TenantDisplay}" Margin="0,16,0,0"/>
+                <ContentControl Tag="Signed in as">
+                    <ContentControl.Style>
+                        <Style TargetType="ContentControl" BasedOn="{StaticResource KvRow}">
+                            <Setter Property="Content" Value="{Binding SignedInUser}"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IsSignedIn}" Value="False">
+                                    <Setter Property="Content" Value="Not signed in"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ContentControl.Style>
+                </ContentControl>
+                <ContentControl Style="{StaticResource KvRow}" Tag="Permissions" Content="{Binding PermissionSummary}"/>
+
+                <TextBlock Style="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,18,0,0">
+                    <Run Text="Your settings are stored locally at"/>
+                    <Run Text="{Binding SettingsPath, Mode=OneWay}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12"
+                         Foreground="{DynamicResource Text2Brush}"/>
+                </TextBlock>
+            </StackPanel>
+        </controls:PageFrame.Rail>
+
+        <!-- ══ Body ═════════════════════════════════════════════════════ -->
+        <ScrollViewer x:Name="SectionScroll" Focusable="False"
+                      VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+                <!-- First-run setup banner -->
+                <Border Style="{StaticResource CalloutWarn}" Margin="0,0,0,12"
+                        Visibility="{Binding ShowFirstRunBanner, Converter={StaticResource BoolToVis}}">
+                    <DockPanel>
+                        <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconBulb}" Foreground="{DynamicResource WarnBrush}"
+                                           Margin="0,0,10,0"/>
+                        <Button DockPanel.Dock="Right" Style="{StaticResource RowIconButton}" Command="{Binding DismissFirstRunCommand}"
+                                VerticalAlignment="Center" ToolTip="Dismiss">
+                            <controls:LineIcon Data="{DynamicResource IconX}" Width="12" Height="12"/>
+                        </Button>
+                        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" FontSize="13" Margin="0,0,10,0">
+                            <Run Text="First-run setup" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}"/>
+                            <Run Text="  Set the package output folder, full PSADT v4 template and IntuneWinAppUtil path. Sign in to Intune, then save."
+                                 Foreground="{DynamicResource Text2Brush}"/>
+                        </TextBlock>
+                    </DockPanel>
+                </Border>
+
+                <Border Style="{StaticResource SectionPanel}">
+                    <Grid>
+                        <controls:AuthenticationSettings Visibility="{Binding IsChecked, ElementName=TabAuth, Converter={StaticResource BoolToVis}}"/>
+                        <controls:NetworkPathsSettings Visibility="{Binding IsChecked, ElementName=TabNetworkPaths, Converter={StaticResource BoolToVis}}"/>
+                        <controls:IntuneDefaultsSettings Visibility="{Binding IsChecked, ElementName=TabIntuneDefaults, Converter={StaticResource BoolToVis}}"/>
+                        <controls:GroupAssignmentSettings Visibility="{Binding IsChecked, ElementName=TabGroupAssignment, Converter={StaticResource BoolToVis}}"/>
+                        <controls:CodeSigningSettings Visibility="{Binding IsChecked, ElementName=TabCodeSign, Converter={StaticResource BoolToVis}}"/>
+                        <controls:AppearanceSettings Visibility="{Binding IsChecked, ElementName=TabAppearance, Converter={StaticResource BoolToVis}}"/>
+                    </Grid>
+                </Border>
+            </StackPanel>
         </ScrollViewer>
-        </Grid>
-        <TextBlock Grid.Row="2" Text="{Binding SaveStatus}" Style="{StaticResource SubText}" Margin="218,14,0,0"
-            TextWrapping="Wrap" AutomationProperties.LiveSetting="Polite"/>
-    </Grid>
+    </controls:PageFrame>
 </UserControl>

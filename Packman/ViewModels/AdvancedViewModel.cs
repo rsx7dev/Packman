@@ -34,11 +34,17 @@ public sealed class AdvancedViewModel : ObservableObject
     public bool IsSignedIn => _auth.IsSignedIn;
     public bool ShowConnectPrompt => !_auth.IsSignedIn;
 
+    /// <summary>Tenant for the rail: the signed-in user's domain label, or the app registration's tenant ID.</summary>
+    public string TenantLabel => !_auth.IsSignedIn ? "Not connected"
+        : _auth.SignedInUser?.Contains('@') == true ? _auth.TenantName
+        : AppServices.Settings.Settings.Authentication.TenantId;
+
     /// <summary>Re-reads sign-in state. Called each time the screen is shown.</summary>
     public void Refresh()
     {
         OnPropertyChanged(nameof(IsSignedIn));
         OnPropertyChanged(nameof(ShowConnectPrompt));
+        OnPropertyChanged(nameof(TenantLabel));
     }
 
     // ══ 1. Bulk add PCs to a group ══════════════════════════════
@@ -90,17 +96,20 @@ public sealed class AdvancedViewModel : ObservableObject
     /// <summary>True once a group was picked, so the name is known to exist.</summary>
     public bool IsBulkGroupConfirmed => _bulkGroup != null;
 
-    public string BulkGroupCheck => _bulkGroup != null
-        ? $"Group found — {_bulkGroup.DisplayName}"
-        : string.IsNullOrWhiteSpace(_bulkGroupSearch) ? "" : "Pick the group from the results to confirm it exists.";
+    /// <summary>Hint while a typed name is not yet a picked group; "Group found" shows once it is.</summary>
+    public string BulkGroupCheck => _bulkGroup == null && !string.IsNullOrWhiteSpace(_bulkGroupSearch)
+        ? "Pick the group from the results to confirm it exists." : "";
 
     public bool HasBulkGroupCheck => !string.IsNullOrEmpty(BulkGroupCheck);
+
+    public string BulkTargetGroupText => _bulkGroup?.DisplayName ?? "Not selected";
 
     private void RaiseBulkGroupCheck()
     {
         OnPropertyChanged(nameof(IsBulkGroupConfirmed));
         OnPropertyChanged(nameof(BulkGroupCheck));
         OnPropertyChanged(nameof(HasBulkGroupCheck));
+        OnPropertyChanged(nameof(BulkTargetGroupText));
     }
 
     private string _pcNames = "";
@@ -111,6 +120,7 @@ public sealed class AdvancedViewModel : ObservableObject
         {
             if (!Set(ref _pcNames, value)) return;
             OnPropertyChanged(nameof(PcNameCountText));
+            OnPropertyChanged(nameof(BulkInputText));
             OnPropertyChanged(nameof(CanBulkAdd));
             BulkAddCommand.RaiseCanExecuteChanged();
         }
@@ -122,6 +132,16 @@ public sealed class AdvancedViewModel : ObservableObject
         {
             var n = ParseNames().Count;
             return n == 0 ? "" : $"{n} PC name{(n == 1 ? "" : "s")}";
+        }
+    }
+
+    /// <summary>Rail line for the pasted list: "3 devices".</summary>
+    public string BulkInputText
+    {
+        get
+        {
+            var n = ParseNames().Count;
+            return $"{n} device{(n == 1 ? "" : "s")}";
         }
     }
 
@@ -242,6 +262,7 @@ public sealed class AdvancedViewModel : ObservableObject
         {
             if (!Set(ref _deviceSearch, value)) return;
             _selectedDevice = null;
+            OnPropertyChanged(nameof(SelectedDeviceText));
             ErrorReporter.FireAndForget(() => _deviceSearchBox.RunAsync(value));
         }
     }
@@ -250,12 +271,14 @@ public sealed class AdvancedViewModel : ObservableObject
     public bool HasDeviceResults => _deviceSearchBox.HasResults;
 
     private EntraDevice? _selectedDevice;
+    public string SelectedDeviceText => _selectedDevice?.DisplayName ?? "Not selected";
 
     public void SelectDeviceResult(EntraDevice device)
     {
         _selectedDevice = device;
         _deviceSearch = device.DisplayName;
         OnPropertyChanged(nameof(DeviceSearch));
+        OnPropertyChanged(nameof(SelectedDeviceText));
         _deviceSearchBox.Clear();
         ErrorReporter.FireAndForget(LoadDeviceGroupsAsync);
     }
@@ -315,6 +338,7 @@ public sealed class AdvancedViewModel : ObservableObject
         {
             if (!Set(ref _appGroupSearch, value)) return;
             _selectedAppGroup = null;
+            OnPropertyChanged(nameof(SelectedAppGroupText));
             ErrorReporter.FireAndForget(() => _appGroupSearchBox.RunAsync(value));
         }
     }
@@ -323,12 +347,14 @@ public sealed class AdvancedViewModel : ObservableObject
     public bool HasAppGroupResults => _appGroupSearchBox.HasResults;
 
     private EntraGroup? _selectedAppGroup;
+    public string SelectedAppGroupText => _selectedAppGroup?.DisplayName ?? "Not selected";
 
     public void SelectAppGroup(EntraGroup group)
     {
         _selectedAppGroup = group;
         _appGroupSearch = group.DisplayName;
         OnPropertyChanged(nameof(AppGroupSearch));
+        OnPropertyChanged(nameof(SelectedAppGroupText));
         _appGroupSearchBox.Clear();
         ErrorReporter.FireAndForget(LoadGroupAppsAsync);
     }
