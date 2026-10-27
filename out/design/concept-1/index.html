@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Packman — concept 1: Quiet Ledger</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></symbol>
+    <symbol id="i-laptop" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></symbol>
+    <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l3-7 4 14 3-7h4"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.9-3M4 4v4h4M4 13a8 8 0 0 0 14.9 3M20 20v-4h-4"/></symbol>
+    <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+    <symbol id="i-chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-sort" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></symbol>
+    <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="m8 8-5 4 5 4M16 8l5 4-5 4M14 5l-4 14"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a1 1 0 0 1 1-1h5l2 2h8a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="9" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0M16 6.2a3.2 3.2 0 0 1 0 5.6M21 20a6 6 0 0 0-4-5.6"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2 20h20z"/><path d="M12 10v5M12 17.5v.01"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5v14l12-7z"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+    <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7z"/><path d="M14 3v4h4"/></symbol>
+  </defs>
+</svg>
+
+<div class="app" id="app" data-conn="on">
+  <header class="titlebar">
+    <div class="brand"><span class="brand-mark"></span>Packman</div>
+    <span class="crumb" id="crumb">Applications</span>
+    <span class="title-fill"></span>
+    <button class="conn" id="conn" type="button" aria-label="Connection status">
+      <span class="on"><span class="dot"></span>Connected · contoso.onmicrosoft.com</span>
+      <span class="off"><span class="dot"></span>Not connected <b>Sign in</b></span>
+    </button>
+    <div class="wctl" aria-hidden="true">
+      <span><svg class="i sm" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></span>
+      <span><svg class="i sm" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="1.5"/></svg></span>
+      <span><svg class="i sm"><use href="#i-x"/></svg></span>
+    </div>
+  </header>
+
+  <div class="shell">
+    <nav class="nav" aria-label="Main">
+      <div class="nav-group">
+        <a href="#create" data-nav="create"><svg class="i"><use href="#i-box"/></svg>Create</a>
+        <a href="#upload" data-nav="upload"><svg class="i"><use href="#i-upload"/></svg>Upload</a>
+        <a href="#remote-test" data-nav="remote-test"><svg class="i"><use href="#i-pulse"/></svg>Remote test</a>
+        <a href="#applications" data-nav="applications"><svg class="i"><use href="#i-laptop"/></svg>Applications</a>
+        <a href="#advanced" data-nav="advanced"><svg class="i"><use href="#i-list"/></svg>Advanced</a>
+      </div>
+      <div class="nav-fill"></div>
+      <div class="nav-group"><a href="#settings" data-nav="settings"><svg class="i"><use href="#i-gear"/></svg>Settings</a></div>
+      <div class="nav-meta">PSADT v4 · Graph beta<br>v1.1.0 · .NET 10.0.11</div>
+    </nav>
+
+    <main class="page" id="page">
+
+<!-- ===================== APPLICATIONS ===================== -->
+<section data-screen="applications" data-title="Applications" data-nav="applications">
+  <div class="frame" id="frame-apps">
+    <div class="main">
+      <header class="ph">
+        <div class="ph-top">
+          <div class="ph-text"><h1>Applications</h1><p class="sub">Browse and manage Win32 applications in Microsoft Intune</p></div>
+          <div class="ph-actions"><button class="btn details-btn" data-rail-toggle><svg class="i"><use href="#i-panel"/></svg>Details</button></div>
+        </div>
+      </header>
+      <div class="toolbar">
+        <div class="search">
+          <svg class="i sm"><use href="#i-search"/></svg>
+          <input class="field" id="search" type="search" placeholder="Search applications" aria-label="Search applications" autocomplete="off">
+          <kbd>/</kbd>
+        </div>
+        <span class="grow"></span>
+        <span class="pill-meta" id="refreshed">Last refreshed 14:32</span>
+        <button class="btn" id="refresh" type="button"><svg class="i sm"><use href="#i-refresh"/></svg>Refresh</button>
+      </div>
+      <div class="banner callout bad" id="apps-error" hidden>
+        <svg class="i"><use href="#i-alert"/></svg>
+        <div class="grow"><b>Couldn’t refresh the list.</b> Microsoft Graph didn’t answer within 30 seconds. Showing the list from 14:32.</div>
+        <button class="link" id="retry">Try again</button>
+      </div>
+      <div class="tablewrap" id="apps-wrap">
+        <table class="apps" aria-label="Applications">
+          <colgroup><col style="width:38%"><col style="width:28%"><col style="width:16%"><col style="width:18%"></colgroup>
+          <thead><tr>
+            <th aria-sort="ascending"><button data-sort="name">Application <svg class="i sm"><use href="#i-sort"/></svg></button></th>
+            <th>Publisher</th><th>Version</th>
+            <th><button data-sort="updated">Updated <svg class="i sm"><use href="#i-sort"/></svg></button></th>
+          </tr></thead>
+          <tbody id="apps-body"></tbody>
+        </table>
+        <div class="empty" id="apps-empty" hidden>
+          <div class="ic"><svg class="i"><use href="#i-search"/></svg></div>
+          <h2>No applications to show</h2>
+          <p id="apps-empty-text">Nothing matches your search.</p>
+          <button class="btn" id="clear-search">Clear search</button>
+        </div>
+        <div class="empty" id="apps-offline" hidden>
+          <div class="ic"><svg class="i"><use href="#i-laptop"/></svg></div>
+          <h2>Not connected to Microsoft Intune</h2>
+          <p>Sign in to browse the applications in your tenant.</p>
+          <button class="btn primary" data-signin>Sign in</button>
+        </div>
+      </div>
+      <footer class="pf" id="apps-foot">
+        <span class="pill-meta" id="range">1–10 of 26</span>
+        <span class="hint"></span>
+        <span class="pill-meta" id="pagedisp">Page 1 of 3</span>
+        <button class="btn mini icon" id="prev" aria-label="Previous page"><svg class="i sm"><use href="#i-chev-l"/></svg></button>
+        <button class="btn mini icon" id="next" aria-label="Next page"><svg class="i sm"><use href="#i-chev-r"/></svg></button>
+      </footer>
+    </div>
+    <aside class="rail" aria-label="Selected application">
+      <div class="block" id="rail-empty" hidden><h3>Application</h3><p class="muted">Select an application to see its details.</p></div>
+      <div id="rail-body" style="display:grid;gap:22px">
+        <div class="block">
+          <h3>Application</h3>
+          <div style="display:flex;gap:14px;align-items:center">
+            <div class="tile lg" id="r-tile">C</div>
+            <div style="min-width:0"><div style="font-weight:600;color:var(--ink);font-size:15px;line-height:20px" id="r-name">Contoso Reader</div><div class="muted" id="r-pub">Contoso</div></div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap" id="r-chips"></div>
+        </div>
+        <dl class="kv" id="r-kv"></dl>
+        <div class="block">
+          <h3>Actions</h3>
+          <a class="btn primary" href="#application-detail" id="r-open">Open details</a>
+          <button class="btn" data-toast="Opening Intune in your browser…"><svg class="i sm"><use href="#i-ext"/></svg>View in Intune</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ===================== APPLICATION DETAIL ===================== -->
+<section data-screen="application-detail" data-title="Application detail" data-nav="applications">
+  <div class="frame" id="frame-detail">
+    <div class="main">
+      <header class="ph">
+        <div class="ph-top">
+          <div class="ph-text">
+            <div class="crumbs"><a href="#applications">Applications</a><svg class="i sm"><use href="#i-chev-r"/></svg><span id="d-crumb">Contoso Reader</span></div>
+            <div class="ph-lead">
+              <div class="tile lg" id="d-tile">C</div>
+              <div><h1 id="d-name">Contoso Reader</h1><p class="sub" id="d-meta">Contoso · v4.2.0 · System context · Win32</p></div>
+            </div>
+          </div>
+          <div class="ph-actions">
+            <button class="btn details-btn" data-rail-toggle><svg class="i"><use href="#i-panel"/></svg>Details</button>
+            <button class="btn" id="republish" data-needs-conn><svg class="i sm"><use href="#i-refresh"/></svg>Republish content</button>
+            <a class="btn" href="#edit-script" data-from="applications"><svg class="i sm"><use href="#i-code"/></svg>Edit script</a>
+          </div>
+        </div>
+        <div class="strip" role="tablist">
+          <button class="tab" role="tab" aria-selected="true" data-tab="overview">Overview</button>
+          <button class="tab" role="tab" aria-selected="false" data-tab="package">Package</button>
+          <button class="tab" role="tab" aria-selected="false" data-tab="deployment">Deployment</button>
+        </div>
+      </header>
+      <div class="body" id="detail-body">
+
+        <div class="stack" data-panel="overview">
+          <div class="sec">
+            <h2>Application information</h2>
+            <div class="content card"><dl class="kv" id="d-info"></dl></div>
+          </div>
+          <div class="sec">
+            <h2>Description</h2>
+            <div class="content"><p id="d-desc" style="max-width:640px"></p></div>
+          </div>
+          <div class="sec">
+            <h2>Assignments <span class="push"><button class="link" data-goto-tab="deployment">Manage in Deployment</button></span></h2>
+            <div class="content list">
+              <div><div class="tile sm"><svg class="i sm"><use href="#i-users"/></svg></div><div class="grow">Workplace engineering — Windows application pilot devices</div><span class="chip ok">Required</span></div>
+              <div><div class="tile sm"><svg class="i sm"><use href="#i-users"/></svg></div><div class="grow">All corporate Windows laptops</div><span class="chip">Available</span></div>
+            </div>
+          </div>
+          <div class="danger-zone">
+            <div class="grow"><h2>Delete application</h2><p>Permanently deletes this app and its assignments from Intune. Installed copies stay on devices; use an Uninstall assignment to remove them.</p></div>
+            <button class="btn danger" id="delete" data-needs-conn><svg class="i sm"><use href="#i-trash"/></svg>Delete from Intune</button>
+          </div>
+        </div>
+
+        <div class="stack" data-panel="package" hidden>
+          <div class="sec">
+            <h2>Package contents <small>PSADT v4 template</small></h2>
+            <div class="content card">
+              <dl class="kv">
+                <div><dt>Content file</dt><dd class="mono">ContosoReader-4.2.0.intunewin</dd></div>
+                <div><dt>Package folder</dt><dd class="mono">\\fs01\packages\Contoso\Reader\4.2.0</dd></div>
+                <div><dt>Encrypted size</dt><dd>48.2 MB</dd></div>
+                <div><dt>Install context</dt><dd>System</dd></div>
+                <div><dt>Signed</dt><dd><span class="chip ok"><span class="d"></span>Script signed · Contoso Code Signing</span></dd></div>
+              </dl>
+            </div>
+          </div>
+          <div class="sec">
+            <h2>Files <span class="push"><a class="link" href="#edit-script" data-from="applications">Edit script</a></span></h2>
+            <div class="content list">
+              <div><svg class="i sm muted"><use href="#i-file"/></svg><span class="grow mono">Invoke-AppDeployToolkit.ps1</span><span class="muted mono">14 KB</span></div>
+              <div><svg class="i sm muted"><use href="#i-folder"/></svg><span class="grow mono">Files\ContosoReader-4.2.0-x64.msi</span><span class="muted mono">46.9 MB</span></div>
+              <div><svg class="i sm muted"><use href="#i-folder"/></svg><span class="grow mono">Config\config.psd1</span><span class="muted mono">3 KB</span></div>
+              <div><svg class="i sm muted"><use href="#i-folder"/></svg><span class="grow mono">Strings\strings.psd1</span><span class="muted mono">9 KB</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stack" data-panel="deployment" hidden>
+          <div class="sec">
+            <h2>Command lines</h2>
+            <div class="content card" style="display:grid;gap:16px">
+              <div><label class="fl">Install command</label><div class="cmd"><div class="code">Invoke-AppDeployToolkit.exe Install -DeployMode Silent</div><button class="btn" data-copy="Install command">Copy</button></div></div>
+              <div><label class="fl">Uninstall command</label><div class="cmd"><div class="code">Invoke-AppDeployToolkit.exe Uninstall -DeployMode Silent</div><button class="btn" data-copy="Uninstall command">Copy</button></div></div>
+            </div>
+          </div>
+          <div class="sec">
+            <h2>Detection rules <small>1 rule</small>
+              <span class="push"><select class="field" style="width:104px;height:30px" aria-label="Rule type"><option>MSI</option><option>File</option><option>Registry</option></select><button class="btn mini" data-needs-conn data-toast="Detection rule added — written to Intune"><svg class="i sm"><use href="#i-plus"/></svg>Add rule</button></span></h2>
+            <div class="content">
+              <div class="rule-row"><span class="tag">FILE</span><span class="grow mono">%ProgramFiles%\Contoso Reader\Reader.exe · version ≥ 4.2.0</span><button class="btn icon" aria-label="Edit rule" data-needs-conn data-toast="Rule editor opened"><svg class="i sm"><use href="#i-edit"/></svg></button><button class="btn icon" aria-label="Delete rule" data-needs-conn data-toast="Rule removed — written to Intune"><svg class="i sm"><use href="#i-trash"/></svg></button></div>
+              <p class="help">Saving patches the app in Intune; devices re-evaluate detection at their next check-in.</p>
+            </div>
+          </div>
+          <div class="sec">
+            <h2>Requirements</h2>
+            <div class="content tiles">
+              <div class="wide"><small>Minimum Windows release</small><b>Windows 11 22H2</b></div>
+              <div><small>Install context</small><b>System</b></div><div><small>Restart behavior</small><b>By return code</b></div>
+              <div><small>Maximum install time</small><b>60 min</b></div><div><small>Disk space</small><b>500 MB</b></div>
+            </div>
+          </div>
+          <div class="sec">
+            <h2>Assignment groups <small>click a group to manage members</small></h2>
+            <div class="content list">
+              <div><div class="tile sm"><svg class="i sm"><use href="#i-users"/></svg></div><div class="grow">Workplace engineering — Windows application pilot devices</div><span class="chip ok">Required</span><button class="btn icon" aria-label="Remove group" data-needs-conn data-toast="Group removed — written to Intune"><svg class="i sm"><use href="#i-x"/></svg></button></div>
+              <div><div class="tile sm"><svg class="i sm"><use href="#i-users"/></svg></div><div class="grow">All corporate Windows laptops</div><span class="chip">Available</span><button class="btn icon" aria-label="Remove group" data-needs-conn data-toast="Group removed — written to Intune"><svg class="i sm"><use href="#i-x"/></svg></button></div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:12px"><button class="btn" data-needs-conn data-toast="Group picker opened"><svg class="i sm"><use href="#i-plus"/></svg>Add group</button><button class="btn primary" data-needs-conn data-toast="Assignments saved to Intune">Save assignments</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <aside class="rail" aria-label="Deployment and publishing">
+      <div class="block">
+        <h3>Deployment status</h3>
+        <div><div class="muted" style="font-size:12.5px">Targeted devices</div><div class="big" id="s-total">120</div></div>
+        <div class="bar" id="s-bar"></div>
+        <div class="legend" id="s-legend"></div>
+        <p class="help when-off" style="margin:0">Not connected. Figures are from the last sync (Oct 27, 14:32). <button class="link" data-signin>Sign in</button> to make changes.</p>
+      </div>
+      <div class="rule"></div>
+      <div class="block">
+        <h3>Intune publishing</h3>
+        <dl class="kv">
+          <div><dt>State</dt><dd><span class="chip ok">Published</span></dd></div>
+          <div><dt>App ID</dt><dd style="display:flex;align-items:center;gap:6px"><span class="mono" id="s-id">3f9c61a2</span><button class="btn icon" style="min-height:26px;width:26px" aria-label="Copy app ID" data-copy="App ID"><svg class="i sm"><use href="#i-copy"/></svg></button></dd></div>
+          <div><dt>Created</dt><dd>Sep 2, 2026</dd></div>
+          <div><dt>Published</dt><dd id="s-pub">Oct 24, 2026</dd></div>
+        </dl>
+        <button class="btn primary" data-toast="Opening Intune in your browser…"><svg class="i sm"><use href="#i-ext"/></svg>View in Intune</button>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ===================== EDIT SCRIPT ===================== -->
+<section data-screen="edit-script" data-title="Edit script" data-nav="applications">
+  <div class="frame no-rail">
+    <div class="main">
+      <header class="ph">
+        <div class="ph-top">
+          <div class="ph-text">
+            <div class="crumbs"><a href="#applications" id="es-back-1">Applications</a><svg class="i sm"><use href="#i-chev-r"/></svg><span>Edit script</span></div>
+            <h1>Edit script</h1><p class="sub">Contoso Reader 4.2.0 · Invoke-AppDeployToolkit.ps1</p>
+          </div>
+          <div class="ph-actions"><span class="chip warn" id="es-dirty" hidden><span class="d"></span>Unsaved changes</span><button class="btn primary" id="es-save">Save</button></div>
+        </div>
+      </header>
+      <div class="body" style="padding-top:18px">
+        <div class="editor">
+          <div class="files">
+            <p>Package</p>
+            <button aria-current="true"><svg class="i sm"><use href="#i-file"/></svg>Invoke-AppDeployToolkit.ps1</button>
+            <button><svg class="i sm"><use href="#i-file"/></svg>config.psd1</button>
+            <button><svg class="i sm"><use href="#i-file"/></svg>strings.psd1</button>
+          </div>
+<pre id="es-code" contenteditable="true" spellcheck="false" aria-label="Script editor"><span><i class="c"># Contoso Reader 4.2.0 · PSADT v4</i></span><span><i class="k">$adtSession</i> = @{</span><span>    AppVendor = <i class="s">'Contoso'</i></span><span>    AppName = <i class="s">'Reader'</i></span><span>    AppVersion = <i class="s">'4.2.0'</i></span><span>    AppArch = <i class="s">'x64'</i></span><span>    AppScriptDate = <i class="s">'2026-10-24'</i></span><span>}</span><span></span><span><i class="k">function</i> <i class="v">Install-ADTDeployment</i></span><span>{</span><span>    <i class="c">## Pre-install</i></span><span>    <i class="v">Show-ADTInstallationWelcome</i> -CloseProcesses <i class="s">'Reader'</i> -CheckDiskSpace</span><span>    <i class="c">## Install</i></span><span>    <i class="v">Start-ADTMsiProcess</i> -Action Install -FilePath <i class="s">'ContosoReader-4.2.0-x64.msi'</i></span><span>}</span></pre>
+        </div>
+      </div>
+      <footer class="pf"><span class="hint l">Ctrl+S saves the active file</span><a class="btn" href="#application-detail"><svg class="i sm"><use href="#i-back"/></svg>Back to package</a></footer>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== CREATE ===================== -->
+<section data-screen="create" data-title="Create package" data-nav="create">
+  <div class="frame" id="frame-create">
+    <div class="main">
+      <header class="ph">
+        <div class="ph-top">
+          <div class="ph-text"><h1>Create package</h1><p class="sub">Prepare, test and publish a PSADT application to Microsoft Intune</p></div>
+          <div class="ph-actions"><span class="pill-meta" id="pkg-state">no package yet</span><button class="btn details-btn" data-rail-toggle><svg class="i"><use href="#i-panel"/></svg>Details</button></div>
+        </div>
+        <div class="stepper" id="stepper">
+          <button class="step" data-step="1" aria-current="step"><i></i><span><em>1</em>Package</span></button>
+          <button class="step" data-step="2"><i></i><span><em>2</em>Configure</span></button>
+          <button class="step" data-step="3"><i></i><span><em>3</em>Review &amp; publish</span></button>
+        </div>
+      </header>
+      <div class="body" id="create-body">
+
+        <div class="stack" data-step-panel="1">
+          <div style="display:flex;align-items:center;gap:16px">
+            <div class="seg" role="group" aria-label="Package mode"><button aria-pressed="true" data-mode="new">Create new</button><button aria-pressed="false" data-mode="upgrade">Upgrade existing</button></div>
+            <span class="muted">Already have a built package? <a class="link" href="#upload">Upload it directly</a></span>
+          </div>
+          <div class="sec">
+            <h2>Start with your installer</h2>
+            <p class="lead">Choose the source first. Review the detected details before generating your package.</p>
+            <div class="content card">
+              <div class="grid2">
+                <div class="span">
+                  <label class="fl" for="src">Source installer <b>*</b></label>
+                  <div class="row-field"><input class="field mono" id="src" value="C:\Sources\ContosoReader-4.2.0-x64.msi"><button class="btn" data-toast="File picker opened"><svg class="i sm"><use href="#i-folder"/></svg>Browse…</button></div>
+                  <p class="help">Drop an MSI or EXE here — metadata, icon and product code are read automatically.</p>
+                </div>
+                <div><label class="fl" for="mf">Manufacturer <b>*</b></label><input class="field" id="mf" value="Contoso"></div>
+                <div><label class="fl" for="an">Application name <b>*</b></label><input class="field" id="an" value="Contoso Reader"></div>
+                <div><label class="fl" for="vr">Version <b>*</b></label><input class="field mono" id="vr" value="4.2.0"></div>
+                <div><label class="fl" for="ar">Architecture</label><select class="field" id="ar"><option>x64</option><option>x86</option><option>arm64</option></select></div>
+                <div class="span"><label class="fl" for="os">Output share</label><input class="field mono" id="os" value="\\fs01\packages\Contoso\Reader\4.2.0"></div>
+              </div>
+            </div>
+          </div>
+          <div class="callout ok" id="generated" hidden>
+            <svg class="i"><use href="#i-check"/></svg>
+            <div class="grow"><b>Package generated.</b> 14 files written to the share. Test it on a device before configuring Intune.</div>
+            <div style="display:flex;gap:14px;align-items:center"><a class="link" href="#edit-script" data-from="create">Edit script</a><a class="link" href="#remote-test">Remote test</a><button class="link" data-toast="Opened \\fs01\packages\Contoso\Reader\4.2.0">Open folder</button></div>
+          </div>
+        </div>
+
+        <div class="stack" data-step-panel="2" hidden>
+          <div class="sec">
+            <h2>Command lines <small>from Settings › Intune defaults</small></h2>
+            <div class="content card" style="display:grid;gap:14px">
+              <div><label class="fl">Install command</label><div class="cmd"><input class="field mono" value="Invoke-AppDeployToolkit.exe Install -DeployMode Silent"><button class="btn" data-copy="Install command">Copy</button></div></div>
+              <div><label class="fl">Uninstall command</label><div class="cmd"><input class="field mono" value="Invoke-AppDeployToolkit.exe Uninstall -DeployMode Silent"><button class="btn" data-copy="Uninstall command">Copy</button></div></div>
+              <div class="grid2"><div><label class="fl" for="ctx">Install context</label><select class="field" id="ctx"><option>System</option><option>User</option></select></div><div><label class="fl" for="dm">Deploy mode</label><select class="field" id="dm"><option>Silent</option><option>NonInteractive</option><option>Interactive</option></select></div></div>
+            </div>
+          </div>
+          <div class="sec">
+            <h2>Detection rule</h2>
+            <div class="content card"><div class="rule-row"><span class="tag">MSI</span><span class="grow mono">{8E6A21C4-3B7D-4F10-9A52-6C1D0E7B94F3} · version ≥ 4.2.0</span><button class="btn icon" aria-label="Edit rule" data-toast="Rule editor opened"><svg class="i sm"><use href="#i-edit"/></svg></button></div></div>
+          </div>
+          <div class="sec">
+            <h2>Requirements</h2>
+            <div class="content tiles"><div class="wide"><small>Minimum Windows release</small><b>Windows 11 22H2</b></div><div><small>Maximum install time</small><b>60 min</b></div><div><small>Disk space</small><b>500 MB</b></div></div>
+          </div>
+          <div class="sec">
+            <h2>Return codes</h2>
+            <div class="content list"><div><span class="mono" style="width:44px">0</span><span class="grow">Success</span></div><div><span class="mono" style="width:44px">1707</span><span class="grow">Success</span></div><div><span class="mono" style="width:44px">3010</span><span class="grow">Soft reboot</span></div><div><span class="mono" style="width:44px">1641</span><span class="grow">Hard reboot</span></div><div><span class="mono" style="width:44px">1618</span><span class="grow">Retry</span></div></div>
+          </div>
+          <div class="sec">
+            <h2>Assignments</h2>
+            <div class="content list"><div><div class="tile sm"><svg class="i sm"><use href="#i-users"/></svg></div><div class="grow">Workplace engineering — Windows application pilot devices</div><span class="chip ok">Required</span></div></div>
+          </div>
+        </div>
+
+        <div class="stack" data-step-panel="3" hidden>
+          <div class="sec">
+            <h2>What will be sent to Intune</h2>
+            <div class="content card"><dl class="kv">
+              <div><dt>Application</dt><dd>Contoso Reader 4.2.0 (x64)</dd></div>
+              <div><dt>Publisher</dt><dd>Contoso</dd></div>
+              <div><dt>Install command</dt><dd class="mono">Invoke-AppDeployToolkit.exe Install -DeployMode Silent</dd></div>
+              <div><dt>Detection</dt><dd class="mono">MSI product code · version ≥ 4.2.0</dd></div>
+              <div><dt>Assignment</dt><dd>1 group · Required</dd></div>
+            </dl></div>
+          </div>
+          <div class="callout when-off"><svg class="i"><use href="#i-info"/></svg><div class="grow"><b>Sign in to publish.</b> Publish to Intune stays off until a tenant is connected. Nothing has been uploaded.</div><button class="btn mini" data-signin>Sign in</button></div>
+          <div class="sec" id="pub-run" hidden>
+            <h2>Publishing</h2>
+            <div class="content card" style="display:grid;gap:12px"><div class="progress"><i id="pub-bar"></i></div><div class="steps-pub" id="pub-steps"></div></div>
+          </div>
+        </div>
+      </div>
+      <footer class="pf">
+        <button class="btn" id="c-back" disabled><svg class="i sm"><use href="#i-back"/></svg>Back</button>
+        <span class="hint" id="c-hint">Creates files on your share. Nothing is uploaded yet.</span>
+        <button class="btn primary" id="c-next">Generate package</button>
+      </footer>
+    </div>
+    <aside class="rail" aria-label="Package preview">
+      <div class="block"><h3>Package preview</h3><p class="muted" style="margin-top:-6px">PSADT v4 · Win32 application</p></div>
+      <dl class="kv">
+        <div><dt>Application</dt><dd id="pv-app">Contoso Reader</dd></div>
+        <div><dt>Publisher</dt><dd id="pv-pub">Contoso</dd></div>
+        <div><dt>Version</dt><dd class="mono" id="pv-ver">4.2.0</dd></div>
+        <div><dt>Installer</dt><dd>MSI</dd></div>
+        <div><dt>Product code</dt><dd class="mono">{8E6A21C4…94F3}</dd></div>
+      </dl>
+      <div class="rule"></div>
+      <div class="block">
+        <h3>Readiness</h3>
+        <div class="legend">
+          <div><span class="sw" style="background:var(--ok)"></span>Installer<b>found</b></div>
+          <div><span class="sw" style="background:var(--ok)"></span>Output share<b>writable</b></div>
+          <div><span class="sw" style="background:var(--ok)"></span>PSADT template<b>v4.0.6</b></div>
+          <div><span class="sw" style="background:var(--faint)" id="rd-dot"></span>Intune connection<b id="rd-conn">connected</b></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ===================== UPLOAD ===================== -->
+<section data-screen="upload" data-title="Upload to Intune" data-nav="upload">
+  <div class="frame">
+    <div class="main">
+      <header class="ph"><div class="ph-top"><div class="ph-text"><h1>Upload to Intune</h1><p class="sub">Publish a package that is already built on your share</p></div><div class="ph-actions"><button class="btn details-btn" data-rail-toggle><svg class="i"><use href="#i-panel"/></svg>Details</button></div></div></header>
+      <div class="body">
+        <div class="stack">
+          <div class="sec">
+            <h2>Package from share <small>\\fs01\packages</small></h2>
+            <div class="content list" id="up-list">
+              <label class="pick"><input type="radio" name="up" checked><div class="grow">Contoso Reader 4.2.0<small class="mono">\\fs01\packages\Contoso\Reader\4.2.0</small></div><span class="muted">Built Oct 24</span></label>
+              <label class="pick"><input type="radio" name="up"><div class="grow">7-Zip 24.09<small class="mono">\\fs01\packages\Igor Pavlov\7-Zip\24.09</small></div><span class="muted">Built Oct 21</span></label>
+              <label class="pick"><input type="radio" name="up"><div class="grow">Notepad++ 8.7.4<small class="mono">\\fs01\packages\Notepad++ Team\Notepad++\8.7.4</small></div><span class="muted">Built Oct 18</span></label>
+            </div>
+          </div>
+          <div class="sec">
+            <h2>Command lines</h2>
+            <div class="content card" style="display:grid;gap:14px">
+              <div><label class="fl">Install command</label><div class="cmd"><input class="field mono" value="Invoke-AppDeployToolkit.exe Install -DeployMode Silent"><button class="btn" data-copy="Install command">Copy</button></div></div>
+              <div><label class="fl">Uninstall command</label><div class="cmd"><input class="field mono" value="Invoke-AppDeployToolkit.exe Uninstall -DeployMode Silent"><button class="btn" data-copy="Uninstall command">Copy</button></div></div>
+            </div>
+          </div>
+          <div class="sec">
+            <h2>Detection rules <small>1 rule</small><span class="push"><button class="btn mini" data-toast="Detection rule added"><svg class="i sm"><use href="#i-plus"/></svg>Add rule</button></span></h2>
+            <div class="content"><div class="rule-row"><span class="tag">MSI</span><span class="grow mono">{8E6A21C4-3B7D-4F10-9A52-6C1D0E7B94F3} · version ≥ 4.2.0</span><button class="btn icon" aria-label="Delete rule" data-toast="Rule removed"><svg class="i sm"><use href="#i-trash"/></svg></button></div></div>
+          </div>
+          <div class="sec">
+            <h2>Requirements</h2>
+            <div class="content tiles"><div class="wide"><small>Minimum Windows release</small><b>Windows 11 22H2</b></div><div><small>Maximum install time</small><b>60 min</b></div><div><small>Disk space</small><b>500 MB</b></div></div>
+          </div>
+        </div>
+      </div>
+      <footer class="pf"><span class="hint l">Uploads the package and creates the app in your tenant.</span><button class="btn primary" id="up-publish" data-needs-conn>Publish to Intune</button></footer>
+    </div>
+    <aside class="rail">
+      <div class="block"><h3>Publish readiness</h3>
+        <div class="legend">
+          <div><span class="sw" style="background:var(--ok)"></span>Package folder<b>valid</b></div>
+          <div><span class="sw" style="background:var(--ok)"></span>Launcher &amp; manifest<b>checked</b></div>
+          <div><span class="sw" style="background:var(--ok)"></span>Code signing<b>on</b></div>
+          <div><span class="sw" style="background:var(--faint)" class="rd2"></span>Intune connection<b class="rd2-t">connected</b></div>
+        </div>
+      </div>
+      <p class="help when-off" style="margin:0">Sign in on the Settings page to publish. <button class="link" data-signin>Sign in</button></p>
+    </aside>
+  </div>
+</section>
+
+<!-- ===================== REMOTE TEST ===================== -->
+<section data-screen="remote-test" data-title="Remote test" data-nav="remote-test">
+  <div class="frame">
+    <div class="main">
+      <header class="ph"><div class="ph-top"><div class="ph-text"><h1>Remote test</h1><p class="sub">Run the package on a device you choose, before it goes anywhere near Intune</p></div><div class="ph-actions"><button class="btn details-btn" data-rail-toggle><svg class="i"><use href="#i-panel"/></svg>Details</button></div></div></header>
+      <div class="body">
+        <div class="stack">
+          <div class="card"><div class="grid2">
+            <div class="span"><label class="fl" for="rt-folder">Package folder</label><div class="row-field"><input class="field mono" id="rt-folder" value="\\fs01\packages\Contoso\Reader\4.2.0"><button class="btn" data-toast="Folder picker opened"><svg class="i sm"><use href="#i-folder"/></svg>Browse…</button></div></div>
+            <div><label class="fl" for="rt-pc">Computer</label><select class="field" id="rt-pc"><option>WS-TEST-014</option><option>WS-TEST-022</option><option>VM-WIN11-PILOT</option></select></div>
+            <div><label class="fl">Context</label><div class="seg" role="group"><button aria-pressed="true">System</button><button aria-pressed="false">User</button></div></div>
+            <div><label class="fl" for="rt-mode">Deploy mode</label><select class="field" id="rt-mode"><option>Interactive</option><option>Silent</option><option>NonInteractive</option></select></div>
+            <div><label class="fl">Action</label><div class="seg" id="rt-action" role="group"><button aria-pressed="true">Install</button><button aria-pressed="false">Uninstall</button><button aria-pressed="false">Repair</button></div></div>
+          </div></div>
+          <div class="sec">
+            <h2>Live output <span class="push"><button class="btn mini" id="rt-run"><svg class="i sm"><use href="#i-play"/></svg>Run test</button></span></h2>
+            <div class="content"><div class="output" id="rt-out"><span class="dim">Output appears here once a test starts.</span></div></div>
+          </div>
+        </div>
+      </div>
+      <footer class="pf"><span class="hint l">Tests run on the device only. Nothing is uploaded to Intune.</span><a class="btn primary" href="#create" data-step-go="2">Continue to configure</a></footer>
+    </div>
+    <aside class="rail">
+      <div class="block"><h3>Test session</h3>
+        <dl class="kv">
+          <div><dt>Status</dt><dd><span class="chip" id="rt-status">Idle</span></dd></div>
+          <div><dt>Computer</dt><dd class="mono" id="rt-pcv">WS-TEST-014</dd></div>
+          <div><dt>Last run</dt><dd>Oct 26, 16:48</dd></div>
+          <div><dt>Exit code</dt><dd class="mono" id="rt-exit">0</dd></div>
+        </dl>
+      </div>
+      <p class="help" style="margin:0">Attended tests may show prompts. Intune installs run unattended, so confirm the Silent mode before publishing.</p>
+    </aside>
+  </div>
+</section>
+
+<!-- ===================== ADVANCED ===================== -->
+<section data-screen="advanced" data-title="Advanced" data-nav="advanced">
+  <div class="frame">
+    <div class="main">
+      <header class="ph">
+        <div class="ph-top"><div class="ph-text"><h1>Advanced</h1><p class="sub">Directory tools for Microsoft Entra ID groups and devices</p></div><div class="ph-actions"><button class="btn details-btn" data-rail-toggle><svg class="i"><use href="#i-panel"/></svg>Details</button></div></div>
+        <div class="strip" role="tablist">
+          <button class="tab" role="tab" aria-selected="true" data-adv="bulk">Bulk add PCs to group</button>
+          <button class="tab" role="tab" aria-selected="false" data-adv="members">PC group membership</button>
+          <button class="tab" role="tab" aria-selected="false" data-adv="apps">Apps assigned to group</button>
+        </div>
+      </header>
+      <div class="body">
+        <div class="stack" data-adv-panel="bulk">
+          <div class="when-off empty" style="min-height:0;padding:40px 0"><div class="ic"><svg class="i"><use href="#i-list"/></svg></div><h2>Not connected to Microsoft Intune</h2><p>Sign in on the Settings page to use the directory actions.</p><button class="btn primary" data-signin>Sign in</button></div>
+          <div class="when-on stack" style="max-width:none">
+            <div><label class="fl" for="bg">Target group</label><input class="field" id="bg" value="Pilot — Windows 11 devices"><p class="help"><span class="chip ok"><span class="d"></span>Group found</span>&nbsp; 48 members · Assigned</p></div>
+            <div><label class="fl" for="pcs">PC names</label><textarea class="field mono" id="pcs" rows="5">WS-TEST-014
+WS-TEST-022
+WS-FIN-0310, WS-FIN-0311
+WS-HR-0027</textarea><p class="help">One name per line, or separated by commas, semicolons or spaces. <span id="pcn">5 names</span> · Only direct group membership is changed.</p></div>
+            <div><button class="btn primary" id="bulk-run">Add to group</button></div>
+            <div class="sec" id="bulk-res" hidden><h2>Results</h2><div class="content list">
+              <div><span class="grow mono">WS-TEST-014</span><span class="chip ok">Added</span></div>
+              <div><span class="grow mono">WS-TEST-022</span><span class="chip">Already a member</span></div>
+              <div><span class="grow mono">WS-FIN-0310</span><span class="chip ok">Added</span></div>
+              <div><span class="grow mono">WS-FIN-0311</span><span class="chip ok">Added</span></div>
+              <div><span class="grow mono">WS-HR-0027</span><span class="chip bad">Not found</span><span class="muted">No device with this name in Entra ID</span></div>
+            </div></div>
+          </div>
+        </div>
+        <div class="stack" data-adv-panel="members" hidden>
+          <div class="search" style="width:360px"><svg class="i sm"><use href="#i-search"/></svg><input class="field" placeholder="Search PC names…" aria-label="Search PC names"></div>
+          <div class="list">
+            <div><div class="tile sm"><svg class="i sm"><use href="#i-laptop"/></svg></div><div class="grow">WS-TEST-014<small>Windows 11 Enterprise 23H2 · last seen today</small></div><span class="chip ok">Compliant</span></div>
+            <div><div class="tile sm"><svg class="i sm"><use href="#i-laptop"/></svg></div><div class="grow">WS-FIN-0310<small>Windows 11 Enterprise 23H2 · last seen yesterday</small></div><span class="chip ok">Compliant</span></div>
+          </div>
+          <div class="sec"><h2>Member of</h2><div class="content list">
+            <div><div class="grow">Pilot — Windows 11 devices<small>Pilot ring for new packages</small></div><span class="chip">Assigned</span></div>
+            <div><div class="grow">All corporate Windows laptops<small>Dynamic rule: device.deviceOwnership -eq "Company"</small></div><span class="chip">Dynamic</span></div>
+          </div></div>
+        </div>
+        <div class="stack" data-adv-panel="apps" hidden>
+          <div class="search" style="width:360px"><svg class="i sm"><use href="#i-search"/></svg><input class="field" placeholder="Search Entra groups…" aria-label="Search Entra groups"></div>
+          <div class="sec"><h2>Pilot — Windows 11 devices <small>3 applications</small></h2><div class="content list">
+            <div><div class="tile sm">C</div><div class="grow">Contoso Reader<small>Contoso · Win32</small></div><span class="chip ok">Required</span></div>
+            <div><div class="tile sm">7</div><div class="grow">7-Zip<small>Igor Pavlov · Win32</small></div><span class="chip">Available</span></div>
+            <div><div class="tile sm">N</div><div class="grow">Notepad++<small>Notepad++ Team · Win32</small></div><span class="chip">Available</span></div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+    <aside class="rail">
+      <div class="block"><h3>Directory action</h3>
+        <dl class="kv"><div><dt>Directory</dt><dd>Microsoft Entra ID</dd></div><div><dt>Tenant</dt><dd class="when-on-i">contoso.onmicrosoft.com</dd></div><div><dt>Scope</dt><dd>Group.ReadWrite.All</dd></div></dl>
+      </div>
+      <p class="help" style="margin:0">Only direct group membership is changed. Dynamic groups are read-only.</p>
+    </aside>
+  </div>
+</section>
+
+<!-- ===================== SETTINGS ===================== -->
+<section data-screen="settings" data-title="Settings" data-nav="settings">
+  <div class="frame">
+    <div class="main">
+      <header class="ph">
+        <div class="ph-top"><div class="ph-text"><h1>Settings</h1><p class="sub">Connection, paths and defaults for new packages</p></div><div class="ph-actions"><button class="btn details-btn" data-rail-toggle><svg class="i"><use href="#i-panel"/></svg>Details</button></div></div>
+        <div class="strip" role="tablist" style="gap:22px">
+          <button class="tab" role="tab" aria-selected="true" data-set="auth">Authentication</button>
+          <button class="tab" role="tab" aria-selected="false" data-set="paths">Network paths</button>
+          <button class="tab" role="tab" aria-selected="false" data-set="defaults">Intune defaults</button>
+          <button class="tab" role="tab" aria-selected="false" data-set="groups">Group assignment</button>
+          <button class="tab" role="tab" aria-selected="false" data-set="sign">Code signing</button>
+          <button class="tab" role="tab" aria-selected="false" data-set="look">Appearance</button>
+        </div>
+      </header>
+      <div class="body">
+        <div class="stack" data-set-panel="auth">
+          <div class="card"><div class="grid2">
+            <div class="span"><label class="fl" for="tn">Tenant ID</label><input class="field mono" id="tn" value="b41e7d02-6c35-4a9f-8e12-5d07f3a1c9b6"></div>
+            <div class="span"><label class="fl" for="cid">Application (client) ID</label><input class="field mono" id="cid" value="9a02c5e7-31f4-4d68-b0a3-7e1c84d2f650"></div>
+            <div class="span"><label class="fl" for="cert">Certificate</label><select class="field" id="cert"><option>Packman Graph · thumbprint 4F2A…91C0 · expires Mar 14, 2027</option><option>Browse certificate store…</option></select><p class="help">The app registration signs in with this certificate. No secret is stored.</p></div>
+          </div></div>
+          <div style="display:flex;gap:8px;align-items:center"><button class="btn" id="test-conn">Test connection</button><button class="btn" data-signin id="auth-btn">Sign in</button><span class="muted" id="test-res"></span></div>
+        </div>
+        <div class="stack" data-set-panel="paths" hidden><div class="card"><div class="grid2">
+          <div class="span"><label class="fl">Package output share</label><input class="field mono" value="\\fs01\packages"></div>
+          <div class="span"><label class="fl">PSADT template folder</label><input class="field mono" value="C:\ProgramData\Packman\Templates\PSADT-4.0.6"></div>
+          <div class="span"><label class="fl">IntuneWinAppUtil path</label><input class="field mono" value="C:\ProgramData\Packman\Tools\IntuneWinAppUtil.exe"></div>
+        </div></div></div>
+        <div class="stack" data-set-panel="defaults" hidden><div class="card"><div class="grid2">
+          <div class="span"><label class="fl">Install command</label><input class="field mono" value="Invoke-AppDeployToolkit.exe Install -DeployMode Silent"></div>
+          <div class="span"><label class="fl">Uninstall command</label><input class="field mono" value="Invoke-AppDeployToolkit.exe Uninstall -DeployMode Silent"></div>
+          <div><label class="fl">Minimum Windows release</label><select class="field"><option>Windows 11 22H2</option><option>Windows 10 22H2</option></select></div>
+          <div><label class="fl">Maximum install time</label><select class="field"><option>60 minutes</option><option>120 minutes</option></select></div>
+        </div></div></div>
+        <div class="stack" data-set-panel="groups" hidden><div class="card" style="display:grid;gap:14px">
+          <label class="sw-toggle"><input type="checkbox" checked>Create a group per package</label>
+          <div><label class="fl">Group name pattern</label><input class="field mono" value="PKG – {Vendor} {Name} – {Intent}"></div>
+          <p class="help">Requires Group.ReadWrite.All on the app registration.</p>
+        </div></div>
+        <div class="stack" data-set-panel="sign" hidden><div class="card" style="display:grid;gap:14px">
+          <label class="sw-toggle"><input type="checkbox" checked>Sign the PSADT script before building</label>
+          <div><label class="fl">Signing certificate</label><select class="field"><option>Contoso Code Signing · expires Jan 9, 2028</option></select></div>
+          <p class="help">If signing fails, publishing stops before content is built or uploaded.</p>
+        </div></div>
+        <div class="stack" data-set-panel="look" hidden><div class="card" style="display:grid;gap:14px">
+          <div><label class="fl">Theme</label><div class="seg" id="theme-seg" role="group"><button data-theme-set="light" aria-pressed="true">Light</button><button data-theme-set="dark" aria-pressed="false">Dark</button><button data-theme-set="system" aria-pressed="false">System</button></div></div>
+        </div></div>
+      </div>
+      <footer class="pf"><span class="hint l" id="save-msg">All changes saved</span><button class="btn" data-toast="Settings reset to saved values">Reset</button><button class="btn primary" id="save-set">Save settings</button></footer>
+    </div>
+    <aside class="rail">
+      <div class="block"><h3>Configuration status</h3>
+        <dl class="kv">
+          <div><dt>Tenant</dt><dd class="when-on-i">contoso.onmicrosoft.com</dd></div>
+          <div><dt>Permissions</dt><dd>DeviceManagementApps.ReadWrite.All</dd></div>
+          <div><dt>Certificate</dt><dd>Valid · 4 months left</dd></div>
+          <div><dt>Output share</dt><dd><span class="chip ok">Reachable</span></dd></div>
+        </dl>
+      </div>
+    </aside>
+  </div>
+</section>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"><svg class="i sm"><use href="#i-check"/></svg><span id="toast-t"></span></div>
+    </main>
+  </div>
+</div>
+
+<dialog id="dlg"><form method="dialog">
+  <h2>Delete Contoso Reader from Intune?</h2>
+  <p>This removes the app and its 2 assignments from your tenant. Installed copies stay on devices. This can’t be undone.</p>
+  <div class="acts"><button class="btn" value="cancel">Cancel</button><button class="btn danger" value="ok" id="dlg-ok"><svg class="i sm"><use href="#i-trash"/></svg>Delete from Intune</button></div>
+</form></dialog>
+
+<script src="app.js"></script>
+</body>
+</html>
