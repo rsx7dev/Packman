@@ -1,0 +1,1404 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Packman — concept 4: Command Deck</title>
+<link rel="icon" href="data:,">
+<style>
+/* ===================== tokens ===================== */
+:root{
+  --bg:#FAFBFC; --surface:#FFFFFF; --bar:#F1F2F5; --field:#FFFFFF;
+  --line:#E5E7EB; --line-2:#D5D8DE;
+  --ink:#13151A; --text:#23262C; --muted:#5A606A; --muted-2:#868C96;
+  --accent:#D99A3D; --accent-ink:#33250A; --accent-text:#8A5A0F;
+  --accent-soft:rgba(217,154,61,.10); --sel:rgba(217,154,61,.09);
+  --focus:#C9851F;
+  --ok:#1E9E6A; --ok-soft:rgba(30,158,106,.10);
+  --warn:#C9851F; --warn-soft:rgba(201,133,31,.12);
+  --bad:#D64545; --bad-soft:rgba(214,69,69,.10);
+  --code-bg:#F6F7F9;
+  --shadow-sm:0 2px 3px -1px rgba(0,0,0,.10),0 1px 0 0 rgba(25,28,33,.02),0 0 0 1px rgba(25,28,33,.08);
+  --shadow-md:0 0 0 1px rgba(0,0,0,.06),0 1px 1px -.5px rgba(0,0,0,.06),0 3px 3px -1.5px rgba(0,0,0,.06),0 6px 6px -3px rgba(0,0,0,.06),0 12px 12px -6px rgba(0,0,0,.06),0 24px 24px -12px rgba(0,0,0,.06);
+  --shadow-lg:0 2.8px 2.2px rgba(0,0,0,.034),0 6.7px 5.3px rgba(0,0,0,.048),0 12.5px 10px rgba(0,0,0,.06),0 22.3px 17.9px rgba(0,0,0,.072),0 41.8px 33.4px rgba(0,0,0,.086),0 100px 80px rgba(0,0,0,.12);
+}
+[data-theme="dark"]{
+  --bg:#111216; --surface:#1A1B20; --bar:#15161A; --field:#1E1F24;
+  --line:#2A2C31; --line-2:#3A3D45;
+  --ink:#F3F4F6; --text:#E4E6EA; --muted:#9AA0AA; --muted-2:#6E737D;
+  --accent:#E0A24B; --accent-ink:#2B1E08; --accent-text:#E0A24B;
+  --accent-soft:rgba(224,162,75,.12); --sel:rgba(224,162,75,.11);
+  --focus:#E0A24B;
+  --ok:#3FC08A; --ok-soft:rgba(63,192,138,.12);
+  --warn:#E0A24B; --warn-soft:rgba(224,162,75,.12);
+  --bad:#E76F6F; --bad-soft:rgba(231,111,111,.12);
+  --code-bg:#15161A;
+}
+@font-face{font-family:"Instrument Sans";src:url("fonts/InstrumentSans-Regular.ttf") format("truetype");font-weight:400;font-style:normal}
+@font-face{font-family:"Instrument Sans";src:url("fonts/InstrumentSans-Medium.ttf") format("truetype");font-weight:500;font-style:normal}
+@font-face{font-family:"Instrument Sans";src:url("fonts/InstrumentSans-SemiBold.ttf") format("truetype");font-weight:600;font-style:normal}
+@font-face{font-family:"Instrument Sans";src:url("fonts/InstrumentSans-Bold.ttf") format("truetype");font-weight:700;font-style:normal}
+@font-face{font-family:"JetBrains Mono";src:url("fonts/JetBrainsMono-Regular.ttf") format("truetype");font-weight:400;font-style:normal}
+@font-face{font-family:"JetBrains Mono";src:url("fonts/JetBrainsMono-Medium.ttf") format("truetype");font-weight:500;font-style:normal}
+
+/* ===================== base ===================== */
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:"Instrument Sans","Segoe UI Variable","Segoe UI",system-ui,sans-serif;font-size:13px;line-height:1.5;color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
+button{font-family:inherit;color:inherit}
+a{color:inherit;text-decoration:none}
+h1,h2,h3,p{margin:0}
+svg.i{width:20px;height:20px;flex:none}
+svg.i.sm{width:15px;height:15px}
+.mono{font-family:"JetBrains Mono",Cascadia Code,Consolas,monospace}
+.muted{color:var(--muted)}
+.muted2{color:var(--muted-2)}
+.grow{flex:1}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+[hidden]{display:none!important}
+
+/* ===================== shell ===================== */
+.deck{height:100vh;display:flex;flex-direction:column;background:var(--bg);color:var(--text);overflow:hidden}
+
+/* title bar */
+.titlebar{flex:none;height:42px;display:flex;align-items:center;gap:12px;padding:0 12px 0 16px;background:var(--bar);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:9px;font-weight:600;font-size:13px;color:var(--ink);letter-spacing:.01em}
+.mark{width:20px;height:20px;border-radius:5px;background:var(--accent);position:relative;flex:none}
+.mark::after{content:"";position:absolute;inset:0;margin:auto;width:9px;height:9px;border-radius:2.5px;background:var(--accent-ink)}
+.crumb{font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:11.5px;color:var(--muted-2)}
+.crumb::before{content:"/ "}
+.wctl{display:flex;gap:2px;align-items:center}
+.wctl span{width:38px;height:26px;display:grid;place-items:center;border-radius:5px;color:var(--muted-2)}
+.wctl span svg{width:11px;height:11px}
+.conn{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 11px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface);font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:11px;color:var(--muted);cursor:pointer}
+.conn:hover{border-color:var(--muted-2)}
+.conn .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
+.conn .off{display:none}
+.conn b{color:var(--accent-text);font-weight:500}
+[data-conn="off"] .conn .dot{background:var(--muted-2)}
+[data-conn="off"] .conn .on{display:none}
+[data-conn="off"] .conn .off{display:flex}
+[data-conn="on"] .when-off,[data-conn="off"] .when-on{display:none!important}
+
+/* command bar */
+.cmdbar{flex:none;display:flex;align-items:center;gap:10px;padding:0 16px;height:58px;background:var(--bar);border-bottom:1px solid var(--line)}
+.cmd{flex:0 1 580px;display:flex;align-items:center;gap:10px;height:38px;padding:0 6px 0 13px;background:var(--surface);border:1px solid var(--line-2);border-radius:9px;cursor:text;color:var(--muted);min-width:280px}
+.cmd:hover{border-color:var(--muted-2)}
+.cmd .ph{flex:1;font-size:13px;color:var(--muted)}
+.cmd kbd{margin-left:auto}
+.kbd{font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:10.5px;font-weight:500;color:var(--muted);background:var(--bar);border:1px solid var(--line-2);border-bottom-width:2px;border-radius:4px;padding:1px 5px;white-space:nowrap}
+.qbtn{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 12px;border-radius:7px;border:1px solid var(--line-2);background:var(--surface);font-size:12.5px;font-weight:500;color:var(--text);cursor:pointer}
+.qbtn:hover{border-color:var(--muted-2)}
+.qbtn .kbd{background:var(--surface)}
+
+/* workspace + page frame */
+.workspace{flex:1;min-height:0;display:flex}
+.page{flex:1;min-width:0;position:relative}
+.page>section{display:none;height:100%}
+.page>section.active{display:flex;flex-direction:column}
+.frame{flex:1;min-height:0;display:flex}
+.frame .main{flex:1;min-width:0;display:flex;flex-direction:column}
+.frame .rail{width:302px;flex:none;border-left:1px solid var(--line);background:var(--surface);overflow-y:auto}
+.frame.pane-closed .rail{display:none}
+
+/* page header */
+.ph{padding:18px 26px 0}
+.ph-t{display:flex;align-items:flex-start;gap:16px}
+.ph-txt{flex:1;min-width:0}
+.ph-txt h1{font-size:20px;font-weight:600;color:var(--ink);letter-spacing:-.01em}
+.ph-txt .sub{margin-top:2px;color:var(--muted)}
+.ph-a{display:flex;align-items:center;gap:8px;flex:none}
+.crumbs{font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:11.5px;color:var(--muted-2);display:flex;align-items:center;gap:6px;margin-bottom:6px}
+.crumbs a{color:var(--accent-text)}
+.crumbs a:hover{text-decoration:underline}
+.ph-lead{display:flex;align-items:center;gap:12px}
+.tile{width:30px;height:30px;border-radius:7px;background:var(--bar);border:1px solid var(--line);display:grid;place-items:center;font-weight:600;font-size:13px;color:var(--ink);flex:none}
+.tile.lg{width:40px;height:40px;border-radius:9px;font-size:16px;background:var(--accent);color:var(--accent-ink);border:none}
+
+/* strip: tabs + stepper */
+.strip{display:flex;align-items:center;gap:2px;margin-top:14px;border-bottom:1px solid var(--line)}
+.tab{background:none;border:none;border-bottom:2px solid transparent;padding:9px 2px;margin-right:20px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer}
+.tab:hover{color:var(--text)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.stepper{display:flex;align-items:center;gap:6px;margin-top:16px}
+.step{background:none;border:none;display:flex;align-items:center;gap:8px;padding:0;margin-right:16px;cursor:pointer;color:var(--muted-2);font-size:13px}
+.step i{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--line-2);display:grid;place-items:center;font-style:normal;font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:10.5px}
+.step em{font-style:normal}
+.step[aria-current="step"]{color:var(--ink)}
+.step[aria-current="step"] i{border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}
+.step.done{color:var(--text)}
+.step.done i{border-color:var(--ok);background:var(--ok);color:#fff}
+.step.done i::before{content:"✓"}
+
+/* toolbar */
+.toolbar{display:flex;align-items:center;gap:10px;margin-top:14px}
+.search{flex:0 1 360px;display:flex;align-items:center;gap:9px;height:34px;padding:0 10px;border:1px solid var(--line-2);border-radius:7px;background:var(--surface);color:var(--muted-2)}
+.search:focus-within{border-color:var(--focus);box-shadow:0 0 0 2px var(--accent-soft)}
+.search input{border:none;background:none;outline:none;flex:1;font:inherit;color:var(--text);min-width:0}
+.search input::placeholder{color:var(--muted-2)}
+.meta{font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:11px;color:var(--muted-2)}
+
+/* body + sections */
+.body{flex:1;min-height:0;overflow-y:auto;padding:18px 26px 26px}
+.stack{max-width:880px}
+.sec{margin:0 0 26px}
+.sec:last-child{margin-bottom:0}
+.sec>h2{display:flex;align-items:center;gap:10px;margin:0 0 10px;font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:11.5px;font-weight:500;color:var(--muted-2);letter-spacing:.01em}
+.sec>h2 .push{margin-left:auto;display:flex;align-items:center;gap:8px}
+.sec>h2 small{font-family:inherit;color:var(--muted-2)}
+.sec>h2 .push{font-family:"Instrument Sans",system-ui,sans-serif}
+.lead{color:var(--muted);margin:0 0 14px;max-width:640px}
+.help{color:var(--muted-2);font-size:12px;margin:8px 0 0}
+.box{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:16px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px}
+.grid2 .span{grid-column:1/-1}
+.fl{display:block;font-size:12px;font-weight:500;color:var(--muted);margin-bottom:6px}
+.fl b{color:var(--bad);font-weight:600}
+
+/* fields */
+.field{width:100%;height:34px;padding:0 11px;border:1px solid var(--line-2);border-radius:6px;background:var(--field);color:var(--text);font:inherit;font-size:13px}
+.field:focus{outline:none;border-color:var(--focus);box-shadow:0 0 0 2px var(--accent-soft)}
+.field.mono,.field option{font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:12.5px}
+textarea.field{height:auto;padding:9px 11px;resize:vertical;line-height:1.55}
+select.field{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23868C96' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px}
+.row-field{display:flex;gap:8px}
+.row-field .field{flex:1;min-width:0}
+.seg{display:inline-flex;border:1px solid var(--line-2);border-radius:7px;overflow:hidden;background:var(--surface)}
+.seg button{background:none;border:none;height:32px;padding:0 14px;font-size:12.5px;color:var(--muted);cursor:pointer}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.sw-toggle{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--text);cursor:pointer}
+.sw-toggle input{width:15px;height:15px;accent-color:var(--accent)}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:32px;padding:0 14px;border-radius:6px;border:1px solid var(--line-2);background:var(--surface);color:var(--ink);font-size:12.5px;font-weight:500;cursor:pointer}
+.btn:hover{border-color:var(--muted-2)}
+.btn.primary{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.btn.primary:hover{border-color:var(--ink);opacity:.92}
+.btn.danger{color:var(--bad);border-color:var(--bad)}
+.btn.danger:hover{background:var(--bad-soft)}
+.btn.danger-fill{background:var(--bad);color:#fff;border-color:var(--bad)}
+.btn.mini{height:26px;padding:0 10px;font-size:12px}
+.btn.icon{width:32px;padding:0}
+.btn:disabled{opacity:.45;cursor:default;pointer-events:none}
+.btn .kbd{background:transparent;border-color:var(--line-2)}
+.link{background:none;border:none;padding:0;color:var(--accent-text);font-size:12.5px;font-weight:500;cursor:pointer}
+.link:hover{text-decoration:underline}
+
+/* chips + status */
+.chip{display:inline-flex;align-items:center;gap:6px;font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:10.5px;font-weight:500;padding:2px 8px;border-radius:999px;border:1px solid var(--line-2);color:var(--muted);background:var(--surface);white-space:nowrap}
+.chip .d{width:6px;height:6px;border-radius:50%;background:currentColor}
+.chip.ok{color:var(--ok);border-color:var(--ok);background:var(--ok-soft)}
+.chip.bad{color:var(--bad);border-color:var(--bad);background:var(--bad-soft)}
+.chip.warn{color:var(--warn);border-color:var(--warn);background:var(--warn-soft)}
+.chip.accent{color:var(--accent-text);border-color:var(--accent);background:var(--accent-soft)}
+.tag{font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:10px;font-weight:500;letter-spacing:.05em;color:var(--accent-text);border:1px solid var(--accent);border-radius:4px;padding:1px 6px}
+
+/* tables */
+.tablewrap{position:relative}
+table.apps{width:100%;border-collapse:collapse}
+table.apps th{position:sticky;top:0;background:var(--bg);text-align:left;font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:10.5px;font-weight:500;letter-spacing:.04em;color:var(--muted-2);padding:8px 12px;border-bottom:1px solid var(--line)}
+table.apps th button{background:none;border:none;padding:0;font:inherit;color:inherit;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+table.apps th[aria-sort] button{color:var(--text)}
+table.apps td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.apps tbody tr{cursor:pointer}
+table.apps tbody tr:hover{background:var(--bar)}
+table.apps tbody tr[aria-selected="true"]{background:var(--sel);box-shadow:inset 2px 0 0 var(--accent)}
+.name{display:flex;align-items:center;gap:11px;min-width:0}
+.name b{font-weight:500;color:var(--ink);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.name small{display:flex;align-items:center;gap:5px;color:var(--bad);font-size:11.5px}
+td.mono,dd.mono{font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:12px}
+tr.skel td i{display:block;height:10px;border-radius:4px;background:var(--bar);animation:pulse 1.1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.45}}
+
+/* lists (hairline rows, no box) */
+.list{border-top:1px solid var(--line)}
+.list>div{display:flex;align-items:center;gap:12px;padding:10px 2px;border-bottom:1px solid var(--line)}
+.list>div .grow{min-width:0}
+.list small{display:block;color:var(--muted-2);font-size:11.5px;margin-top:1px}
+.pick{display:flex;align-items:center;gap:12px;padding:11px 2px;border-bottom:1px solid var(--line);cursor:pointer}
+.pick input{accent-color:var(--accent);width:15px;height:15px}
+.pick small{display:block;color:var(--muted-2);font-size:11.5px;font-family:"JetBrains Mono",Cascadia Code,monospace}
+
+/* key/value */
+.kv{display:grid;gap:10px 0}
+.kv>div{display:flex;gap:14px}
+.kv dt{width:130px;flex:none;color:var(--muted-2);font-size:12px}
+.kv dd{margin:0;color:var(--text);flex:1;min-width:0;display:flex;align-items:center;gap:8px;overflow-wrap:anywhere}
+
+/* code / command rows */
+.cmd{display:flex;align-items:center;gap:10px}
+.cmd .code{flex:1;min-width:0;font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:12.5px;color:var(--ink);background:var(--code-bg);border:1px solid var(--line);border-radius:6px;padding:8px 12px;overflow-x:auto;white-space:nowrap}
+.rule-row{display:flex;align-items:center;gap:12px;padding:11px 2px;border-bottom:1px solid var(--line)}
+
+/* tiles grid (requirements) */
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.tiles>div{background:var(--surface);padding:11px 14px;min-width:0}
+.tiles>div.wide{grid-column:1/-1}
+.tiles small{display:block;font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:10.5px;color:var(--muted-2);margin-bottom:3px}
+.tiles b{font-weight:500;color:var(--ink);font-size:13px}
+
+/* banners + callouts + empty */
+.banner{display:flex;align-items:center;gap:10px;margin:14px 26px 0;padding:10px 14px;border-radius:7px;border:1px solid;font-size:12.5px}
+.banner.bad{border-color:var(--bad);background:var(--bad-soft);color:var(--text)}
+.banner.bad svg{color:var(--bad)}
+.callout{display:flex;align-items:center;gap:12px;padding:13px 16px;border-radius:7px;border:1px solid;font-size:12.5px}
+.callout.ok{border-color:var(--ok);background:var(--ok-soft)}
+.callout.ok svg{color:var(--ok)}
+.callout.info{border-color:var(--line-2);background:var(--bar)}
+.callout.info svg{color:var(--muted-2)}
+.callout .grow b{font-weight:600;color:var(--ink)}
+.empty{text-align:left;padding:40px 4px;max-width:420px}
+.empty .ic{width:38px;height:38px;border-radius:9px;background:var(--bar);border:1px solid var(--line);display:grid;place-items:center;color:var(--muted-2);margin-bottom:14px}
+.empty h2{font-size:15px;font-weight:600;color:var(--ink);margin:0 0 4px}
+.empty p{color:var(--muted);margin:0 0 14px}
+
+/* pager */
+.pager{display:flex;align-items:center;gap:12px;padding:10px 2px 0;color:var(--muted-2);font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:11px}
+
+/* danger zone */
+.danger-zone{display:flex;align-items:center;gap:16px;margin-top:28px;padding:14px 16px;border:1px solid var(--bad);border-radius:8px;background:var(--bad-soft)}
+.danger-zone h2{font-size:13.5px;font-weight:600;color:var(--ink);margin:0 0 2px}
+.danger-zone p{color:var(--muted);font-size:12px;margin:0}
+
+/* rail / pane */
+.rail .block{padding:16px 18px;border-bottom:1px solid var(--line)}
+.rail .block:last-child{border-bottom:none}
+.rail h3{font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:11px;font-weight:500;color:var(--muted-2);margin:0 0 12px;letter-spacing:.01em}
+.rail .big{font-size:26px;font-weight:600;color:var(--ink);letter-spacing:-.02em}
+.bar{display:flex;height:7px;border-radius:4px;overflow:hidden;background:var(--bar);margin:10px 0}
+.bar i{display:block}
+.legend{display:grid;gap:7px}
+.legend>div{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text)}
+.legend b{margin-left:auto;font-family:"JetBrains Mono",Cascadia Code,monospace;font-weight:500;font-size:11px;color:var(--muted)}
+.sw{width:9px;height:9px;border-radius:2.5px;flex:none}
+.rail .help{font-size:11.5px;color:var(--muted-2)}
+.rail .kv dt{width:86px}
+
+/* footer */
+.pf{flex:none;display:flex;align-items:center;gap:10px;padding:12px 26px;border-top:1px solid var(--line);background:var(--bg)}
+.pf .hint{color:var(--muted-2);font-size:12px}
+.pf .hint.l{flex:1}
+
+/* editor */
+.editor{display:flex;height:100%;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.files{width:210px;flex:none;border-right:1px solid var(--line);padding:10px 0;background:var(--bar)}
+.files p{font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:10px;letter-spacing:.05em;color:var(--muted-2);padding:2px 14px 8px}
+.files button{display:flex;align-items:center;gap:9px;width:100%;text-align:left;border:none;background:none;padding:7px 14px;font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:12px;color:var(--muted);cursor:pointer}
+.files button:hover{background:var(--surface)}
+.files button[aria-current="true"]{color:var(--ink);background:var(--sel);box-shadow:inset 2px 0 0 var(--accent)}
+#es-code{flex:1;margin:0;padding:16px 18px;overflow:auto;font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:12.5px;line-height:1.7;color:var(--text);background:var(--surface);white-space:pre;outline:none}
+#es-code .c{color:var(--muted-2)}
+#es-code .k{color:var(--accent-text)}
+#es-code .s{color:var(--ok)}
+#es-code .v{color:var(--ink)}
+
+/* output */
+.output{font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:12px;line-height:1.7;background:var(--code-bg);border:1px solid var(--line);border-radius:7px;padding:12px 14px;height:220px;overflow-y:auto;white-space:pre-wrap}
+.output .dim{color:var(--muted-2)}
+.output .okc{color:var(--ok)}
+
+/* progress */
+.progress{height:6px;border-radius:4px;background:var(--bar);overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--ok);transition:width .3s ease}
+.steps-pub{display:grid;gap:8px;margin-top:4px}
+.steps-pub>div{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--muted-2)}
+.steps-pub>div .st{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line-2);display:grid;place-items:center;flex:none}
+.steps-pub>div.run{color:var(--text)}
+.steps-pub>div.run .st{border-color:var(--accent);animation:pulse 1.1s ease-in-out infinite}
+.steps-pub>div.done{color:var(--text)}
+.steps-pub>div.done .st{border-color:var(--ok);background:var(--ok);color:#fff}
+
+/* palette */
+.palette{position:fixed;inset:0;z-index:50;display:none;align-items:flex-start;justify-content:center;padding-top:9vh;background:rgba(10,12,16,.34)}
+.palette.open{display:flex}
+.palette .panel{width:min(620px,calc(100vw - 48px));max-height:72vh;display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;box-shadow:var(--shadow-lg)}
+.palette input{height:54px;border:none;border-bottom:1px solid var(--line);background:none;color:var(--ink);font-family:"Instrument Sans",system-ui,sans-serif;font-size:15px;padding:0 18px;outline:none}
+.palette input::placeholder{color:var(--muted-2)}
+.palette .cmds{overflow-y:auto;padding:8px}
+.cmd-group{font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--muted-2);padding:10px 12px 4px}
+.cmd-item{display:flex;align-items:center;gap:12px;padding:9px 12px;border-radius:8px;cursor:pointer;color:var(--text)}
+.cmd-item svg{color:var(--muted-2)}
+.cmd-item .lbl{flex:1;font-size:13px;font-weight:500;min-width:0}
+.cmd-item .lbl small{display:block;color:var(--muted-2);font-weight:400;font-size:11.5px}
+.cmd-item .hint{font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:10.5px;color:var(--muted-2)}
+.cmd-item[aria-selected="true"]{background:var(--accent-soft);color:var(--ink)}
+.cmd-item[aria-selected="true"] svg{color:var(--accent-text)}
+.cmd-item[aria-selected="true"] .hint{color:var(--accent-text)}
+.palette .foot{display:flex;gap:16px;align-items:center;padding:9px 18px;border-top:1px solid var(--line);font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:10.5px;color:var(--muted-2)}
+.palette .foot span{display:inline-flex;align-items:center;gap:6px}
+.palette .empty-p{color:var(--muted-2);font-size:13px;padding:22px 16px;text-align:center}
+
+/* status bar */
+.statusbar{flex:none;height:29px;display:flex;align-items:center;gap:18px;padding:0 16px;background:var(--bar);border-top:1px solid var(--line);font-family:"JetBrains Mono",Cascadia Code,monospace;font-size:11px;color:var(--muted-2)}
+.statusbar .hint{flex:1;text-align:center}
+.statusbar .hint kbd{color:var(--muted-2)}
+.statusbar .dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
+[data-conn="off"] .statusbar .dot{background:var(--muted-2)}
+
+/* toast + dialog */
+.toast{position:fixed;left:50%;bottom:44px;transform:translateX(-50%) translateY(8px);display:flex;align-items:center;gap:10px;padding:10px 16px;border-radius:9px;background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow-md);font-size:12.5px;color:var(--text);opacity:0;pointer-events:none;transition:opacity .18s ease,transform .18s ease;z-index:60}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast svg{color:var(--ok)}
+dialog{max-width:440px;width:calc(100vw - 48px);border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--text);padding:22px;box-shadow:var(--shadow-lg)}
+dialog::backdrop{background:rgba(10,12,16,.34)}
+dialog h2{font-size:16px;font-weight:600;color:var(--ink);margin:0 0 8px}
+dialog p{color:var(--muted);font-size:13px;margin:0 0 18px}
+dialog .acts{display:flex;justify-content:flex-end;gap:8px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 8 12 3 3 8v8l9 5 9-5z"/><path d="m3 8 9 5 9-5M12 13v8"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></symbol>
+    <symbol id="i-laptop" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="11" rx="1.5"/><path d="M2 19h20"/></symbol>
+    <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l3-7 4 14 3-7h4"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.9-3M4 4v4h4M4 13a8 8 0 0 0 14.9 3M20 20v-4h-4"/></symbol>
+    <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-chev-l" viewBox="0 0 24 24"><path d="m15 6-6 6 6 6"/></symbol>
+    <symbol id="i-sort" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h8"/></symbol>
+    <symbol id="i-ext" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+    <symbol id="i-code" viewBox="0 0 24 24"><path d="m8 8-5 4 5 4M16 8l5 4-5 4M14 5l-4 14"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a1 1 0 0 1 1-1h5l2 2h8a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="9" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0M16 6.2a3.2 3.2 0 0 1 0 5.6M21 20a6 6 0 0 0-4-5.6"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8v.01"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3 2 20h20z"/><path d="M12 10v5M12 17.5v.01"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5v14l12-7z"/></symbol>
+    <symbol id="i-back" viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></symbol>
+    <symbol id="i-panel" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V7z"/><path d="M14 3v4h4"/></symbol>
+  </defs>
+</svg>
+
+<div class="deck" id="deck" data-conn="on">
+  <header class="titlebar">
+    <div class="brand"><span class="mark"></span>Packman</div>
+    <span class="crumb" id="crumb">Applications</span>
+    <span class="grow"></span>
+    <button class="conn" id="conn" type="button" aria-label="Connection status">
+      <span class="on"><span class="dot"></span>connected · contoso.onmicrosoft.com</span>
+      <span class="off"><span class="dot"></span>not connected <b>sign in</b></span>
+    </button>
+    <div class="wctl" aria-hidden="true">
+      <span><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M2 6h8"/></svg></span>
+      <span><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="2.5" y="2.5" width="7" height="7" rx="1"/></svg></span>
+      <span><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M3 3l6 6M9 3 3 9"/></svg></span>
+    </div>
+  </header>
+
+  <div class="cmdbar">
+    <div class="cmd" id="cmd-input" role="combobox" aria-expanded="false" aria-label="Command palette" tabindex="0">
+      <svg class="i sm"><use href="#i-search"/></svg>
+      <span class="ph">Type a command or search…</span>
+      <kbd class="kbd">Ctrl K</kbd>
+    </div>
+    <span class="grow"></span>
+    <button class="qbtn" data-cmd="create"><svg class="i sm"><use href="#i-plus"/></svg>New package<kbd class="kbd">Ctrl N</kbd></button>
+    <button class="qbtn" id="q-refresh"><svg class="i sm"><use href="#i-refresh"/></svg>Refresh<kbd class="kbd">R</kbd></button>
+  </div>
+
+  <div class="workspace">
+    <main class="page" id="page">
+
+<!-- ===================== APPLICATIONS ===================== -->
+<section data-screen="applications" data-title="Applications" data-nav="applications">
+  <div class="frame" id="frame-apps">
+    <div class="main">
+      <header class="ph">
+        <div class="ph-t">
+          <div class="ph-txt"><h1>Applications</h1><p class="sub">Browse and manage Win32 applications in Microsoft Intune</p></div>
+          <div class="ph-a"><button class="btn" data-pane-toggle aria-pressed="true"><svg class="i sm"><use href="#i-panel"/></svg>Details</button></div>
+        </div>
+        <div class="toolbar">
+          <div class="search"><svg class="i sm"><use href="#i-search"/></svg><input id="search" type="search" placeholder="Filter by name, publisher or version" aria-label="Filter applications" autocomplete="off"><kbd class="kbd">/</kbd></div>
+          <span class="grow"></span>
+          <span class="meta" id="refreshed">synced 14:32</span>
+          <button class="btn" id="refresh"><svg class="i sm"><use href="#i-refresh"/></svg>Refresh</button>
+        </div>
+      </header>
+      <div class="banner bad" id="apps-error" hidden>
+        <svg class="i sm"><use href="#i-alert"/></svg>
+        <div class="grow"><b>Couldn’t refresh the list.</b> Microsoft Graph didn’t answer within 30 seconds. Showing the list from 14:32.</div>
+        <button class="link" id="retry">Try again</button>
+      </div>
+      <div class="body">
+        <div class="tablewrap" id="apps-wrap">
+          <table class="apps" aria-label="Applications">
+            <colgroup><col style="width:40%"><col style="width:27%"><col style="width:15%"><col style="width:18%"></colgroup>
+            <thead><tr>
+              <th aria-sort="ascending"><button data-sort="name">name <svg class="i sm"><use href="#i-sort"/></svg></button></th>
+              <th>publisher</th>
+              <th>version</th>
+              <th><button data-sort="updated">updated <svg class="i sm"><use href="#i-sort"/></svg></button></th>
+            </tr></thead>
+            <tbody id="apps-body"></tbody>
+          </table>
+          <div class="empty" id="apps-empty" hidden>
+            <div class="ic"><svg class="i"><use href="#i-search"/></svg></div>
+            <h2>No applications to show</h2>
+            <p id="apps-empty-text">Nothing matches your search.</p>
+            <button class="btn" id="clear-search">Clear search</button>
+          </div>
+          <div class="empty" id="apps-offline" hidden>
+            <div class="ic"><svg class="i"><use href="#i-laptop"/></svg></div>
+            <h2>Not connected to Microsoft Intune</h2>
+            <p>Sign in to browse the applications in your tenant.</p>
+            <button class="btn primary" data-signin>Sign in</button>
+          </div>
+        </div>
+        <div class="pager" id="apps-foot">
+          <span id="range">1–10 of 26</span>
+          <span id="pagedisp">Page 1 of 3</span>
+          <span class="grow"></span>
+          <button class="btn mini" id="prev"><svg class="i sm"><use href="#i-chev-l"/></svg>Previous</button>
+          <button class="btn mini" id="next">Next<svg class="i sm"><use href="#i-chev-r"/></svg></button>
+        </div>
+      </div>
+    </div>
+    <aside class="rail" aria-label="Selected application">
+      <div class="block" id="rail-body">
+        <h3>selected application</h3>
+        <div style="display:flex;gap:11px;align-items:center">
+          <div class="tile lg" id="r-tile">C</div>
+          <div style="min-width:0"><div style="font-weight:600;color:var(--ink)" id="r-name">Contoso Reader</div><div class="muted" id="r-pub">Contoso</div></div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin:13px 0 12px" id="r-chips"></div>
+        <dl class="kv" id="r-kv"></dl>
+        <a class="btn primary" style="margin-top:15px;width:100%" href="#application-detail">Open detail</a>
+      </div>
+      <div class="block" id="rail-empty" hidden>
+        <h3>selected application</h3>
+        <p class="muted" style="font-size:12.5px">Select a row to see its details here, or double-click to open it.</p>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ===================== APPLICATION DETAIL ===================== -->
+<section data-screen="application-detail" data-title="Application detail" data-nav="applications">
+  <div class="frame" id="frame-detail">
+    <div class="main">
+      <header class="ph">
+        <div class="ph-t">
+          <div class="ph-txt">
+            <div class="crumbs"><a href="#applications">applications</a><svg class="i sm"><use href="#i-chev-r"/></svg><span id="d-crumb">Contoso Reader</span></div>
+            <div class="ph-lead">
+              <div class="tile lg" id="d-tile">C</div>
+              <div><h1 id="d-name">Contoso Reader</h1><p class="sub" id="d-meta">Contoso · v4.2.0 · System context · Win32</p></div>
+            </div>
+          </div>
+          <div class="ph-a">
+            <button class="btn" data-pane-toggle aria-pressed="true"><svg class="i sm"><use href="#i-panel"/></svg>Details</button>
+            <button class="btn" id="republish" data-needs-conn><svg class="i sm"><use href="#i-refresh"/></svg>Republish content</button>
+            <a class="btn" href="#edit-script" data-from="applications"><svg class="i sm"><use href="#i-code"/></svg>Edit script</a>
+          </div>
+        </div>
+        <div class="strip" role="tablist">
+          <button class="tab" role="tab" aria-selected="true" data-tab="overview">Overview</button>
+          <button class="tab" role="tab" aria-selected="false" data-tab="package">Package</button>
+          <button class="tab" role="tab" aria-selected="false" data-tab="deployment">Deployment</button>
+        </div>
+      </header>
+      <div class="body" id="detail-body">
+        <div class="stack" data-panel="overview">
+          <div class="sec">
+            <h2>application information</h2>
+            <dl class="kv" id="d-info"></dl>
+          </div>
+          <div class="sec">
+            <h2>description</h2>
+            <p id="d-desc" style="max-width:640px;color:var(--text)"></p>
+          </div>
+          <div class="sec">
+            <h2>assignments <span class="push"><button class="link" data-goto-tab="deployment">Manage in Deployment</button></span></h2>
+            <div class="list">
+              <div><div class="tile"><svg class="i sm"><use href="#i-users"/></svg></div><div class="grow">Workplace engineering — Windows application pilot devices</div><span class="chip ok">Required</span></div>
+              <div><div class="tile"><svg class="i sm"><use href="#i-users"/></svg></div><div class="grow">All corporate Windows laptops</div><span class="chip">Available</span></div>
+            </div>
+          </div>
+          <div class="danger-zone">
+            <div class="grow"><h2>Delete application</h2><p>Permanently deletes this app and its assignments from Intune. Installed copies stay on devices; use an Uninstall assignment to remove them.</p></div>
+            <button class="btn danger" id="delete" data-needs-conn><svg class="i sm"><use href="#i-trash"/></svg>Delete from Intune</button>
+          </div>
+        </div>
+
+        <div class="stack" data-panel="package" hidden>
+          <div class="sec">
+            <h2>package contents <span class="push"><small>PSADT v4 template</small></span></h2>
+            <dl class="kv">
+              <div><dt>Content file</dt><dd class="mono">ContosoReader-4.2.0.intunewin</dd></div>
+              <div><dt>Package folder</dt><dd class="mono">\\fs01\packages\Contoso\Reader\4.2.0</dd></div>
+              <div><dt>Encrypted size</dt><dd>48.2 MB</dd></div>
+              <div><dt>Install context</dt><dd>System</dd></div>
+              <div><dt>Signed</dt><dd><span class="chip ok"><span class="d"></span>Script signed · Contoso Code Signing</span></dd></div>
+            </dl>
+          </div>
+          <div class="sec">
+            <h2>files <span class="push"><a class="link" href="#edit-script" data-from="applications">Edit script</a></span></h2>
+            <div class="list">
+              <div><svg class="i sm muted"><use href="#i-file"/></svg><span class="grow mono">Invoke-AppDeployToolkit.ps1</span><span class="muted2 mono">14 KB</span></div>
+              <div><svg class="i sm muted"><use href="#i-folder"/></svg><span class="grow mono">Files\ContosoReader-4.2.0-x64.msi</span><span class="muted2 mono">46.9 MB</span></div>
+              <div><svg class="i sm muted"><use href="#i-folder"/></svg><span class="grow mono">Config\config.psd1</span><span class="muted2 mono">3 KB</span></div>
+              <div><svg class="i sm muted"><use href="#i-folder"/></svg><span class="grow mono">Strings\strings.psd1</span><span class="muted2 mono">9 KB</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="stack" data-panel="deployment" hidden>
+          <div class="sec">
+            <h2>command lines</h2>
+            <div style="display:grid;gap:12px">
+              <div><label class="fl">Install command</label><div class="cmd"><div class="code">Invoke-AppDeployToolkit.exe Install -DeployMode Silent</div><button class="btn" data-copy="Install command">Copy</button></div></div>
+              <div><label class="fl">Uninstall command</label><div class="cmd"><div class="code">Invoke-AppDeployToolkit.exe Uninstall -DeployMode Silent</div><button class="btn" data-copy="Uninstall command">Copy</button></div></div>
+            </div>
+          </div>
+          <div class="sec">
+            <h2>detection rules <span class="push"><small>1 rule</small><select class="field" style="width:104px;height:30px" aria-label="Rule type"><option>MSI</option><option>File</option><option>Registry</option></select><button class="btn mini" data-needs-conn data-toast="Detection rule added — written to Intune"><svg class="i sm"><use href="#i-plus"/></svg>Add rule</button></span></h2>
+            <div class="rule-row"><span class="tag">FILE</span><span class="grow mono">%ProgramFiles%\Contoso Reader\Reader.exe · version ≥ 4.2.0</span><button class="btn icon" aria-label="Edit rule" data-needs-conn data-toast="Rule editor opened"><svg class="i sm"><use href="#i-edit"/></svg></button><button class="btn icon" aria-label="Delete rule" data-needs-conn data-toast="Rule removed — written to Intune"><svg class="i sm"><use href="#i-trash"/></svg></button></div>
+            <p class="help">Saving patches the app in Intune; devices re-evaluate detection at their next check-in.</p>
+          </div>
+          <div class="sec">
+            <h2>requirements</h2>
+            <div class="tiles">
+              <div class="wide"><small>Minimum Windows release</small><b>Windows 11 22H2</b></div>
+              <div><small>Install context</small><b>System</b></div><div><small>Restart behavior</small><b>By return code</b></div>
+              <div><small>Maximum install time</small><b>60 min</b></div><div><small>Disk space</small><b>500 MB</b></div>
+            </div>
+          </div>
+          <div class="sec">
+            <h2>assignment groups <span class="push"><small>click a group to manage members</small></span></h2>
+            <div class="list">
+              <div><div class="tile"><svg class="i sm"><use href="#i-users"/></svg></div><div class="grow">Workplace engineering — Windows application pilot devices</div><span class="chip ok">Required</span><button class="btn icon" aria-label="Remove group" data-needs-conn data-toast="Group removed — written to Intune"><svg class="i sm"><use href="#i-x"/></svg></button></div>
+              <div><div class="tile"><svg class="i sm"><use href="#i-users"/></svg></div><div class="grow">All corporate Windows laptops</div><span class="chip">Available</span><button class="btn icon" aria-label="Remove group" data-needs-conn data-toast="Group removed — written to Intune"><svg class="i sm"><use href="#i-x"/></svg></button></div>
+            </div>
+            <div style="display:flex;gap:8px;margin-top:12px"><button class="btn" data-needs-conn data-toast="Group picker opened"><svg class="i sm"><use href="#i-plus"/></svg>Add group</button><button class="btn primary" data-needs-conn data-toast="Assignments saved to Intune">Save assignments</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <aside class="rail" aria-label="Deployment and publishing">
+      <div class="block">
+        <h3>deployment status</h3>
+        <div><div class="muted2" style="font-size:12px">Targeted devices</div><div class="big" id="s-total">120</div></div>
+        <div class="bar" id="s-bar"></div>
+        <div class="legend" id="s-legend"></div>
+        <p class="help when-off" style="margin-top:12px">Not connected. Figures are from the last sync (Oct 27, 14:32). <button class="link" data-signin>Sign in</button> to make changes.</p>
+      </div>
+      <div class="block">
+        <h3>intune publishing</h3>
+        <dl class="kv">
+          <div><dt>State</dt><dd><span class="chip ok">Published</span></dd></div>
+          <div><dt>App ID</dt><dd><span class="mono" id="s-id">3f9c61a2</span><button class="btn icon" style="min-height:26px;width:26px" aria-label="Copy app ID" data-copy="App ID"><svg class="i sm"><use href="#i-copy"/></svg></button></dd></div>
+          <div><dt>Created</dt><dd>Sep 2, 2026</dd></div>
+          <div><dt>Published</dt><dd id="s-pub">Oct 24, 2026</dd></div>
+        </dl>
+        <button class="btn primary" style="margin-top:14px;width:100%" data-toast="Opening Intune in your browser…"><svg class="i sm"><use href="#i-ext"/></svg>View in Intune</button>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ===================== EDIT SCRIPT ===================== -->
+<section data-screen="edit-script" data-title="Edit script" data-nav="applications">
+  <div class="frame no-rail">
+    <div class="main">
+      <header class="ph">
+        <div class="ph-t">
+          <div class="ph-txt">
+            <div class="crumbs"><a href="#applications" id="es-back-1">applications</a><svg class="i sm"><use href="#i-chev-r"/></svg><span>Edit script</span></div>
+            <h1>Edit script</h1><p class="sub">Contoso Reader 4.2.0 · Invoke-AppDeployToolkit.ps1</p>
+          </div>
+          <div class="ph-a"><span class="chip warn" id="es-dirty" hidden><span class="d"></span>Unsaved changes</span><button class="btn primary" id="es-save">Save</button></div>
+        </div>
+      </header>
+      <div class="body" style="padding-top:16px">
+        <div class="editor" style="height:100%">
+          <div class="files">
+            <p>package</p>
+            <button aria-current="true"><svg class="i sm"><use href="#i-file"/></svg>Invoke-AppDeployToolkit.ps1</button>
+            <button><svg class="i sm"><use href="#i-file"/></svg>config.psd1</button>
+            <button><svg class="i sm"><use href="#i-file"/></svg>strings.psd1</button>
+          </div>
+<pre id="es-code" contenteditable="true" spellcheck="false" aria-label="Script editor"><span><i class="c"># Contoso Reader 4.2.0 · PSADT v4</i></span><span><i class="k">$adtSession</i> = @{</span><span>    AppVendor = <i class="s">'Contoso'</i></span><span>    AppName = <i class="s">'Reader'</i></span><span>    AppVersion = <i class="s">'4.2.0'</i></span><span>    AppArch = <i class="s">'x64'</i></span><span>    AppScriptDate = <i class="s">'2026-10-24'</i></span><span>}</span><span></span><span><i class="k">function</i> <i class="v">Install-ADTDeployment</i></span><span>{</span><span>    <i class="c">## Pre-install</i></span><span>    <i class="v">Show-ADTInstallationWelcome</i> -CloseProcesses <i class="s">'Reader'</i> -CheckDiskSpace</span><span>    <i class="c">## Install</i></span><span>    <i class="v">Start-ADTMsiProcess</i> -Action Install -FilePath <i class="s">'ContosoReader-4.2.0-x64.msi'</i></span><span>}</span></pre>
+        </div>
+      </div>
+      <footer class="pf"><span class="hint l">Ctrl S saves the active file</span><a class="btn" href="#application-detail"><svg class="i sm"><use href="#i-back"/></svg>Back to package</a></footer>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== CREATE ===================== -->
+<section data-screen="create" data-title="Create package" data-nav="create">
+  <div class="frame" id="frame-create">
+    <div class="main">
+      <header class="ph">
+        <div class="ph-t">
+          <div class="ph-txt"><h1>Create package</h1><p class="sub">Prepare, test and publish a PSADT application to Microsoft Intune</p></div>
+          <div class="ph-a"><span class="meta" id="pkg-state">no package yet</span><button class="btn" data-pane-toggle aria-pressed="true"><svg class="i sm"><use href="#i-panel"/></svg>Details</button></div>
+        </div>
+        <div class="stepper" id="stepper">
+          <button class="step" data-step="1" aria-current="step"><i>1</i><em>Package</em></button>
+          <button class="step" data-step="2"><i>2</i><em>Configure</em></button>
+          <button class="step" data-step="3"><i>3</i><em>Review &amp; publish</em></button>
+        </div>
+      </header>
+      <div class="body" id="create-body">
+        <div class="stack" data-step-panel="1">
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px">
+            <div class="seg" role="group" aria-label="Package mode"><button aria-pressed="true" data-mode="new">Create new</button><button aria-pressed="false" data-mode="upgrade">Upgrade existing</button></div>
+            <span class="muted">Already have a built package? <a class="link" href="#upload">Upload it directly</a></span>
+          </div>
+          <div class="sec">
+            <h2>start with your installer</h2>
+            <p class="lead">Choose the source first. Review the detected details before generating your package.</p>
+            <div class="box"><div class="grid2">
+              <div class="span"><label class="fl" for="src">Source installer <b>*</b></label><div class="row-field"><input class="field mono" id="src" value="C:\Sources\ContosoReader-4.2.0-x64.msi"><button class="btn" data-toast="File picker opened"><svg class="i sm"><use href="#i-folder"/></svg>Browse…</button></div><p class="help">Drop an MSI or EXE here — metadata, icon and product code are read automatically.</p></div>
+              <div><label class="fl" for="mf">Manufacturer <b>*</b></label><input class="field" id="mf" value="Contoso"></div>
+              <div><label class="fl" for="an">Application name <b>*</b></label><input class="field" id="an" value="Contoso Reader"></div>
+              <div><label class="fl" for="vr">Version <b>*</b></label><input class="field mono" id="vr" value="4.2.0"></div>
+              <div><label class="fl" for="ar">Architecture</label><select class="field" id="ar"><option>x64</option><option>x86</option><option>arm64</option></select></div>
+              <div class="span"><label class="fl" for="os">Output share</label><input class="field mono" id="os" value="\\fs01\packages\Contoso\Reader\4.2.0"></div>
+            </div></div>
+          </div>
+          <div class="callout ok" id="generated" hidden>
+            <svg class="i"><use href="#i-check"/></svg>
+            <div class="grow"><b>Package generated.</b> 14 files written to the share. Test it on a device before configuring Intune.</div>
+            <div style="display:flex;gap:14px;align-items:center"><a class="link" href="#edit-script" data-from="create">Edit script</a><a class="link" href="#remote-test">Remote test</a><button class="link" data-toast="Opened \\fs01\packages\Contoso\Reader\4.2.0">Open folder</button></div>
+          </div>
+        </div>
+
+        <div class="stack" data-step-panel="2" hidden>
+          <div class="sec">
+            <h2>command lines <span class="push"><small>from Settings › Intune defaults</small></span></h2>
+            <div style="display:grid;gap:12px">
+              <div><label class="fl">Install command</label><div class="cmd"><input class="field mono" value="Invoke-AppDeployToolkit.exe Install -DeployMode Silent"><button class="btn" data-copy="Install command">Copy</button></div></div>
+              <div><label class="fl">Uninstall command</label><div class="cmd"><input class="field mono" value="Invoke-AppDeployToolkit.exe Uninstall -DeployMode Silent"><button class="btn" data-copy="Uninstall command">Copy</button></div></div>
+              <div class="grid2"><div><label class="fl" for="ctx">Install context</label><select class="field" id="ctx"><option>System</option><option>User</option></select></div><div><label class="fl" for="dm">Deploy mode</label><select class="field" id="dm"><option>Silent</option><option>NonInteractive</option><option>Interactive</option></select></div></div>
+            </div>
+          </div>
+          <div class="sec">
+            <h2>detection rule</h2>
+            <div class="rule-row"><span class="tag">MSI</span><span class="grow mono">{8E6A21C4-3B7D-4F10-9A52-6C1D0E7B94F3} · version ≥ 4.2.0</span><button class="btn icon" aria-label="Edit rule" data-toast="Rule editor opened"><svg class="i sm"><use href="#i-edit"/></svg></button></div>
+          </div>
+          <div class="sec">
+            <h2>requirements</h2>
+            <div class="tiles"><div class="wide"><small>Minimum Windows release</small><b>Windows 11 22H2</b></div><div><small>Maximum install time</small><b>60 min</b></div><div><small>Disk space</small><b>500 MB</b></div></div>
+          </div>
+          <div class="sec">
+            <h2>return codes</h2>
+            <div class="list"><div><span class="mono" style="width:48px">0</span><span class="grow">Success</span></div><div><span class="mono" style="width:48px">1707</span><span class="grow">Success</span></div><div><span class="mono" style="width:48px">3010</span><span class="grow">Soft reboot</span></div><div><span class="mono" style="width:48px">1641</span><span class="grow">Hard reboot</span></div><div><span class="mono" style="width:48px">1618</span><span class="grow">Retry</span></div></div>
+          </div>
+          <div class="sec">
+            <h2>assignments</h2>
+            <div class="list"><div><div class="tile"><svg class="i sm"><use href="#i-users"/></svg></div><div class="grow">Workplace engineering — Windows application pilot devices</div><span class="chip ok">Required</span></div></div>
+          </div>
+        </div>
+
+        <div class="stack" data-step-panel="3" hidden>
+          <div class="sec">
+            <h2>what will be sent to Intune</h2>
+            <dl class="kv">
+              <div><dt>Application</dt><dd>Contoso Reader 4.2.0 (x64)</dd></div>
+              <div><dt>Publisher</dt><dd>Contoso</dd></div>
+              <div><dt>Install command</dt><dd class="mono">Invoke-AppDeployToolkit.exe Install -DeployMode Silent</dd></div>
+              <div><dt>Detection</dt><dd class="mono">MSI product code · version ≥ 4.2.0</dd></div>
+              <div><dt>Assignment</dt><dd>1 group · Required</dd></div>
+            </dl>
+          </div>
+          <div class="callout info when-off"><svg class="i"><use href="#i-info"/></svg><div class="grow"><b>Sign in to publish.</b> Publish to Intune stays off until a tenant is connected. Nothing has been uploaded.</div><button class="btn mini" data-signin>Sign in</button></div>
+          <div class="sec" id="pub-run" hidden>
+            <h2>publishing</h2>
+            <div style="display:grid;gap:12px"><div class="progress"><i id="pub-bar"></i></div><div class="steps-pub" id="pub-steps"></div></div>
+          </div>
+        </div>
+      </div>
+      <footer class="pf">
+        <button class="btn" id="c-back" disabled><svg class="i sm"><use href="#i-back"/></svg>Back</button>
+        <span class="hint" id="c-hint">Creates files on your share. Nothing is uploaded yet.</span>
+        <button class="btn primary" id="c-next">Generate package</button>
+      </footer>
+    </div>
+    <aside class="rail" aria-label="Package preview">
+      <div class="block"><h3>package preview</h3><p class="muted2" style="font-size:12px">PSADT v4 · Win32 application</p></div>
+      <div class="block" style="padding-top:0">
+        <dl class="kv">
+          <div><dt>Application</dt><dd id="pv-app">Contoso Reader</dd></div>
+          <div><dt>Publisher</dt><dd id="pv-pub">Contoso</dd></div>
+          <div><dt>Version</dt><dd class="mono" id="pv-ver">4.2.0</dd></div>
+          <div><dt>Installer</dt><dd>MSI</dd></div>
+          <div><dt>Product code</dt><dd class="mono">{8E6A21C4…94F3}</dd></div>
+        </dl>
+      </div>
+      <div class="block">
+        <h3>readiness</h3>
+        <div class="legend">
+          <div><span class="sw" style="background:var(--ok)"></span>Installer<b>found</b></div>
+          <div><span class="sw" style="background:var(--ok)"></span>Output share<b>writable</b></div>
+          <div><span class="sw" style="background:var(--ok)"></span>PSADT template<b>v4.0.6</b></div>
+          <div><span class="sw" style="background:var(--muted-2)" id="rd-dot"></span>Intune connection<b id="rd-conn">connected</b></div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</section>
+
+<!-- ===================== UPLOAD ===================== -->
+<section data-screen="upload" data-title="Upload to Intune" data-nav="upload">
+  <div class="frame">
+    <div class="main">
+      <header class="ph">
+        <div class="ph-t">
+          <div class="ph-txt"><h1>Upload to Intune</h1><p class="sub">Publish a package that is already built on your share</p></div>
+          <div class="ph-a"><button class="btn" data-pane-toggle aria-pressed="true"><svg class="i sm"><use href="#i-panel"/></svg>Details</button></div>
+        </div>
+      </header>
+      <div class="body">
+        <div class="stack">
+          <div class="sec">
+            <h2>package from share <span class="push"><small>\\fs01\packages</small></span></h2>
+            <div class="list" id="up-list">
+              <label class="pick"><input type="radio" name="up" checked><div class="grow">Contoso Reader 4.2.0<small>\\fs01\packages\Contoso\Reader\4.2.0</small></div><span class="muted2">Built Oct 24</span></label>
+              <label class="pick"><input type="radio" name="up"><div class="grow">7-Zip 24.09<small>\\fs01\packages\Igor Pavlov\7-Zip\24.09</small></div><span class="muted2">Built Oct 21</span></label>
+              <label class="pick"><input type="radio" name="up"><div class="grow">Notepad++ 8.7.4<small>\\fs01\packages\Notepad++ Team\Notepad++\8.7.4</small></div><span class="muted2">Built Oct 18</span></label>
+            </div>
+          </div>
+          <div class="sec">
+            <h2>command lines</h2>
+            <div style="display:grid;gap:12px">
+              <div><label class="fl">Install command</label><div class="cmd"><input class="field mono" value="Invoke-AppDeployToolkit.exe Install -DeployMode Silent"><button class="btn" data-copy="Install command">Copy</button></div></div>
+              <div><label class="fl">Uninstall command</label><div class="cmd"><input class="field mono" value="Invoke-AppDeployToolkit.exe Uninstall -DeployMode Silent"><button class="btn" data-copy="Uninstall command">Copy</button></div></div>
+            </div>
+          </div>
+          <div class="sec">
+            <h2>detection rules <span class="push"><small>1 rule</small><button class="btn mini" data-toast="Detection rule added"><svg class="i sm"><use href="#i-plus"/></svg>Add rule</button></span></h2>
+            <div class="rule-row"><span class="tag">MSI</span><span class="grow mono">{8E6A21C4-3B7D-4F10-9A52-6C1D0E7B94F3} · version ≥ 4.2.0</span><button class="btn icon" aria-label="Delete rule" data-toast="Rule removed"><svg class="i sm"><use href="#i-trash"/></svg></button></div>
+          </div>
+          <div class="sec">
+            <h2>requirements</h2>
+            <div class="tiles"><div class="wide"><small>Minimum Windows release</small><b>Windows 11 22H2</b></div><div><small>Maximum install time</small><b>60 min</b></div><div><small>Disk space</small><b>500 MB</b></div></div>
+          </div>
+        </div>
+      </div>
+      <footer class="pf"><span class="hint l">Uploads the package and creates the app in your tenant.</span><button class="btn primary" id="up-publish" data-needs-conn>Publish to Intune</button></footer>
+    </div>
+    <aside class="rail">
+      <div class="block"><h3>publish readiness</h3>
+        <div class="legend">
+          <div><span class="sw" style="background:var(--ok)"></span>Package folder<b>valid</b></div>
+          <div><span class="sw" style="background:var(--ok)"></span>Launcher &amp; manifest<b>checked</b></div>
+          <div><span class="sw" style="background:var(--ok)"></span>Code signing<b>on</b></div>
+          <div><span class="sw" style="background:var(--muted-2)"></span>Intune connection<b class="rd2-t">connected</b></div>
+        </div>
+      </div>
+      <p class="help when-off" style="padding:0 18px 16px">Sign in on the Settings page to publish. <button class="link" data-signin>Sign in</button></p>
+    </aside>
+  </div>
+</section>
+
+<!-- ===================== REMOTE TEST ===================== -->
+<section data-screen="remote-test" data-title="Remote test" data-nav="remote-test">
+  <div class="frame">
+    <div class="main">
+      <header class="ph">
+        <div class="ph-t">
+          <div class="ph-txt"><h1>Remote test</h1><p class="sub">Run the package on a device you choose, before it goes anywhere near Intune</p></div>
+          <div class="ph-a"><button class="btn" data-pane-toggle aria-pressed="true"><svg class="i sm"><use href="#i-panel"/></svg>Details</button></div>
+        </div>
+      </header>
+      <div class="body">
+        <div class="stack">
+          <div class="box"><div class="grid2">
+            <div class="span"><label class="fl" for="rt-folder">Package folder</label><div class="row-field"><input class="field mono" id="rt-folder" value="\\fs01\packages\Contoso\Reader\4.2.0"><button class="btn" data-toast="Folder picker opened"><svg class="i sm"><use href="#i-folder"/></svg>Browse…</button></div></div>
+            <div><label class="fl" for="rt-pc">Computer</label><select class="field" id="rt-pc"><option>WS-TEST-014</option><option>WS-TEST-022</option><option>VM-WIN11-PILOT</option></select></div>
+            <div><label class="fl">Context</label><div class="seg" role="group"><button aria-pressed="true">System</button><button aria-pressed="false">User</button></div></div>
+            <div><label class="fl" for="rt-mode">Deploy mode</label><select class="field" id="rt-mode"><option>Interactive</option><option>Silent</option><option>NonInteractive</option></select></div>
+            <div><label class="fl">Action</label><div class="seg" id="rt-action" role="group"><button aria-pressed="true">Install</button><button aria-pressed="false">Uninstall</button><button aria-pressed="false">Repair</button></div></div>
+          </div></div>
+          <div class="sec" style="margin-top:22px">
+            <h2>live output <span class="push"><button class="btn mini" id="rt-run"><svg class="i sm"><use href="#i-play"/></svg>Run test</button></span></h2>
+            <div class="output" id="rt-out"><span class="dim">Output appears here once a test starts.</span></div>
+          </div>
+        </div>
+      </div>
+      <footer class="pf"><span class="hint l">Tests run on the device only. Nothing is uploaded to Intune.</span><a class="btn primary" href="#create" data-step-go="2">Continue to configure</a></footer>
+    </div>
+    <aside class="rail">
+      <div class="block"><h3>test session</h3>
+        <dl class="kv">
+          <div><dt>Status</dt><dd><span class="chip" id="rt-status">Idle</span></dd></div>
+          <div><dt>Computer</dt><dd class="mono" id="rt-pcv">WS-TEST-014</dd></div>
+          <div><dt>Last run</dt><dd>Oct 26, 16:48</dd></div>
+          <div><dt>Exit code</dt><dd class="mono" id="rt-exit">0</dd></div>
+        </dl>
+      </div>
+      <p class="help" style="padding:0 18px 16px">Attended tests may show prompts. Intune installs run unattended, so confirm the Silent mode before publishing.</p>
+    </aside>
+  </div>
+</section>
+
+<!-- ===================== ADVANCED ===================== -->
+<section data-screen="advanced" data-title="Advanced" data-nav="advanced">
+  <div class="frame">
+    <div class="main">
+      <header class="ph">
+        <div class="ph-t">
+          <div class="ph-txt"><h1>Advanced</h1><p class="sub">Directory tools for Microsoft Entra ID groups and devices</p></div>
+          <div class="ph-a"><button class="btn" data-pane-toggle aria-pressed="true"><svg class="i sm"><use href="#i-panel"/></svg>Details</button></div>
+        </div>
+        <div class="strip" role="tablist">
+          <button class="tab" role="tab" aria-selected="true" data-adv="bulk">Bulk add PCs to group</button>
+          <button class="tab" role="tab" aria-selected="false" data-adv="members">PC group membership</button>
+          <button class="tab" role="tab" aria-selected="false" data-adv="apps">Apps assigned to group</button>
+        </div>
+      </header>
+      <div class="body">
+        <div class="stack" data-adv-panel="bulk">
+          <div class="when-off empty"><div class="ic"><svg class="i"><use href="#i-list"/></svg></div><h2>Not connected to Microsoft Intune</h2><p>Sign in on the Settings page to use the directory actions.</p><button class="btn primary" data-signin>Sign in</button></div>
+          <div class="when-on">
+            <div style="margin-bottom:16px"><label class="fl" for="bg">Target group</label><input class="field" id="bg" value="Pilot — Windows 11 devices"><p class="help"><span class="chip ok"><span class="d"></span>Group found</span>&nbsp; 48 members · Assigned</p></div>
+            <div style="margin-bottom:16px"><label class="fl" for="pcs">PC names</label><textarea class="field mono" id="pcs" rows="5">WS-TEST-014
+WS-TEST-022
+WS-FIN-0310, WS-FIN-0311
+WS-HR-0027</textarea><p class="help">One name per line, or separated by commas, semicolons or spaces. <span id="pcn">5 names</span> · Only direct group membership is changed.</p></div>
+            <div><button class="btn primary" id="bulk-run">Add to group</button></div>
+            <div class="sec" id="bulk-res" hidden style="margin-top:22px"><h2>results</h2><div class="list">
+              <div><span class="grow mono">WS-TEST-014</span><span class="chip ok">Added</span></div>
+              <div><span class="grow mono">WS-TEST-022</span><span class="chip">Already a member</span></div>
+              <div><span class="grow mono">WS-FIN-0310</span><span class="chip ok">Added</span></div>
+              <div><span class="grow mono">WS-FIN-0311</span><span class="chip ok">Added</span></div>
+              <div><span class="grow mono">WS-HR-0027</span><span class="chip bad">Not found</span><span class="muted">No device with this name in Entra ID</span></div>
+            </div></div>
+          </div>
+        </div>
+        <div class="stack" data-adv-panel="members" hidden>
+          <div class="search" style="width:360px;margin-bottom:16px"><svg class="i sm"><use href="#i-search"/></svg><input class="field" placeholder="Search PC names…" aria-label="Search PC names" style="border:none;background:none;flex:1;outline:none"></div>
+          <div class="list">
+            <div><div class="tile"><svg class="i sm"><use href="#i-laptop"/></svg></div><div class="grow">WS-TEST-014<small>Windows 11 Enterprise 23H2 · last seen today</small></div><span class="chip ok">Compliant</span></div>
+            <div><div class="tile"><svg class="i sm"><use href="#i-laptop"/></svg></div><div class="grow">WS-FIN-0310<small>Windows 11 Enterprise 23H2 · last seen yesterday</small></div><span class="chip ok">Compliant</span></div>
+          </div>
+          <div class="sec" style="margin-top:22px"><h2>member of</h2><div class="list">
+            <div><div class="grow">Pilot — Windows 11 devices<small>Pilot ring for new packages</small></div><span class="chip">Assigned</span></div>
+            <div><div class="grow">All corporate Windows laptops<small>Dynamic rule: device.deviceOwnership -eq "Company"</small></div><span class="chip">Dynamic</span></div>
+          </div></div>
+        </div>
+        <div class="stack" data-adv-panel="apps" hidden>
+          <div class="search" style="width:360px;margin-bottom:16px"><svg class="i sm"><use href="#i-search"/></svg><input class="field" placeholder="Search Entra groups…" aria-label="Search Entra groups" style="border:none;background:none;flex:1;outline:none"></div>
+          <div class="sec"><h2>Pilot — Windows 11 devices <span class="push"><small>3 applications</small></span></h2><div class="list">
+            <div><div class="tile">C</div><div class="grow">Contoso Reader<small>Contoso · Win32</small></div><span class="chip ok">Required</span></div>
+            <div><div class="tile">7</div><div class="grow">7-Zip<small>Igor Pavlov · Win32</small></div><span class="chip">Available</span></div>
+            <div><div class="tile">N</div><div class="grow">Notepad++<small>Notepad++ Team · Win32</small></div><span class="chip">Available</span></div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+    <aside class="rail">
+      <div class="block"><h3>directory action</h3>
+        <dl class="kv"><div><dt>Directory</dt><dd>Microsoft Entra ID</dd></div><div><dt>Tenant</dt><dd class="when-on-i">contoso.onmicrosoft.com</dd></div><div><dt>Scope</dt><dd>Group.ReadWrite.All</dd></div></dl>
+      </div>
+      <p class="help" style="padding:0 18px 16px">Only direct group membership is changed. Dynamic groups are read-only.</p>
+    </aside>
+  </div>
+</section>
+
+<!-- ===================== SETTINGS ===================== -->
+<section data-screen="settings" data-title="Settings" data-nav="settings">
+  <div class="frame">
+    <div class="main">
+      <header class="ph">
+        <div class="ph-t">
+          <div class="ph-txt"><h1>Settings</h1><p class="sub">Connection, paths and defaults for new packages</p></div>
+          <div class="ph-a"><button class="btn" data-pane-toggle aria-pressed="true"><svg class="i sm"><use href="#i-panel"/></svg>Details</button></div>
+        </div>
+        <div class="strip" role="tablist" style="gap:22px">
+          <button class="tab" role="tab" aria-selected="true" data-set="auth">Authentication</button>
+          <button class="tab" role="tab" aria-selected="false" data-set="paths">Network paths</button>
+          <button class="tab" role="tab" aria-selected="false" data-set="defaults">Intune defaults</button>
+          <button class="tab" role="tab" aria-selected="false" data-set="groups">Group assignment</button>
+          <button class="tab" role="tab" aria-selected="false" data-set="sign">Code signing</button>
+          <button class="tab" role="tab" aria-selected="false" data-set="look">Appearance</button>
+        </div>
+      </header>
+      <div class="body">
+        <div class="stack" data-set-panel="auth">
+          <div class="box" style="margin-bottom:14px"><div class="grid2">
+            <div class="span"><label class="fl" for="tn">Tenant ID</label><input class="field mono" id="tn" value="b41e7d02-6c35-4a9f-8e12-5d07f3a1c9b6"></div>
+            <div class="span"><label class="fl" for="cid">Application (client) ID</label><input class="field mono" id="cid" value="9a02c5e7-31f4-4d68-b0a3-7e1c84d2f650"></div>
+            <div class="span"><label class="fl" for="cert">Certificate</label><select class="field" id="cert"><option>Packman Graph · thumbprint 4F2A…91C0 · expires Mar 14, 2027</option><option>Browse certificate store…</option></select><p class="help">The app registration signs in with this certificate. No secret is stored.</p></div>
+          </div></div>
+          <div style="display:flex;gap:8px;align-items:center"><button class="btn" id="test-conn">Test connection</button><button class="btn" data-signin id="auth-btn">Sign out</button><span class="muted" id="test-res"></span></div>
+        </div>
+        <div class="stack" data-set-panel="paths" hidden><div class="box"><div class="grid2">
+          <div class="span"><label class="fl">Package output share</label><input class="field mono" value="\\fs01\packages"></div>
+          <div class="span"><label class="fl">PSADT template folder</label><input class="field mono" value="C:\ProgramData\Packman\Templates\PSADT-4.0.6"></div>
+          <div class="span"><label class="fl">IntuneWinAppUtil path</label><input class="field mono" value="C:\ProgramData\Packman\Tools\IntuneWinAppUtil.exe"></div>
+        </div></div></div>
+        <div class="stack" data-set-panel="defaults" hidden><div class="box"><div class="grid2">
+          <div class="span"><label class="fl">Install command</label><input class="field mono" value="Invoke-AppDeployToolkit.exe Install -DeployMode Silent"></div>
+          <div class="span"><label class="fl">Uninstall command</label><input class="field mono" value="Invoke-AppDeployToolkit.exe Uninstall -DeployMode Silent"></div>
+          <div><label class="fl">Minimum Windows release</label><select class="field"><option>Windows 11 22H2</option><option>Windows 10 22H2</option></select></div>
+          <div><label class="fl">Maximum install time</label><select class="field"><option>60 minutes</option><option>120 minutes</option></select></div>
+        </div></div></div>
+        <div class="stack" data-set-panel="groups" hidden><div class="box" style="display:grid;gap:14px">
+          <label class="sw-toggle"><input type="checkbox" checked>Create a group per package</label>
+          <div><label class="fl">Group name pattern</label><input class="field mono" value="PKG – {Vendor} {Name} – {Intent}"></div>
+          <p class="help">Requires Group.ReadWrite.All on the app registration.</p>
+        </div></div>
+        <div class="stack" data-set-panel="sign" hidden><div class="box" style="display:grid;gap:14px">
+          <label class="sw-toggle"><input type="checkbox" checked>Sign the PSADT script before building</label>
+          <div><label class="fl">Signing certificate</label><select class="field"><option>Contoso Code Signing · expires Jan 9, 2028</option></select></div>
+          <p class="help">If signing fails, publishing stops before content is built or uploaded.</p>
+        </div></div>
+        <div class="stack" data-set-panel="look" hidden><div class="box" style="display:grid;gap:14px">
+          <div><label class="fl">Theme</label><div class="seg" id="theme-seg" role="group"><button data-theme-set="light" aria-pressed="true">Light</button><button data-theme-set="dark" aria-pressed="false">Dark</button><button data-theme-set="system" aria-pressed="false">System</button></div></div>
+        </div></div>
+      </div>
+      <footer class="pf"><span class="hint l" id="save-msg">All changes saved</span><button class="btn" data-toast="Settings reset to saved values">Reset</button><button class="btn primary" id="save-set">Save settings</button></footer>
+    </div>
+    <aside class="rail">
+      <div class="block"><h3>configuration status</h3>
+        <dl class="kv">
+          <div><dt>Tenant</dt><dd class="when-on-i">contoso.onmicrosoft.com</dd></div>
+          <div><dt>Permissions</dt><dd>DeviceManagementApps.ReadWrite.All</dd></div>
+          <div><dt>Certificate</dt><dd>Valid · 4 months left</dd></div>
+          <div><dt>Output share</dt><dd><span class="chip ok">Reachable</span></dd></div>
+        </dl>
+      </div>
+    </aside>
+  </div>
+</section>
+
+    </main>
+  </div>
+
+  <footer class="statusbar">
+    <span style="display:inline-flex;align-items:center;gap:7px"><span class="dot"></span><span id="sb-conn">contoso.onmicrosoft.com</span></span>
+    <span class="hint" id="sb-hint"><kbd class="kbd">↑↓</kbd> select <kbd class="kbd">⏎</kbd> open <kbd class="kbd">/</kbd> filter <kbd class="kbd">Ctrl K</kbd> commands</span>
+    <span>PSADT v4 · v1.1.0 · .NET 10.0.11</span>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"><svg class="i sm"><use href="#i-check"/></svg><span id="toast-t"></span></div>
+</div>
+
+<!-- ===================== COMMAND PALETTE ===================== -->
+<div class="palette" id="palette" aria-hidden="true">
+  <div class="panel">
+    <input id="pal-input" type="text" placeholder="Type a command…" autocomplete="off" spellcheck="false">
+    <div class="cmds" id="pal-cmds"></div>
+    <div class="foot">
+      <span><kbd class="kbd">↑↓</kbd> navigate</span>
+      <span><kbd class="kbd">⏎</kbd> run</span>
+      <span><kbd class="kbd">esc</kbd> close</span>
+    </div>
+  </div>
+</div>
+
+<dialog id="dlg"><form method="dialog">
+  <h2>Delete Contoso Reader from Intune?</h2>
+  <p>This removes the app and its 2 assignments from your tenant. Installed copies stay on devices. This can’t be undone.</p>
+  <div class="acts"><button class="btn" value="cancel">Cancel</button><button class="btn danger-fill" value="ok" id="dlg-ok"><svg class="i sm"><use href="#i-trash"/></svg>Delete from Intune</button></div>
+</form></dialog>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const deck = $("#deck");
+
+/* ---------- sample data ---------- */
+const CAT = { "7-Zip":"Utilities", "Citrix Workspace":"Remote access", "Docker Desktop":"Developer tools", "FileZilla":"Utilities", "FortiClient VPN":"Security", "Git for Windows":"Developer tools", "Google Chrome Enterprise":"Browsers", "Greenshot":"Utilities", "KeePassXC":"Security", "Mozilla Firefox ESR":"Browsers", "OpenVPN Connect":"Security", "PuTTY":"Remote access", "Python":"Developer tools", "Slack":"Collaboration", "TeamViewer Host":"Remote access", "VLC media player":"Media", "Visual Studio Code":"Developer tools", "WinSCP":"Utilities", "Wireshark":"Developer tools", "Zoom Workplace":"Collaboration" };
+const APPS = [
+  ["7-Zip","Igor Pavlov","24.09","2026-10-21",0,64],
+  ["Adobe Acrobat Reader","Adobe","24.005.20414","2026-10-19",1,312],
+  ["Citrix Workspace","Citrix Systems","24.9.10.23","2026-10-17",7,148],
+  ["Contoso Reader","Contoso","4.2.0","2026-10-24",3,120],
+  ["Docker Desktop","Docker Inc.","4.36.0","2026-09-30",0,22],
+  ["FileZilla","Tim Kosse","3.68.1","2026-08-12",0,18],
+  ["FortiClient VPN","Fortinet","7.4.0.1658","2026-10-22",12,410],
+  ["Git for Windows","The Git Development Community","2.47.1","2026-10-08",0,96],
+  ["Google Chrome Enterprise","Google LLC","131.0.6778.205","2026-10-26",2,640],
+  ["Greenshot","Greenshot","1.3.296","2026-07-03",0,41],
+  ["KeePassXC","KeePassXC Team","2.7.9","2026-09-14",0,57],
+  ["Mozilla Firefox ESR","Mozilla","128.5.0","2026-10-15",0,203],
+  ["Notepad++","Notepad++ Team","8.7.4","2026-10-18",0,288],
+  ["OpenVPN Connect","OpenVPN Inc.","3.5.1","2026-08-29",0,35],
+  ["PuTTY","Simon Tatham","0.82","2026-06-21",0,26],
+  ["Python","Python Software Foundation","3.13.1","2026-10-02",0,44],
+  ["Slack","Slack Technologies","4.41.97","2026-10-11",1,180],
+  ["SumatraPDF","Krzysztof Kowalczyk","3.5.2","2026-07-19",0,72],
+  ["TeamViewer Host","TeamViewer","15.60.3","2026-10-09",0,31],
+  ["VLC media player","VideoLAN","3.0.21","2026-09-22",0,109],
+  ["Visual Studio Code","Microsoft","1.96.2","2026-10-23",0,167],
+  ["WinSCP","Martin Prikryl","6.3.6","2026-10-13",0,38],
+  ["Wireshark","Wireshark Foundation","4.4.2","2026-09-05",0,12],
+  ["Zoom Workplace","Zoom Video Communications","6.3.0","2026-10-25",5,520],
+  ["Zotero","Corporation for Digital Scholarship","7.0.11","2026-08-01",0,15],
+  ["draw.io Desktop","JGraph","25.0.2","2026-10-06",0,63],
+].map(([name, pub, ver, upd, fail, total], i) => {
+  const pend = Math.ceil(total * .06), na = Math.round(total * .02), not = Math.round(total * .025);
+  return { id: i, name, pub, ver, upd, fail, total, pend, na, not, inst: total - fail - pend - na - not,
+    key: (0x3f9c61a2 + i * 7919791).toString(16).slice(0, 8),
+    cat: CAT[name] || "Productivity" };
+});
+const fmt = d => new Date(d + "T12:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+const PAGE = 10;
+let selected = APPS[3], page = 0, sortKey = "name", sortDir = 1, query = "", refreshes = 0;
+
+/* ---------- router ---------- */
+let lastNav = "applications";
+const HINTS = {
+  "applications": '<kbd class="kbd">↑↓</kbd> select <kbd class="kbd">⏎</kbd> open <kbd class="kbd">/</kbd> filter',
+  "application-detail": '<kbd class="kbd">Ctrl K</kbd> commands',
+  "edit-script": '<kbd class="kbd">Ctrl S</kbd> save <kbd class="kbd">Ctrl K</kbd> commands',
+  "create": '<kbd class="kbd">Ctrl K</kbd> commands',
+  "upload": '<kbd class="kbd">Ctrl K</kbd> commands',
+  "remote-test": '<kbd class="kbd">Ctrl K</kbd> commands',
+  "advanced": '<kbd class="kbd">Ctrl K</kbd> commands',
+  "settings": '<kbd class="kbd">Ctrl K</kbd> commands',
+};
+function route() {
+  const id = location.hash.slice(1);
+  const screens = $$("[data-screen]");
+  const cur = screens.find(s => s.dataset.screen === id) || screens[0];
+  screens.forEach(s => s.classList.toggle("active", s === cur));
+  if (cur.dataset.screen === "edit-script") {
+    const from = lastNav === "create" ? "create" : "application-detail";
+    $("#es-back-1").href = "#" + from;
+    $("#es-back-1").textContent = from === "create" ? "create package" : "applications";
+  } else {
+    lastNav = cur.dataset.nav;
+  }
+  $("#crumb").textContent = cur.dataset.title;
+  document.title = `Packman — ${cur.dataset.title}`;
+  $("#sb-hint").innerHTML = HINTS[cur.dataset.screen] || HINTS.applications;
+  $(".body", cur)?.scrollTo(0, 0);
+  if (cur.dataset.screen === "application-detail") renderDetail();
+  parent.postMessage({ orchScreen: cur.dataset.screen }, "*");
+}
+addEventListener("hashchange", route);
+$$("[data-from]").forEach(a => a.addEventListener("click", () => { lastNav = a.dataset.from; }));
+
+/* ---------- toast ---------- */
+let toastTimer;
+function toast(msg) {
+  $("#toast-t").textContent = msg;
+  $("#toast").classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => $("#toast").classList.remove("show"), 2400);
+}
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-toast]");
+  if (t) toast(t.dataset.toast);
+  const c = e.target.closest("[data-copy]");
+  if (c) toast(`${c.dataset.copy} copied`);
+  const r = e.target.closest("[data-pane-toggle]");
+  if (r) {
+    const frame = r.closest("[data-screen]").querySelector(".frame");
+    const open = frame.classList.toggle("pane-closed") === false;
+    r.setAttribute("aria-pressed", open);
+  }
+});
+
+/* ---------- connection ---------- */
+function setConn(on, silent) {
+  deck.dataset.conn = on ? "on" : "off";
+  $$("[data-needs-conn]").forEach(b => on ? b.removeAttribute("disabled") : b.setAttribute("disabled", ""));
+  $$(".when-on-i").forEach(el => el.textContent = on ? "contoso.onmicrosoft.com" : "—");
+  $("#auth-btn").textContent = on ? "Sign out" : "Sign in";
+  $("#rd-conn").textContent = on ? "connected" : "not connected";
+  $("#rd-dot").style.background = on ? "var(--ok)" : "var(--muted-2)";
+  $$(".rd2-t").forEach(d => d.textContent = on ? "connected" : "not connected");
+  $("#sb-conn").textContent = on ? "contoso.onmicrosoft.com" : "not connected";
+  $("#conn").setAttribute("aria-label", on ? "Connected to contoso.onmicrosoft.com. Click to sign out" : "Not connected. Click to sign in");
+  renderApps();
+  syncCreate();
+  if (!silent) toast(on ? "Connected to contoso.onmicrosoft.com" : "Signed out");
+}
+$("#conn").addEventListener("click", () => setConn(deck.dataset.conn === "off"));
+document.addEventListener("click", e => {
+  const s = e.target.closest("[data-signin]");
+  if (!s) return;
+  setConn(s.id === "auth-btn" ? deck.dataset.conn === "off" : true);
+});
+
+/* ---------- applications ---------- */
+function filtered() {
+  const q = query.trim().toLowerCase();
+  const rows = APPS.filter(a => !q || `${a.name} ${a.pub} ${a.ver}`.toLowerCase().includes(q));
+  return rows.sort((a, b) => sortKey === "updated" ? sortDir * a.upd.localeCompare(b.upd) : sortDir * a.name.localeCompare(b.name));
+}
+function renderApps(loading) {
+  const on = deck.dataset.conn === "on", rows = filtered();
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE));
+  page = Math.min(page, pages - 1);
+  const slice = rows.slice(page * PAGE, page * PAGE + PAGE);
+  const body = $("#apps-body");
+  $(".apps").hidden = !on || (!loading && !rows.length);
+  $("#apps-offline").hidden = on;
+  $("#apps-empty").hidden = !on || loading || !!rows.length;
+  $(".toolbar").style.opacity = on ? 1 : .45;
+  $("#search").disabled = !on; $("#refresh").disabled = !on;
+  $("#apps-foot").style.visibility = on && rows.length ? "visible" : "hidden";
+  if (!rows.length) $("#apps-empty-text").textContent = `Nothing matches “${query.trim()}”. Check the spelling or search by publisher or version.`;
+  if (loading) {
+    body.innerHTML = Array.from({ length: 8 }, () => `<tr class="skel"><td><i style="width:62%"></i></td><td><i style="width:48%"></i></td><td><i style="width:56%"></i></td><td><i style="width:60%"></i></td></tr>`).join("");
+    return;
+  }
+  body.innerHTML = slice.map(a => `
+    <tr tabindex="0" data-id="${a.id}" aria-selected="${a === selected}">
+      <td><div class="name"><div class="tile">${a.name[0].toUpperCase()}</div><div style="min-width:0"><b>${a.name}</b>${a.fail >= 5 ? `<small><svg class="i sm"><use href="#i-alert"/></svg>${a.fail} failed installs</small>` : ""}</div></div></td>
+      <td class="muted">${a.pub}</td><td class="mono">${a.ver}</td><td class="muted">${fmt(a.upd)}</td>
+    </tr>`).join("");
+  const from = rows.length ? page * PAGE + 1 : 0;
+  $("#range").textContent = `${from}–${page * PAGE + slice.length} of ${rows.length}`;
+  $("#pagedisp").textContent = `Page ${page + 1} of ${pages}`;
+  $("#prev").disabled = page === 0; $("#next").disabled = page >= pages - 1;
+  $$("th[aria-sort]").forEach(th => th.removeAttribute("aria-sort"));
+  $(`[data-sort="${sortKey}"]`)?.closest("th").setAttribute("aria-sort", sortDir > 0 ? "ascending" : "descending");
+  renderRail();
+}
+function renderRail() {
+  const visible = deck.dataset.conn === "on" && filtered().includes(selected);
+  $("#rail-empty").hidden = visible; $("#rail-body").hidden = !visible;
+  if (!visible) return;
+  const a = selected;
+  $("#r-tile").textContent = a.name[0].toUpperCase();
+  $("#r-name").textContent = a.name; $("#r-pub").textContent = a.pub;
+  $("#r-chips").innerHTML = `<span class="chip">Win32 (.intunewin)</span><span class="chip ok"><span class="d"></span>Published</span>${a.fail >= 5 ? `<span class="chip bad">${a.fail} failed</span>` : ""}`;
+  $("#r-kv").innerHTML = `<div><dt>Version</dt><dd class="mono">${a.ver}</dd></div><div><dt>Category</dt><dd>${a.cat}</dd></div><div><dt>Updated</dt><dd>${fmt(a.upd)}</dd></div><div><dt>App ID</dt><dd class="mono">${a.key}</dd></div>`;
+}
+function select(id, open) {
+  selected = APPS[id];
+  $$("#apps-body tr").forEach(r => r.setAttribute("aria-selected", r.dataset.id == id));
+  renderRail();
+  if (open) location.hash = "application-detail";
+}
+$("#apps-body").addEventListener("click", e => { const r = e.target.closest("tr[data-id]"); if (r) select(+r.dataset.id); });
+$("#apps-body").addEventListener("dblclick", e => { const r = e.target.closest("tr[data-id]"); if (r) select(+r.dataset.id, true); });
+$("#apps-body").addEventListener("keydown", e => {
+  const r = e.target.closest("tr[data-id]"); if (!r) return;
+  if (e.key === "Enter") select(+r.dataset.id, true);
+  if (e.key === " ") { e.preventDefault(); select(+r.dataset.id); }
+  const sib = e.key === "ArrowDown" ? r.nextElementSibling : e.key === "ArrowUp" ? r.previousElementSibling : null;
+  if (sib) { e.preventDefault(); sib.focus(); select(+sib.dataset.id); }
+});
+$("#search").addEventListener("input", e => { query = e.target.value; page = 0; renderApps(); });
+$("#clear-search").addEventListener("click", () => { query = ""; $("#search").value = ""; renderApps(); $("#search").focus(); });
+$("#prev").addEventListener("click", () => { page--; renderApps(); });
+$("#next").addEventListener("click", () => { page++; renderApps(); });
+$$("[data-sort]").forEach(b => b.addEventListener("click", () => {
+  sortDir = sortKey === b.dataset.sort ? -sortDir : 1; sortKey = b.dataset.sort; renderApps();
+}));
+function refresh() {
+  $("#apps-error").hidden = true;
+  renderApps(true);
+  $("#refresh").disabled = true;
+  setTimeout(() => {
+    $("#refresh").disabled = false;
+    refreshes++;
+    if (refreshes % 2 === 0) { $("#apps-error").hidden = false; renderApps(); return; }
+    $("#refreshed").textContent = "synced 14:41";
+    renderApps(); toast("Refreshed 26 applications");
+  }, 1100);
+}
+$("#refresh").addEventListener("click", refresh);
+$("#q-refresh").addEventListener("click", () => { if (location.hash.slice(1) !== "applications" && location.hash.slice(1) !== "") location.hash = "applications"; else refresh(); });
+$("#retry").addEventListener("click", refresh);
+addEventListener("keydown", e => {
+  if (e.key === "/" && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName) && $("#search") && $("[data-screen=applications]").classList.contains("active")) { e.preventDefault(); $("#search").focus(); }
+});
+
+/* ---------- application detail ---------- */
+const STATUS = [["inst","Installed","var(--ok)"],["pend","Pending","var(--warn)"],["fail","Failed","var(--bad)"],["not","Not installed","var(--muted-2)"],["na","Not applicable","var(--line-2)"]];
+function renderDetail() {
+  const a = selected;
+  $("#d-tile").textContent = a.name[0].toUpperCase();
+  $("#d-name").textContent = a.name; $("#d-crumb").textContent = a.name;
+  $("#d-meta").textContent = `${a.pub} · v${a.ver} · System context · Win32`;
+  $("#d-info").innerHTML = [["Publisher",a.pub],["Version",`<span class="mono">${a.ver}</span>`],["Category",a.cat],["Owner","Endpoint engineering"],["Type","Win32 (.intunewin)"],["Size","48.2 MB"],["Install context","System"],["Last modified",fmt(a.upd)]]
+    .map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join("");
+  $("#d-desc").textContent = `${a.name} ${a.ver} from ${a.pub}, wrapped with PSADT v4 for a silent, system-context install. Detection checks the installed version, so a newer build supersedes this one without a reinstall prompt.`;
+  $("#s-total").textContent = a.total;
+  $("#s-bar").innerHTML = STATUS.map(([k, , c]) => `<i style="flex:${a[k]};background:${c}${a[k] ? "" : ";display:none"}"></i>`).join("");
+  $("#s-legend").innerHTML = STATUS.map(([k, l, c]) => `<div><span class="sw" style="background:${c}"></span>${l}<b>${a[k]}</b></div>`).join("");
+  $("#s-id").textContent = a.key; $("#s-pub").textContent = fmt(a.upd);
+  $("#dlg h2").textContent = `Delete ${a.name} from Intune?`;
+}
+function showTab(name) {
+  $$("[data-tab]").forEach(t => t.setAttribute("aria-selected", t.dataset.tab === name));
+  $$("[data-panel]").forEach(p => p.hidden = p.dataset.panel !== name);
+  $("#detail-body").scrollTo(0, 0);
+}
+$$("[data-tab]").forEach(t => t.addEventListener("click", () => showTab(t.dataset.tab)));
+$$("[data-goto-tab]").forEach(b => b.addEventListener("click", () => showTab(b.dataset.gotoTab)));
+$("#republish").addEventListener("click", () => toast("Republishing content… new package uploaded"));
+$("#delete").addEventListener("click", () => $("#dlg").showModal());
+$("#dlg").addEventListener("close", e => {
+  if ($("#dlg").returnValue !== "ok") return;
+  const i = APPS.indexOf(selected); APPS.splice(i, 1); selected = APPS[Math.min(i, APPS.length - 1)];
+  location.hash = "applications"; renderApps(); toast("Deleted from Intune");
+});
+
+/* ---------- create ---------- */
+let step = 1, generated = false;
+const HINT_C = ["Creates files on your share. Nothing is uploaded yet.", "Nothing is sent to Intune until you publish.", "Publishing uploads content and creates the app in your tenant."];
+function syncCreate() {
+  const on = deck.dataset.conn === "on";
+  $$("[data-step-panel]").forEach(p => p.hidden = +p.dataset.stepPanel !== step);
+  $$("#stepper .step").forEach(s => { const n = +s.dataset.step; n === step ? s.setAttribute("aria-current", "step") : s.removeAttribute("aria-current"); s.classList.toggle("done", n < step); });
+  $("#c-back").disabled = step === 1;
+  $("#c-hint").textContent = step === 3 && !on ? "Publish to Intune is off until a tenant is connected." : HINT_C[step - 1];
+  const next = $("#c-next");
+  next.textContent = step === 1 ? (generated ? "Continue to configure" : "Generate package") : step === 2 ? "Continue to review" : "Publish to Intune";
+  next.disabled = step === 3 && !on;
+  $("#generated").hidden = !(generated && step === 1);
+  $("#pkg-state").textContent = generated ? "package ready" : "no package yet";
+  $("#create-body").scrollTo(0, 0);
+}
+$("#c-next").addEventListener("click", () => {
+  if (step === 1 && !generated) {
+    const b = $("#c-next"); b.disabled = true; b.textContent = "Generating…";
+    setTimeout(() => { generated = true; b.disabled = false; syncCreate(); toast("Package generated on the share"); }, 900);
+    return;
+  }
+  if (step < 3) { step++; syncCreate(); return; }
+  publish();
+});
+$("#c-back").addEventListener("click", () => { step--; syncCreate(); });
+$$("#stepper .step").forEach(s => s.addEventListener("click", () => { step = +s.dataset.step; syncCreate(); }));
+$$("[data-step-go]").forEach(a => a.addEventListener("click", () => { step = +a.dataset.stepGo; syncCreate(); }));
+$$("[data-mode]").forEach(b => b.addEventListener("click", () => {
+  $$("[data-mode]").forEach(x => x.setAttribute("aria-pressed", x === b));
+  toast(b.dataset.mode === "upgrade" ? "Upgrade existing: pick the app to supersede" : "Create new package");
+}));
+[["#an", "#pv-app"], ["#mf", "#pv-pub"], ["#vr", "#pv-ver"]].forEach(([i, o]) => $(i).addEventListener("input", e => $(o).textContent = e.target.value || "—"));
+function publish() {
+  const labels = ["Validating launcher and manifest", "Signing the script", "Building the .intunewin", "Uploading content", "Creating the app and assignment"];
+  $("#pub-run").hidden = false;
+  $("#pub-steps").innerHTML = labels.map(l => `<div><span class="st"></span>${l}</div>`).join("");
+  $("#c-next").disabled = true;
+  const rows = $$("#pub-steps > div"); let i = 0;
+  const tick = () => {
+    if (i > 0) { rows[i - 1].className = "done"; rows[i - 1].firstChild.innerHTML = '<svg class="i sm"><use href="#i-check"/></svg>'; }
+    if (i < rows.length) { rows[i].className = "run"; $("#pub-bar").style.width = (i + 1) / rows.length * 100 + "%"; i++; setTimeout(tick, 650); }
+    else { toast("Published Contoso Reader 4.2.0 to Intune"); $("#c-next").textContent = "Published"; }
+  };
+  tick();
+}
+
+/* ---------- upload / remote test / advanced / settings ---------- */
+$("#up-publish").addEventListener("click", () => toast("Publishing… content upload started"));
+$$(".seg").forEach(seg => { if (!seg.dataset.mode && seg.id !== "theme-seg" && !seg.querySelector("[data-mode]")) seg.addEventListener("click", e => { const b = e.target.closest("button"); if (b) $$("button", seg).forEach(x => x.setAttribute("aria-pressed", x === b)); }); });
+$("#rt-pc").addEventListener("change", e => $("#rt-pcv").textContent = e.target.value);
+$("#rt-run").addEventListener("click", () => {
+  const out = $("#rt-out"), st = $("#rt-status"), pc = $("#rt-pc").value;
+  const lines = [`<span class="dim">[14:41:02]</span> Connecting to ${pc}…`, `<span class="dim">[14:41:03]</span> Copying package (46.9 MB)`, `<span class="dim">[14:41:09]</span> Invoke-AppDeployToolkit.exe Install -DeployMode Interactive`, `<span class="dim">[14:41:11]</span> Start-ADTMsiProcess: ContosoReader-4.2.0-x64.msi`, `<span class="dim">[14:41:24]</span> Detection rule matched: version 4.2.0`, `<span class="okc">[14:41:25] Installation completed with exit code 0</span>`];
+  out.innerHTML = ""; st.className = "chip accent"; st.textContent = "Running"; $("#rt-run").disabled = true;
+  lines.forEach((l, i) => setTimeout(() => {
+    out.insertAdjacentHTML("beforeend", l + "\n"); out.scrollTop = out.scrollHeight;
+    if (i === lines.length - 1) { st.className = "chip ok"; st.textContent = "Passed"; $("#rt-exit").textContent = "0"; $("#rt-run").disabled = false; }
+  }, i * 420));
+});
+$$("[data-adv]").forEach(t => t.addEventListener("click", () => { $$("[data-adv]").forEach(x => x.setAttribute("aria-selected", x === t)); $$("[data-adv-panel]").forEach(p => p.hidden = p.dataset.advPanel !== t.dataset.adv); }));
+$("#pcs").addEventListener("input", e => { const n = e.target.value.split(/[\s,;]+/).filter(Boolean).length; $("#pcn").textContent = `${n} name${n === 1 ? "" : "s"}`; });
+$("#bulk-run").addEventListener("click", () => { $("#bulk-res").hidden = false; toast("3 added, 1 already a member, 1 not found"); });
+$$("[data-set]").forEach(t => t.addEventListener("click", () => { $$("[data-set]").forEach(x => x.setAttribute("aria-selected", x === t)); $$("[data-set-panel]").forEach(p => p.hidden = p.dataset.setPanel !== t.dataset.set); }));
+$("#test-conn").addEventListener("click", () => {
+  const r = $("#test-res"), on = deck.dataset.conn === "on";
+  r.textContent = "Checking…";
+  setTimeout(() => { r.style.color = on ? "var(--ok)" : "var(--bad)"; r.textContent = on ? "Connected. Write permission confirmed from the token’s roles." : "Couldn’t sign in. Check the tenant ID and certificate."; }, 700);
+});
+$("#save-set").addEventListener("click", () => { $("#save-msg").textContent = "All changes saved · just now"; toast("Settings saved"); });
+$$("[data-theme-set]").forEach(b => b.addEventListener("click", () => {
+  $$("[data-theme-set]").forEach(x => x.setAttribute("aria-pressed", x === b));
+  const dark = b.dataset.themeSet === "dark" || (b.dataset.themeSet === "system" && matchMedia("(prefers-color-scheme:dark)").matches);
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+}));
+
+/* ---------- edit script ---------- */
+$("#es-code").addEventListener("input", () => $("#es-dirty").hidden = false);
+const saveScript = () => { $("#es-dirty").hidden = true; toast("Invoke-AppDeployToolkit.ps1 saved"); };
+$("#es-save").addEventListener("click", saveScript);
+$$(".editor .files button").forEach(b => b.addEventListener("click", () => { $$(".editor .files button").forEach(x => x.setAttribute("aria-current", x === b)); toast(`Opened ${b.textContent}`); }));
+
+/* ---------- command palette ---------- */
+const CMDS = [
+  { g: "navigate", icon: "#i-laptop", label: "Applications", sub: "Browse and manage Win32 apps", go: "#applications" },
+  { g: "navigate", icon: "#i-box", label: "Create package", sub: "Prepare, test and publish a PSADT app", go: "#create" },
+  { g: "navigate", icon: "#i-upload", label: "Upload to Intune", sub: "Publish a package already built", go: "#upload" },
+  { g: "navigate", icon: "#i-pulse", label: "Remote test", sub: "Run a package on a chosen device", go: "#remote-test" },
+  { g: "navigate", icon: "#i-list", label: "Advanced", sub: "Entra ID directory tools", go: "#advanced" },
+  { g: "navigate", icon: "#i-gear", label: "Settings", sub: "Connection, paths and defaults", go: "#settings" },
+  { g: "navigate", icon: "#i-code", label: "Edit script", sub: "Contoso Reader · Invoke-AppDeployToolkit.ps1", go: "#edit-script" },
+  { g: "actions", icon: "#i-plus", label: "New package", hint: "Ctrl N", go: "#create" },
+  { g: "actions", icon: "#i-refresh", label: "Refresh applications", hint: "R", run: () => { if (location.hash.slice(1) !== "applications") location.hash = "applications"; else refresh(); } },
+  { g: "actions", icon: "#i-info", label: "Sign in / sign out", run: () => setConn(deck.dataset.conn === "off") },
+  { g: "actions", icon: "#i-trash", label: "Delete selected app", hint: "detail", run: () => { if (location.hash.slice(1) === "application-detail") $("#dlg").showModal(); else toast("Open an application detail first"); } },
+];
+let palIdx = 0, palFiltered = CMDS;
+function renderPal() {
+  const groups = { navigate: "Navigate", actions: "Actions" };
+  const out = [];
+  for (const gk of ["navigate", "actions"]) {
+    const items = palFiltered.filter(c => c.g === gk);
+    if (!items.length) continue;
+    out.push(`<div class="cmd-group">${groups[gk]}</div>`);
+    items.forEach((c, j) => {
+      const idx = palFiltered.indexOf(c);
+      out.push(`<div class="cmd-item" data-i="${idx}" aria-selected="${idx === palIdx}"><svg class="i sm"><use href="${c.icon}"/></svg><div class="lbl">${c.label}${c.sub ? `<small>${c.sub}</small>` : ""}</div>${c.hint ? `<span class="hint">${c.hint}</span>` : ""}</div>`);
+    });
+  }
+  $("#pal-cmds").innerHTML = out.join("") || `<div class="empty-p">No commands match “${$("#pal-input").value}”.</div>`;
+}
+function openPalette() {
+  $("#palette").classList.add("open");
+  $("#palette").setAttribute("aria-hidden", "false");
+  $("#pal-input").value = "";
+  palFiltered = CMDS; palIdx = 0; renderPal();
+  requestAnimationFrame(() => $("#pal-input").focus());
+}
+function closePalette() {
+  $("#palette").classList.remove("open");
+  $("#palette").setAttribute("aria-hidden", "true");
+  $("#cmd-input").setAttribute("aria-expanded", "false");
+}
+function runPalCmd(i) {
+  const c = palFiltered[i]; if (!c) return;
+  closePalette();
+  if (c.go) location.hash = c.go;
+  else if (c.run) c.run();
+}
+$("#cmd-input").addEventListener("click", () => { $("#cmd-input").setAttribute("aria-expanded", "true"); openPalette(); });
+$("#pal-input").addEventListener("input", e => {
+  const q = e.target.value.trim().toLowerCase();
+  palFiltered = CMDS.filter(c => `${c.label} ${c.sub || ""} ${c.hint || ""}`.toLowerCase().includes(q));
+  palIdx = 0; renderPal();
+});
+$("#pal-input").addEventListener("keydown", e => {
+  if (e.key === "ArrowDown") { e.preventDefault(); palIdx = Math.min(palIdx + 1, palFiltered.length - 1); renderPal(); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); palIdx = Math.max(palIdx - 1, 0); renderPal(); }
+  else if (e.key === "Enter") { e.preventDefault(); runPalCmd(palIdx); }
+  else if (e.key === "Escape") { e.preventDefault(); closePalette(); }
+});
+$("#pal-cmds").addEventListener("click", e => { const it = e.target.closest(".cmd-item"); if (it) runPalCmd(+it.dataset.i); });
+$("#palette").addEventListener("click", e => { if (e.target.id === "palette") closePalette(); });
+addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); $("#palette").classList.contains("open") ? closePalette() : openPalette(); }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "n") { e.preventDefault(); location.hash = "create"; }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s" && $("[data-screen=edit-script]").classList.contains("active")) { e.preventDefault(); saveScript(); }
+  if (e.key === "Escape" && $("#palette").classList.contains("open")) closePalette();
+});
+
+setConn(true, true);
+route();
+</script>
+</body>
+</html>
