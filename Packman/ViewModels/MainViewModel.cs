@@ -35,6 +35,28 @@ public sealed class MainViewModel : ObservableObject
     public string RuntimeStamp => System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription;
     public string AppVersion => "v" + (typeof(MainViewModel).Assembly.GetName().Version?.ToString(3) ?? "0.0.0");
 
+    private bool _isNavHidden;
+    /// <summary>True when the left nav is hidden and the bottom menu bar is shown. Remembered across runs.</summary>
+    public bool IsNavHidden
+    {
+        get => _isNavHidden;
+        set
+        {
+            if (!Set(ref _isNavHidden, value)) return;
+            _settingsService.Settings.NavHidden = value;
+            try
+            {
+                _settingsService.Save();
+            }
+            catch (Exception)
+            {
+                // The choice still applies for this run; it just won't be remembered.
+            }
+        }
+    }
+
+    public RelayCommand ToggleNavCommand { get; }
+
     private const int GenerateStep = 0;
     private const int UploadStep = 1;
     private const int ReviewStep = 2;
@@ -233,6 +255,9 @@ public sealed class MainViewModel : ObservableObject
             new(UploadStep,   "Configure"),
             new(ReviewStep,   "Review & publish"),
         };
+
+        _isNavHidden = _settingsService.Settings.NavHidden;
+        ToggleNavCommand = new RelayCommand(() => IsNavHidden = !IsNavHidden);
 
         BackCommand     = new RelayCommand(() => CurrentStepIndex--, () => CurrentStepIndex > 0);
         PrimaryCommand  = new AsyncRelayCommand(OnPrimaryAsync, () => !CreatePackage.IsGenerating && !Upgrade.IsBusy && !Upload.Publish.IsPublishing

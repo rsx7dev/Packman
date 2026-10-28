@@ -192,6 +192,10 @@ public partial class StepEdit : UserControl, IMonacoHost
                 _session?.OnSaveRequested();
                 break;
 
+            case "toggleNav":
+                (DataContext as MainViewModel)?.ToggleNavCommand.Execute(null);
+                break;
+
             case "validate":
                 if (_session != null)
                 {

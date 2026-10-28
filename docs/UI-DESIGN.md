@@ -4,7 +4,11 @@ The UI centers on the working sequence: select an installer, prepare its PSADT p
 
 ## Layout (three columns)
 
-Every page is a `PageFrame` (`Views/Controls/PageFrame.cs`, template in `Themes/Styles.xaml`): a header panel (breadcrumb, optional leading tile, title, subtitle, actions, and a strip for the stepper or tabs), the body, an optional footer panel (Back, what the primary action does or doesn't do, primary action) and an optional inspector rail on the right. Panels sit on the Mica backdrop with 12px gaps. When the frame is narrower than 1080px (small or scaled screens, for example 1366×768 at 125%) the rail leaves its column and opens over the body from a "Details" button in the header.
+Every page is a `PageFrame` (`Views/Controls/PageFrame.cs`, template in `Themes/Styles.xaml`): a header panel (breadcrumb, optional leading tile, title, subtitle, actions, and a strip for the stepper or tabs), the body, an optional footer panel (Back, what the primary action does or doesn't do, primary action) and an optional inspector rail on the right. The frame is one white sheet on the shell colour (the "Quiet Ledger" design in `out/design/concept-1/`), with hairlines between header, body and footer. When the frame is narrower than 1000px (small or scaled screens, for example 1366×768 at 125%) the rail leaves its column and opens over the body from a "Details" button in the header.
+
+## Navigation
+
+The left nav (208px) is visible by default. The title bar button (tooltip "Toggle navigation (Ctrl+B)") and Ctrl+B hide it; Ctrl+B also works inside the script editor, where Monaco forwards it as a `toggleNav` message. While it is hidden a bottom menu bar with the same six destinations replaces it, so the two are never visible together. The choice is saved as `NavHidden` in `appsettings.json`.
 
 The title bar carries the connection pill: Connected with the tenant, or Not connected with a Sign in link that opens Settings on Authentication. The old status bar is gone.
 

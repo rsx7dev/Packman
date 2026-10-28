@@ -53,6 +53,9 @@
     const keyS = monaco.KeyCode.KeyS !== undefined ? monaco.KeyCode.KeyS : 49;
     editor.addCommand(monaco.KeyMod.CtrlCmd | keyS, () => post({ type: 'save' }));
 
+    const keyB = monaco.KeyCode.KeyB !== undefined ? monaco.KeyCode.KeyB : 32;
+    editor.addCommand(monaco.KeyMod.CtrlCmd | keyB, () => post({ type: 'toggleNav' }));
+
     editor.onDidChangeCursorPosition(reportCursor);
     editor.onDidChangeCursorSelection(reportCursor);
 
