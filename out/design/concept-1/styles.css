@@ -15,6 +15,7 @@
   --accent-soft:#FBF3E4; --accent-line:#E9CFA0;
   --ok:#16794A; --ok-soft:#E6F4EC; --warn:#855F00; --warn-soft:#FBF1D6; --bad:#B3261E; --bad-soft:#FCEAE8;
   --code-bg:#1C1D20; --code-text:#E8E9EC; --code-dim:#8E929C;
+  --graphite:#1D2024; --graphite-2:#2B2F34; --graphite-line:#3A3F45; --dock-text:#C5CAD0;
   --sh-sm:0 2px 3px -1px rgba(0,0,0,.1),0 1px 0 0 rgba(25,28,33,.02),0 0 0 1px rgba(25,28,33,.08);
   --sh-md:0 0 0 1px rgba(0,0,0,.06),0 1px 1px -.5px rgba(0,0,0,.06),0 3px 3px -1.5px rgba(0,0,0,.06),0 6px 6px -3px rgba(0,0,0,.06),0 12px 12px -6px rgba(0,0,0,.06),0 24px 24px -12px rgba(0,0,0,.06);
   --sh-lg:0 2.8px 2.2px rgba(0,0,0,.034),0 6.7px 5.3px rgba(0,0,0,.048),0 12.5px 10px rgba(0,0,0,.06),0 22.3px 17.9px rgba(0,0,0,.072),0 41.8px 33.4px rgba(0,0,0,.086),0 100px 80px rgba(0,0,0,.12);
@@ -29,6 +30,7 @@
   --accent:#E0A050; --accent-hover:#EBB064; --accent-text:#EDB468; --accent-soft:#2E2618; --accent-line:#5A4524;
   --ok:#5CC48C; --ok-soft:#18291F; --warn:#E6C25A; --warn-soft:#2C2512; --bad:#FF8A80; --bad-soft:#341B19;
   --code-bg:#151618;
+  --graphite:#2C2F33; --graphite-2:#3B3F45; --graphite-line:#4B5058; --dock-text:#C5CAD0;
   --sh-sm:0 0 0 1px rgba(255,255,255,.07);
   --sh-md:0 0 0 1px rgba(255,255,255,.08),0 12px 24px -8px rgba(0,0,0,.5);
   --sh-lg:0 0 0 1px rgba(255,255,255,.09),0 40px 80px rgba(0,0,0,.6);
@@ -55,6 +57,8 @@ svg.i.sm{width:15px;height:15px}
 .brand-mark{width:18px;height:18px;border-radius:5px;background:var(--accent);display:grid;place-items:center}
 .brand-mark::after{content:"";width:6px;height:6px;border-radius:2px;background:var(--accent-fg)}
 .crumb{color:var(--muted);padding-left:12px;border-left:1px solid var(--line-strong);line-height:16px}
+.tbtn{width:28px;height:28px;margin-right:-4px;display:grid;place-items:center;border:0;border-radius:7px;background:none;color:var(--muted);cursor:pointer}
+.tbtn:hover{background:var(--hover);color:var(--ink)}
 .title-fill{flex:1}
 .conn{display:flex;align-items:center;gap:8px;height:28px;padding:0 12px 0 10px;border-radius:14px;background:var(--page);box-shadow:var(--sh-sm);border:0;cursor:pointer;color:var(--text);font-size:12.5px}
 .conn .dot{width:8px;height:8px;border-radius:50%;background:var(--ok)}
@@ -79,6 +83,20 @@ svg.i.sm{width:15px;height:15px}
 .nav-group{display:grid;gap:2px}
 .nav-fill{flex:1}
 .nav-meta{padding:12px 12px 0;color:var(--faint);font-size:11.5px;line-height:17px;font-family:var(--mono)}
+
+.menubar{display:none;justify-self:center;gap:2px;padding:6px;margin-bottom:12px;border-radius:18px;background:var(--graphite);color:var(--dock-text);box-shadow:var(--sh-md);position:relative;z-index:5}
+.menubar a{position:relative;display:flex;align-items:center;height:44px;padding:0 13px;border-radius:12px;color:var(--dock-text);transition:background .15s}
+.menubar a:hover{background:var(--graphite-2);color:#fff}
+.menubar a span{max-width:0;overflow:hidden;white-space:nowrap;font-weight:500;transition:max-width .28s cubic-bezier(.2,.7,.2,1),margin .28s}
+.menubar a[aria-current="page"]{background:#F4F5F6;color:#15181C}
+.menubar a[aria-current="page"] span{max-width:120px;margin-left:9px}
+.menubar a:not([aria-current])::after{content:attr(data-tip);position:absolute;bottom:54px;left:50%;transform:translateX(-50%) translateY(4px);background:var(--graphite);box-shadow:var(--sh-md);color:#fff;font-size:12.5px;padding:6px 10px;border-radius:7px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .12s,transform .12s}
+.menubar a:not([aria-current]):hover::after,.menubar a:not([aria-current]):focus-visible::after{opacity:1;transform:translateX(-50%) translateY(0)}
+.app.nav-hidden{grid-template-rows:44px 1fr auto}
+.nav-hidden .shell{grid-template-columns:1fr}
+.nav-hidden .nav{display:none}
+.nav-hidden .menubar{display:flex}
+.nav-hidden .page{margin-left:12px}
 
 .page{container-type:inline-size;margin:0 12px 12px 0;background:var(--page);border-radius:10px;box-shadow:var(--sh-sm);min-height:0;position:relative;overflow:hidden;display:flex}
 [data-screen]{display:none;flex:1;min-width:0;min-height:0}

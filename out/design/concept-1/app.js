@@ -52,7 +52,7 @@ function route() {
   let nav = cur.dataset.nav;
   if (cur.dataset.screen === "edit-script") nav = lastNav;
   else lastNav = nav;
-  $$(".nav a").forEach(a => a.dataset.nav === nav ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
+  $$(".nav a, .menubar a").forEach(a => a.dataset.nav === nav ? a.setAttribute("aria-current", "page") : a.removeAttribute("aria-current"));
   $("#crumb").textContent = cur.dataset.title;
   document.title = `Packman — ${cur.dataset.title}`;
   $$(".frame.rail-open").forEach(f => f.classList.remove("rail-open"));
@@ -301,6 +301,10 @@ $$("[data-theme-set]").forEach(b => b.addEventListener("click", () => {
   const dark = b.dataset.themeSet === "dark" || (b.dataset.themeSet === "system" && matchMedia("(prefers-color-scheme:dark)").matches);
   document.documentElement.dataset.theme = dark ? "dark" : "light";
 }));
+
+/* ---------- nav toggle ---------- */
+$("#nav-toggle").addEventListener("click", () => $("#app").classList.toggle("nav-hidden"));
+addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key === "b") { e.preventDefault(); $("#app").classList.toggle("nav-hidden"); } });
 
 /* ---------- edit script ---------- */
 $("#es-code").addEventListener("input", () => $("#es-dirty").hidden = false);

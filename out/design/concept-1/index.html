@@ -43,6 +43,7 @@
 
 <div class="app" id="app" data-conn="on">
   <header class="titlebar">
+    <button class="tbtn" id="nav-toggle" type="button" aria-label="Toggle navigation" aria-keyshortcuts="Control+B" title="Toggle navigation (Ctrl+B)"><svg class="i"><use href="#i-panel"/></svg></button>
     <div class="brand"><span class="brand-mark"></span>Packman</div>
     <span class="crumb" id="crumb">Applications</span>
     <span class="title-fill"></span>
@@ -644,6 +645,15 @@ WS-HR-0027</textarea><p class="help">One name per line, or separated by commas, 
     <div class="toast" id="toast" role="status" aria-live="polite"><svg class="i sm"><use href="#i-check"/></svg><span id="toast-t"></span></div>
     </main>
   </div>
+
+  <nav class="menubar" aria-label="Main">
+    <a href="#create" data-nav="create" data-tip="Create package"><svg class="i"><use href="#i-box"/></svg><span>Create</span></a>
+    <a href="#upload" data-nav="upload" data-tip="Upload to Intune"><svg class="i"><use href="#i-upload"/></svg><span>Upload</span></a>
+    <a href="#remote-test" data-nav="remote-test" data-tip="Remote test"><svg class="i"><use href="#i-pulse"/></svg><span>Remote test</span></a>
+    <a href="#applications" data-nav="applications" data-tip="Applications"><svg class="i"><use href="#i-laptop"/></svg><span>Applications</span></a>
+    <a href="#advanced" data-nav="advanced" data-tip="Advanced"><svg class="i"><use href="#i-list"/></svg><span>Advanced</span></a>
+    <a href="#settings" data-nav="settings" data-tip="Settings"><svg class="i"><use href="#i-gear"/></svg><span>Settings</span></a>
+  </nav>
 </div>
 
 <dialog id="dlg"><form method="dialog">
