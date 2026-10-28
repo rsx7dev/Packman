@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <!-- Tests for the main window's navigation: the view model, plus checks on the XAML and editor sources.
+         On Windows the project carries its own WindowsDesktop framework reference: NuGet
+         only prunes the framework-provided packages (System.CodeDom, System.DirectoryServices,
+         ...) it can see on the project itself, and the vendored packages/ folder does not
+         carry them. Off Windows there is no WindowsDesktop runtime, so the reference is
+         dropped and those few packages come from nuget.org instead (developer runs only). -->
+    <UseWindowsDesktopFramework Condition="'$(UseWindowsDesktopFramework)' == ''">$([MSBuild]::IsOSPlatform('Windows'))</UseWindowsDesktopFramework>
+    <DisableTransitiveFrameworkReferences Condition="'$(UseWindowsDesktopFramework)' != 'true'">true</DisableTransitiveFrameworkReferences>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Versions match the .nupkg files vendored in packages/, so the offline restore holds. -->
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseWindowsDesktopFramework)' == 'true'">
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Packman\Packman.csproj" />
+  </ItemGroup>
+
+</Project>
