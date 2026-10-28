@@ -118,6 +118,7 @@ public partial class MainWindow : FluentWindow
             bool proceed;
             try
             {
+                await Task.Yield();   // Close() below must not run inside this Closing event
                 // Let the job clean up (a cancelled publish removes the half-built app) first.
                 while (RunningJob(vm) != null) await Task.Delay(250);
                 proceed = await vm.Editor.PromptSaveAllAsync();
