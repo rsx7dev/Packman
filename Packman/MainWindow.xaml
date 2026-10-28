@@ -187,8 +187,8 @@
                 <!-- Footer: build stamps under Settings. -->
                 <StackPanel DockPanel.Dock="Bottom" Margin="16,12,12,0">
                     <TextBlock Text="PSADT v4 · Graph beta" FontFamily="{StaticResource MonoFontFamily}" FontSize="11.5"
-                               Foreground="{DynamicResource FaintBrush}"/>
-                    <TextBlock FontFamily="{StaticResource MonoFontFamily}" FontSize="11.5" Foreground="{DynamicResource FaintBrush}"
+                               Foreground="{DynamicResource MutedBrush}"/>
+                    <TextBlock FontFamily="{StaticResource MonoFontFamily}" FontSize="11.5" Foreground="{DynamicResource MutedBrush}"
                                TextTrimming="CharacterEllipsis">
                         <Run Text="{Binding AppVersion, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding RuntimeStamp, Mode=OneWay}"/>
                     </TextBlock>
@@ -238,15 +238,23 @@
                                                 <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
+                                            <!-- CommandParameter comes first so the first CanExecute sees the step index. -->
                                             <Button FocusVisualStyle="{StaticResource FocusVisual}" Cursor="Hand"
                                                     AutomationProperties.Name="{Binding Title}"
-                                                    Command="{Binding DataContext.GoToStepCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}"
-                                                    CommandParameter="{Binding Index}">
+                                                    AutomationProperties.HelpText="{Binding LockReason}"
+                                                    ToolTip="{Binding LockReason}" ToolTipService.ShowOnDisabled="True"
+                                                    CommandParameter="{Binding Index}"
+                                                    Command="{Binding DataContext.GoToStepCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}">
                                                 <Button.Template>
                                                     <ControlTemplate TargetType="Button">
-                                                        <Border Background="Transparent">
+                                                        <Border x:Name="bd" Background="Transparent">
                                                             <ContentPresenter/>
                                                         </Border>
+                                                        <ControlTemplate.Triggers>
+                                                            <Trigger Property="IsEnabled" Value="False">
+                                                                <Setter TargetName="bd" Property="Opacity" Value="0.55"/>
+                                                            </Trigger>
+                                                        </ControlTemplate.Triggers>
                                                     </ControlTemplate>
                                                 </Button.Template>
                                                 <StackPanel Orientation="Horizontal">
@@ -284,7 +292,7 @@
                                                 <Setter TargetName="title" Property="FontWeight" Value="SemiBold"/>
                                             </DataTrigger>
                                             <!-- The last step has nothing to join. -->
-                                            <DataTrigger Binding="{Binding Index}" Value="2">
+                                            <DataTrigger Binding="{Binding IsLast}" Value="True">
                                                 <Setter TargetName="line" Property="Visibility" Value="Collapsed"/>
                                             </DataTrigger>
                                         </DataTemplate.Triggers>
@@ -294,39 +302,51 @@
                         </controls:PageFrame.HeaderBottom>
 
                         <controls:PageFrame.Footer>
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                </Grid.ColumnDefinitions>
-                                <Button Style="{StaticResource BackButton}" Command="{Binding BackCommand}" MinWidth="104">
-                                    <StackPanel Orientation="Horizontal">
-                                        <controls:LineIcon Data="{DynamicResource IconArrowL}" Width="15" Height="15"/>
-                                        <TextBlock Text="Back" Margin="8,0,0,0" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Button>
-                                <TextBlock Grid.Column="1" Text="{Binding StepHint}" Style="{StaticResource FooterHint}" Margin="18,0"/>
-                                <StackPanel Grid.Column="2" Orientation="Horizontal">
-                                    <Button Style="{StaticResource GhostButton}" Content="Publishing…" IsEnabled="False"
-                                            Visibility="{Binding IsUploadRunning, Converter={StaticResource BoolToVis}}"/>
-                                    <Button Command="{Binding PrimaryCommand}" MinWidth="180">
-                                        <Button.Style>
-                                            <Style TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+                            <StackPanel>
+                                <!-- The running job's status lives here instead of in the page body. -->
+                                <controls:ActivityDock Margin="0,0,0,12" JobName="Generating package" IsIndeterminate="True"
+                                                       IsActive="{Binding CreatePackage.IsGenerating}"
+                                                       Phase="{Binding CreatePackage.StatusText}"
+                                                       CancelCommand="{Binding CreatePackage.CancelCommand}"/>
+                                <controls:ActivityDock Margin="0,0,0,12"
+                                                       IsActive="{Binding Upload.Publish.IsRunning}"
+                                                       JobName="{Binding Upload.Publish.Title}"
+                                                       Phase="{Binding Upload.Publish.StatusText}"
+                                                       Progress="{Binding Upload.Publish.ProgressValue}"
+                                                       CancelCommand="{Binding Upload.Publish.CancelCommand}"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Button Style="{StaticResource BackButton}" Command="{Binding BackCommand}" MinWidth="104"
+                                            AutomationProperties.HelpText="{Binding BackLockReason}"
+                                            ToolTip="{Binding BackLockReason}" ToolTipService.ShowOnDisabled="True">
+                                        <StackPanel Orientation="Horizontal">
+                                            <controls:LineIcon Data="{DynamicResource IconArrowL}" Width="15" Height="15"/>
+                                            <TextBlock Text="Back" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <TextBlock Grid.Column="1" Text="{Binding StepHint}" Margin="18,0">
+                                        <TextBlock.Style>
+                                            <Style TargetType="TextBlock" BasedOn="{StaticResource FooterHint}">
                                                 <Style.Triggers>
-                                                    <DataTrigger Binding="{Binding IsUploadRunning}" Value="True">
+                                                    <DataTrigger Binding="{Binding IsJobRunning}" Value="True">
                                                         <Setter Property="Visibility" Value="Collapsed"/>
                                                     </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
-                                        </Button.Style>
+                                        </TextBlock.Style>
+                                    </TextBlock>
+                                    <Button Grid.Column="2" Command="{Binding PrimaryCommand}" MinWidth="180" Style="{StaticResource PrimaryButton}">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="{Binding PrimaryLabel}" VerticalAlignment="Center"/>
                                             <controls:LineIcon Data="{DynamicResource IconArrowR}" Width="15" Height="15" Margin="10,0,0,0"/>
                                         </StackPanel>
                                     </Button>
-                                </StackPanel>
-                            </Grid>
+                                </Grid>
+                            </StackPanel>
                         </controls:PageFrame.Footer>
 
                         <controls:PageFrame.Rail>

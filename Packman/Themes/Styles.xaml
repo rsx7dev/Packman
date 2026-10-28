@@ -1307,6 +1307,10 @@
                         <Trigger Property="Footer" Value="{x:Null}">
                             <Setter TargetName="footer" Property="Visibility" Value="Collapsed"/>
                         </Trigger>
+                        <!-- A footer that is only a collapsed activity dock leaves no empty bar. -->
+                        <DataTrigger Binding="{Binding Footer.Visibility, RelativeSource={RelativeSource TemplatedParent}}" Value="Collapsed">
+                            <Setter TargetName="footer" Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
                         <Trigger Property="IsBodyScrollable" Value="False">
                             <Setter TargetName="scroll" Property="VerticalScrollBarVisibility" Value="Disabled"/>
                         </Trigger>

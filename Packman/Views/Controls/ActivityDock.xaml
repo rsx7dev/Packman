@@ -1,0 +1,45 @@
+<UserControl x:Class="Packman.Views.Controls.ActivityDock"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="Root">
+    <!-- Progress strip for a running generate, publish or republish. Sits in a page footer and
+         is collapsed while IsActive is false. -->
+    <UserControl.Style>
+        <Style TargetType="UserControl">
+            <Setter Property="Visibility" Value="Collapsed"/>
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsActive, RelativeSource={RelativeSource Self}}" Value="True">
+                    <Setter Property="Visibility" Value="Visible"/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
+    </UserControl.Style>
+    <Border Background="{DynamicResource PrimarySoftBrush}" BorderBrush="{DynamicResource PrimaryLineBrush}"
+            BorderThickness="1" CornerRadius="8" Padding="14,10">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="{Binding JobName, ElementName=Root}" FontWeight="SemiBold"
+                           Foreground="{DynamicResource InkBrush}" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Text="{Binding Phase, ElementName=Root}" FontSize="12.5" Margin="0,2,0,0"
+                           Foreground="{DynamicResource MutedBrush}" TextTrimming="CharacterEllipsis"
+                           AutomationProperties.LiveSetting="Polite"/>
+            </StackPanel>
+            <ProgressBar Grid.Column="1" Width="200" Height="6" Margin="16,0,0,0" VerticalAlignment="Center"
+                         Minimum="0" Maximum="100" Value="{Binding Progress, ElementName=Root, Mode=OneWay}"
+                         IsIndeterminate="{Binding IsIndeterminate, ElementName=Root}"
+                         AutomationProperties.Name="{Binding JobName, ElementName=Root, StringFormat='{}{0} progress'}"/>
+            <TextBlock Grid.Column="2" Text="{Binding Elapsed, ElementName=Root}" Margin="16,0,0,0" VerticalAlignment="Center"
+                       FontFamily="{StaticResource MonoFontFamily}" FontSize="12.5" Foreground="{DynamicResource MutedBrush}"
+                       AutomationProperties.Name="Elapsed time"/>
+            <Button Grid.Column="3" Style="{StaticResource GhostButton}" Content="Cancel" Margin="16,0,0,0"
+                    Command="{Binding CancelCommand, ElementName=Root}"
+                    AutomationProperties.Name="{Binding JobName, ElementName=Root, StringFormat='{}Cancel {0}'}"/>
+        </Grid>
+    </Border>
+</UserControl>

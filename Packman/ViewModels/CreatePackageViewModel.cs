@@ -89,7 +89,20 @@ public class CreatePackageViewModel : ObservableObject
     public bool IsGenerating
     {
         get => _isGenerating;
-        set => Set(ref _isGenerating, value);
+        set { if (Set(ref _isGenerating, value)) CancelCommand.RaiseCanExecuteChanged(); }
+    }
+
+    private CancellationTokenSource? _cts;
+
+    /// <summary>The last generate was stopped by the user, so it is not an error to pop up.</summary>
+    public bool WasCancelled { get; private set; }
+
+    /// <summary>Stops the copy; the generator removes the half-built folder.</summary>
+    public RelayCommand CancelCommand { get; }
+
+    public CreatePackageViewModel()
+    {
+        CancelCommand = new RelayCommand(() => _cts?.Cancel(), () => IsGenerating);
     }
 
     public string ExtractedIconPath
@@ -221,10 +234,12 @@ public class CreatePackageViewModel : ObservableObject
 
     public async Task<string?> GenerateAsync(AppSettings settings, bool overwriteExisting = false)
     {
+        WasCancelled = false;
         if (!Validate()) return null;
 
         IsGenerating = true;
-        StatusText = "Generating package…";
+        StatusText = "Copying the PSADT template and source files…";
+        _cts = new CancellationTokenSource();
 
         try
         {
@@ -240,7 +255,7 @@ public class CreatePackageViewModel : ObservableObject
             var appInfo = BuildApplicationInfo();
 
             var generator = new PSADTGenerator(outputPath, templatePath);
-            var result = await generator.CreatePackageAsync(appInfo, overwriteExisting);
+            var result = await generator.CreatePackageAsync(appInfo, overwriteExisting, _cts.Token);
             var packagePath = result.PackagePath;
 
             if (!string.IsNullOrEmpty(ExtractedIconPath))
@@ -253,6 +268,12 @@ public class CreatePackageViewModel : ObservableObject
             Debug.WriteLine($"Package created: {packagePath}");
             return packagePath;
         }
+        catch (OperationCanceledException)
+        {
+            WasCancelled = true;
+            StatusText = "Generation cancelled. Nothing was left on the share.";
+            return null;
+        }
         catch (Exception ex)
         {
             StatusText = $"Error: {ex.Message}";
@@ -261,6 +282,8 @@ public class CreatePackageViewModel : ObservableObject
         }
         finally
         {
+            _cts?.Dispose();
+            _cts = null;
             IsGenerating = false;
         }
     }

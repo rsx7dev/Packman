@@ -16,21 +16,38 @@
 
         <!-- ═══════════ FOOTER ═══════════ -->
         <controls:PageFrame.Footer>
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBlock Text="{Binding FooterText}" Style="{StaticResource FooterHint}" Margin="0,0,18,0"
-                           HorizontalAlignment="Left" TextAlignment="Left"/>
-                <Button Grid.Column="1" Style="{StaticResource PrimaryButton}" MinWidth="180"
-                        Command="{Binding UploadCommand}">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Publish to Intune" VerticalAlignment="Center"/>
-                        <controls:LineIcon Data="{DynamicResource IconArrowR}" Width="15" Height="15" Margin="10,0,0,0"/>
-                    </StackPanel>
-                </Button>
-            </Grid>
+            <StackPanel>
+                <controls:ActivityDock Margin="0,0,0,12"
+                                       IsActive="{Binding Publish.IsRunning}"
+                                       JobName="{Binding Publish.Title}"
+                                       Phase="{Binding Publish.StatusText}"
+                                       Progress="{Binding Publish.ProgressValue}"
+                                       CancelCommand="{Binding Publish.CancelCommand}"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding FooterText}" Margin="0,0,18,0" HorizontalAlignment="Left" TextAlignment="Left">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock" BasedOn="{StaticResource FooterHint}">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Publish.IsRunning}" Value="True">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                    <Button Grid.Column="1" Style="{StaticResource PrimaryButton}" MinWidth="180"
+                            Command="{Binding UploadCommand}">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Publish to Intune" VerticalAlignment="Center"/>
+                            <controls:LineIcon Data="{DynamicResource IconArrowR}" Width="15" Height="15" Margin="10,0,0,0"/>
+                        </StackPanel>
+                    </Button>
+                </Grid>
+            </StackPanel>
         </controls:PageFrame.Footer>
 
         <!-- ═══════════ RAIL ═══════════ -->

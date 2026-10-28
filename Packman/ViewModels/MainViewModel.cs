@@ -104,9 +104,41 @@ public sealed class MainViewModel : ObservableObject
             OnPropertyChanged(nameof(IsLastStep));
             OnPropertyChanged(nameof(StepPosition));
             OnPropertyChanged(nameof(ShowPrimaryKeyHint));
-            BackCommand.RaiseCanExecuteChanged();
+            RefreshStepLocks();
             PrimaryCommand.RaiseCanExecuteChanged();
         }
+    }
+
+    private const string RunningLock = "Locked while running";
+    private const string NeedsPackageLock = "Needs a package";
+
+    private bool _isRepublishing;
+    /// <summary>Set by the window while the Application detail page republishes content.</summary>
+    public bool IsRepublishing
+    {
+        get => _isRepublishing;
+        set { if (Set(ref _isRepublishing, value)) RefreshStepLocks(); }
+    }
+
+    /// <summary>A generate, upgrade, publish or republish is in flight; the stepper and Back wait for it.</summary>
+    public bool IsJobRunning => CreatePackage.IsGenerating || Upgrade.IsBusy || Upload.Publish.IsRunning || IsRepublishing;
+
+    private string? _backLockReason;
+    public string? BackLockReason { get => _backLockReason; private set => Set(ref _backLockReason, value); }
+
+    /// <summary>Re-evaluates which steps can be entered and tells the stepper and Back why not.</summary>
+    private void RefreshStepLocks()
+    {
+        foreach (var step in Steps)
+        {
+            step.LockReason = IsJobRunning ? RunningLock
+                            : step.Index > CurrentStepIndex && !HasPackage ? NeedsPackageLock
+                            : null;
+        }
+        BackLockReason = IsJobRunning ? RunningLock : null;
+        OnPropertyChanged(nameof(IsJobRunning));
+        GoToStepCommand.RaiseCanExecuteChanged();
+        BackCommand.RaiseCanExecuteChanged();
     }
 
     // ── Optional tool pages (Edit Script / Remote Test) ─────────────────
@@ -192,9 +224,6 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>The ↵ hint hides while an upload is in flight.</summary>
     public bool ShowPrimaryKeyHint => !Upload.Publish.IsRunning;
 
-    /// <summary>Swaps the primary action for a status line while an upload runs.</summary>
-    public bool IsUploadRunning => Upload.Publish.IsRunning;
-
     public string StepPosition => $"step {CurrentStepIndex + 1} of {Steps.Count}";
 
     // ── Intune connection (title bar pill and rails) ────────────────────
@@ -253,16 +282,16 @@ public sealed class MainViewModel : ObservableObject
         {
             new(GenerateStep, "Package"),
             new(UploadStep,   "Configure"),
-            new(ReviewStep,   "Review & publish"),
+            new(ReviewStep,   "Review & publish") { IsLast = true },
         };
 
         _isNavHidden = _settingsService.Settings.NavHidden;
         ToggleNavCommand = new RelayCommand(() => IsNavHidden = !IsNavHidden);
 
-        BackCommand     = new RelayCommand(() => CurrentStepIndex--, () => CurrentStepIndex > 0);
+        BackCommand     = new RelayCommand(() => CurrentStepIndex--, () => CurrentStepIndex > 0 && !IsJobRunning);
         PrimaryCommand  = new AsyncRelayCommand(OnPrimaryAsync, () => !CreatePackage.IsGenerating && !Upgrade.IsBusy && !Upload.Publish.IsPublishing
                                                                     && (CurrentStepIndex != ReviewStep || Upload.CanAttemptPublish));
-        GoToStepCommand = new RelayCommand<int>(i => CurrentStepIndex = i);
+        GoToStepCommand = new RelayCommand<int>(i => CurrentStepIndex = i, i => !IsJobRunning && (i <= CurrentStepIndex || HasPackage));
 
         OpenEditToolCommand      = new RelayCommand(() => ActiveTool = PackageTool.EditScript, () => HasPackage);
         OpenTestToolCommand      = new RelayCommand(() => ActiveTool = PackageTool.RemoteTest, () => HasPackage);
@@ -277,6 +306,7 @@ public sealed class MainViewModel : ObservableObject
         });
 
         Steps[GenerateStep].IsCurrent = true;
+        RefreshStepLocks();
 
         _settingsService.Saved += RefreshFromSettings;
 
@@ -292,6 +322,7 @@ public sealed class MainViewModel : ObservableObject
             {
                 PrimaryCommand.RaiseCanExecuteChanged();
                 OnPropertyChanged(nameof(CanEditPackageInputs));
+                RefreshStepLocks();
             }
             if (e.PropertyName == nameof(CreatePackageViewModel.CurrentPackagePath))
                 RaisePackageDependents();
@@ -305,6 +336,7 @@ public sealed class MainViewModel : ObservableObject
             {
                 PrimaryCommand.RaiseCanExecuteChanged();
                 OnPropertyChanged(nameof(CanEditPackageInputs));
+                RefreshStepLocks();
             }
         };
         Upload.Publish.PropertyChanged += (_, e) =>
@@ -315,7 +347,8 @@ public sealed class MainViewModel : ObservableObject
             {
                 PrimaryCommand.RaiseCanExecuteChanged();
                 NewPackageCommand.RaiseCanExecuteChanged();
-                RaiseAll(nameof(ShowPrimaryKeyHint), nameof(IsUploadRunning));
+                RaiseAll(nameof(ShowPrimaryKeyHint));
+                RefreshStepLocks();
             }
         };
     }
@@ -333,6 +366,7 @@ public sealed class MainViewModel : ObservableObject
         OpenTestToolCommand.RaiseCanExecuteChanged();
         OpenPackageFolderCommand.RaiseCanExecuteChanged();
         NewPackageCommand.RaiseCanExecuteChanged();
+        RefreshStepLocks();
     }
 
     private async Task StartNewPackageAsync()
@@ -381,7 +415,7 @@ public sealed class MainViewModel : ObservableObject
         var overwrite = false;
         if (existing != null)
         {
-            if (!_dialogs.Confirm($"A package for this version already exists:\n\n{existing}\n\nReplace it?", "Package already exists"))
+            if (!_dialogs.Confirm($"A package for this version already exists:\n\n{existing}\n\nReplace it?", "Package already exists", "Replace package", "Keep existing"))
                 return;
             overwrite = true;
         }
@@ -389,7 +423,7 @@ public sealed class MainViewModel : ObservableObject
         var packagePath = await CreatePackage.GenerateAsync(_settingsService.Settings, overwrite);
         if (!string.IsNullOrEmpty(packagePath))
             RaisePackageDependents();
-        else if (!string.IsNullOrEmpty(CreatePackage.StatusText))
+        else if (!CreatePackage.WasCancelled && !string.IsNullOrEmpty(CreatePackage.StatusText))
             _dialogs.Warn(CreatePackage.StatusText, "Package Generation");
     }
 

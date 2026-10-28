@@ -124,6 +124,14 @@
         </controls:PageFrame.HeaderBottom>
 
         <!-- ═══════ Rail: deployment status and Intune publishing, on every tab ═══════ -->
+        <controls:PageFrame.Footer>
+            <controls:ActivityDock JobName="Republishing content"
+                                   IsActive="{Binding IsUpdating}"
+                                   Phase="{Binding UpdateStatus}"
+                                   Progress="{Binding UpdatePercent}"
+                                   CancelCommand="{Binding CancelUpdateCommand}"/>
+        </controls:PageFrame.Footer>
+
         <controls:PageFrame.Rail>
             <StackPanel>
                 <TextBlock Text="Deployment status" Style="{StaticResource RailTitle}"/>
@@ -179,7 +187,7 @@
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="{Binding Detail.IdShort}" VerticalAlignment="Center" ToolTip="{Binding Detail.Id}"/>
                             <Button Style="{StaticResource RowIconButton}" Width="24" Height="24" Margin="6,-4,0,-4"
-                                    Click="CopyAppId_Click" ToolTip="Copy full App ID">
+                                    Click="CopyAppId_Click" ToolTip="Copy full App ID" AutomationProperties.Name="Copy App ID">
                                 <controls:LineIcon Data="{DynamicResource IconCopy}" Width="14" Height="14"/>
                             </Button>
                         </StackPanel>
@@ -200,7 +208,8 @@
         <!-- Body scrolls on its own so the update overlay and the members slide-over
              stay put over it. -->
         <Grid>
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False"
+                          IsEnabled="{Binding IsUpdating, Converter={StaticResource InverseBool}}">
                 <StackPanel>
 
                     <Border Style="{StaticResource CalloutBad}" Margin="0,0,0,12"
@@ -516,11 +525,13 @@
                                                         <TextBlock Grid.Column="1" Text="{Binding Summary}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12.5"
                                                                    Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center" TextWrapping="Wrap"/>
                                                         <Button Grid.Column="2" Style="{StaticResource RowIconButton}" Margin="12,0,0,0" Click="EditRule_Click" ToolTip="Edit rule"
+                                                                AutomationProperties.Name="{Binding Summary, StringFormat='Edit rule {0}'}"
                                                                 Visibility="{Binding CanEdit, Converter={StaticResource BoolToVis}}"
                                                                 IsEnabled="{Binding DataContext.IsSignedIn, RelativeSource={RelativeSource AncestorType={x:Type views:ApplicationDetailView}}}">
                                                             <controls:LineIcon Data="{DynamicResource IconPencil}" Width="15" Height="15"/>
                                                         </Button>
                                                         <Button Grid.Column="3" Style="{StaticResource RowIconButton}" Margin="4,0,0,0" Click="DeleteRule_Click" ToolTip="Delete rule"
+                                                                AutomationProperties.Name="{Binding Summary, StringFormat='Delete rule {0}'}"
                                                                 IsEnabled="{Binding DataContext.IsSignedIn, RelativeSource={RelativeSource AncestorType={x:Type views:ApplicationDetailView}}}">
                                                             <controls:LineIcon Data="{DynamicResource IconTrash}" Width="15" Height="15"/>
                                                         </Button>
@@ -677,24 +688,22 @@
                                 <ItemsControl ItemsSource="{Binding Detail.AssignedGroups}" Focusable="False">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Button Click="GroupRow_Click" Cursor="Hand" HorizontalContentAlignment="Stretch" ToolTip="View members"
-                                                    AutomationProperties.Name="{Binding GroupName}" FocusVisualStyle="{StaticResource FocusVisualInset}">
-                                                <Button.Template>
-                                                    <ControlTemplate TargetType="Button">
-                                                        <Border x:Name="rb" Background="Transparent" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1">
-                                                            <ContentPresenter/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
+                                            <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1">
+                                                <Border.Style>
+                                                    <Style TargetType="Border">
+                                                        <Setter Property="Background" Value="Transparent"/>
+                                                        <Style.Triggers>
                                                             <Trigger Property="IsMouseOver" Value="True">
-                                                                <Setter TargetName="rb" Property="Background" Value="{DynamicResource Card2Brush}"/>
+                                                                <Setter Property="Background" Value="{DynamicResource Card2Brush}"/>
                                                             </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Button.Template>
-                                                <Grid Margin="0,10">
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </Border.Style>
+                                                <Grid Margin="0,6">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto"/>
                                                         <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
                                                         <ColumnDefinition Width="Auto"/>
                                                         <ColumnDefinition Width="42"/>
                                                     </Grid.ColumnDefinitions>
@@ -703,13 +712,17 @@
                                                                Foreground="{DynamicResource InkBrush}" Margin="12,0,12,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
                                                     <ContentControl Grid.Column="2" Content="{Binding}" ContentTemplate="{StaticResource StatusBadgeTemplate}"
                                                                     VerticalAlignment="Center" Focusable="False"/>
-                                                    <Button Grid.Column="3" Style="{StaticResource RowIconButton}" HorizontalAlignment="Right"
+                                                    <Button Grid.Column="3" Style="{StaticResource LinkButton}" Content="View members" Margin="12,0,0,0"
+                                                            Click="ViewMembers_Click" VerticalAlignment="Center"
+                                                            AutomationProperties.Name="{Binding GroupName, StringFormat='View members of {0}'}"/>
+                                                    <Button Grid.Column="4" Style="{StaticResource RowIconButton}" HorizontalAlignment="Right"
                                                             Click="RemoveAssignment_Click" ToolTip="Remove this assignment"
+                                                            AutomationProperties.Name="{Binding GroupName, StringFormat='Remove assignment for {0}'}"
                                                             IsEnabled="{Binding DataContext.IsSignedIn, RelativeSource={RelativeSource AncestorType={x:Type views:ApplicationDetailView}}}">
                                                         <controls:LineIcon Data="{DynamicResource IconX}" Width="14" Height="14"/>
                                                     </Button>
                                                 </Grid>
-                                            </Button>
+                                            </Border>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
@@ -765,11 +778,6 @@
                     <StackPanel>
                         <TextBlock Text="Updating package content" Style="{StaticResource H2}"/>
                         <TextBlock Text="{Binding Detail.DisplayName}" Style="{StaticResource SubText}" Margin="0,4,0,0" TextTrimming="CharacterEllipsis"/>
-                        <ProgressBar Value="{Binding UpdatePercent, Mode=OneWay}" Maximum="100" Margin="0,18,0,0"/>
-                        <TextBlock Text="{Binding UpdateStatus}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12"
-                                   Foreground="{DynamicResource Muted2Brush}" Margin="0,10,0,0" TextWrapping="Wrap"/>
-                        <Button Style="{StaticResource GhostButton}" Content="Cancel" HorizontalAlignment="Right"
-                                Margin="0,18,0,0" Click="CancelUpdate_Click"/>
                     </StackPanel>
                 </Border>
             </Grid>
@@ -782,6 +790,8 @@
                     MouseLeftButtonDown="FlyoutBackdrop_MouseDown"/>
             <Border HorizontalAlignment="Right" Width="360" Style="{StaticResource Card}" CornerRadius="10,0,0,10"
                     Background="{DynamicResource FlyoutBrush}" BorderBrush="{DynamicResource EdgeBrush}"
+                    KeyboardNavigation.TabNavigation="Cycle" KeyboardNavigation.ControlTabNavigation="Cycle"
+                    PreviewKeyDown="Flyout_PreviewKeyDown" IsVisibleChanged="Flyout_IsVisibleChanged"
                     Visibility="{Binding IsFlyoutOpen, Converter={StaticResource BoolToVis}}">
                 <Grid Margin="20">
                     <Grid.RowDefinitions>
@@ -803,7 +813,8 @@
                             <ContentControl Content="{Binding FlyoutGroup}" ContentTemplate="{StaticResource StatusBadgeTemplate}"
                                             HorizontalAlignment="Left" Margin="0,8,0,0" Focusable="False"/>
                         </StackPanel>
-                        <Button Grid.Column="1" Style="{StaticResource RowIconButton}" Click="FlyoutClose_Click" ToolTip="Close" VerticalAlignment="Top">
+                        <Button x:Name="FlyoutCloseButton" Grid.Column="1" Style="{StaticResource RowIconButton}" Click="FlyoutClose_Click" ToolTip="Close" VerticalAlignment="Top"
+                                AutomationProperties.Name="{Binding FlyoutGroup.GroupName, StringFormat='Close members of {0}'}">
                             <controls:LineIcon Data="{DynamicResource IconX}" Width="15" Height="15"/>
                         </Button>
                     </Grid>
@@ -871,6 +882,7 @@
                                                            Margin="8,0,0,0" VerticalAlignment="Center"/>
                                                 <Button Grid.Column="2" Style="{StaticResource RowIconButton}" Width="26" Height="26" Margin="4,0,0,0"
                                                         Click="RemoveMember_Click" ToolTip="Remove from group"
+                                                        AutomationProperties.Name="{Binding DisplayName, StringFormat='Remove {0} from group'}"
                                                         IsEnabled="{Binding DataContext.IsSignedIn, RelativeSource={RelativeSource AncestorType={x:Type views:ApplicationDetailView}}}">
                                                     <controls:LineIcon Data="{DynamicResource IconX}" Width="13" Height="13"/>
                                                 </Button>

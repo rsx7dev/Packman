@@ -15,6 +15,12 @@ public partial class ApplicationDetailView : UserControl
     /// <summary>The app on show. Set by <see cref="Show"/>, or directly as DataContext by the UI previews.</summary>
     private ApplicationDetailViewModel? Vm => DataContext as ApplicationDetailViewModel;
 
+    /// <summary>The current app's view model, for the window's close guard.</summary>
+    public ApplicationDetailViewModel? ViewModel => Vm;
+
+    /// <summary>The button that opened the members flyout, so focus can go back to it.</summary>
+    private IInputElement? _flyoutOpener;
+
     /// <summary>Raised by the breadcrumb; the host returns to the list.</summary>
     public event Action? BackRequested;
 
@@ -53,27 +59,25 @@ public partial class ApplicationDetailView : UserControl
 
         if (!Vm.CanUpdatePackage)
         {
-            MessageBox.Show(
+            AppServices.Dialogs.Info(
                 "No package folder was found on the share for this app, so there is nothing to rebuild.\n\nCheck the Intune Applications path on the Settings page.",
-                "Package not found", MessageBoxButton.OK, MessageBoxImage.Information);
+                "Package not found");
             return;
         }
 
-        var result = MessageBox.Show(
+        var confirmed = AppServices.Dialogs.Confirm(
             $"Rebuild the package for \"{Vm.Detail.DisplayName}\" and upload it as a new content version?\n\n" +
             $"Source: {Vm.SourcePath}\n\n" +
             "The .intunewin is regenerated from the source folder and becomes the content devices download. " +
             "Name, description, install commands, detection rules, requirements, return codes and assignments are not changed.",
-            "Republish package content", MessageBoxButton.YesNo, MessageBoxImage.Question);
-        if (result != MessageBoxResult.Yes) return;
+            "Republish package content", "Republish content");
+        if (!confirmed) return;
 
         ErrorReporter.FireAndForget(async () =>
         {
             if (await Vm.UpdatePackageContentAsync()) Updated?.Invoke();
         });
     }
-
-    private void CancelUpdate_Click(object sender, RoutedEventArgs e) => Vm?.CancelUpdate();
 
     private void ManageAssignments_Click(object sender, RoutedEventArgs e)
     {
@@ -82,17 +86,12 @@ public partial class ApplicationDetailView : UserControl
 
     // ── Clipboard ──
 
-    private static void CopyText(string? text)
-    {
-        if (string.IsNullOrEmpty(text)) return;
-        try { Clipboard.SetText(text); }
-        catch { /* clipboard can be locked by another process; not worth surfacing */ }
-    }
+    private static void CopyText(object sender, string? text) => ClipboardCopy.Copy((Button)sender, text);
 
-    private void CopyPath_Click(object sender, RoutedEventArgs e) => CopyText(Vm?.SourcePath);
-    private void CopyAppId_Click(object sender, RoutedEventArgs e) => CopyText(Vm?.Detail.Id);
-    private void CopyInstall_Click(object sender, RoutedEventArgs e) => CopyText(Vm?.Detail.InstallCommand);
-    private void CopyUninstall_Click(object sender, RoutedEventArgs e) => CopyText(Vm?.Detail.UninstallCommand);
+    private void CopyPath_Click(object sender, RoutedEventArgs e) => CopyText(sender, Vm?.SourcePath);
+    private void CopyAppId_Click(object sender, RoutedEventArgs e) => CopyText(sender, Vm?.Detail.Id);
+    private void CopyInstall_Click(object sender, RoutedEventArgs e) => CopyText(sender, Vm?.Detail.InstallCommand);
+    private void CopyUninstall_Click(object sender, RoutedEventArgs e) => CopyText(sender, Vm?.Detail.UninstallCommand);
 
     // ── Package source ──
 
@@ -106,7 +105,7 @@ public partial class ApplicationDetailView : UserControl
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Could not open folder: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            AppServices.Dialogs.Warn($"Could not open folder: {ex.Message}", "Error");
         }
     }
 
@@ -115,8 +114,7 @@ public partial class ApplicationDetailView : UserControl
         var script = Vm?.SourceScriptPath;
         if (string.IsNullOrEmpty(script) || !File.Exists(script))
         {
-            MessageBox.Show("No PSADT script found in the package's source folder.", "Not found",
-                MessageBoxButton.OK, MessageBoxImage.Information);
+            AppServices.Dialogs.Info("No PSADT script found in the package's source folder.", "Not found");
             return;
         }
 
@@ -126,7 +124,7 @@ public partial class ApplicationDetailView : UserControl
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"Could not open script: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+            AppServices.Dialogs.Warn($"Could not open script: {ex.Message}", "Error");
         }
     }
 
@@ -173,10 +171,10 @@ public partial class ApplicationDetailView : UserControl
         var display = RowContext<DetectionRuleDisplay>(sender);
         if (display == null || Vm == null) return;
 
-        var result = MessageBox.Show(
+        var confirmed = AppServices.Dialogs.Confirm(
             "Delete this detection rule?\n\nIf no rule matches anymore, Intune considers the app not installed and required assignments will reinstall it.",
-            "Delete detection rule", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-        if (result != MessageBoxResult.Yes) return;
+            "Delete detection rule", "Delete rule", "Keep rule");
+        if (!confirmed) return;
 
         ErrorReporter.FireAndForget(() => Vm.DeleteDetectionRuleAsync(display));
     }
@@ -199,20 +197,38 @@ public partial class ApplicationDetailView : UserControl
         var group = RowContext<AssignedGroup>(sender);
         if (group == null || Vm == null) return;
 
-        var result = MessageBox.Show(
+        var confirmed = AppServices.Dialogs.Confirm(
             $"Remove the {group.StatusLabel} assignment for \"{group.GroupName}\"?",
-            "Remove assignment", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-        if (result != MessageBoxResult.Yes) return;
+            "Remove assignment", "Remove assignment", "Keep assignment");
+        if (!confirmed) return;
 
         ErrorReporter.FireAndForget(() => Vm.RemoveAssignmentAsync(group));
     }
 
     // ── Group members slide-over ──
 
-    private void GroupRow_Click(object sender, RoutedEventArgs e)
+    private void ViewMembers_Click(object sender, RoutedEventArgs e)
     {
         var group = RowContext<AssignedGroup>(sender);
-        if (group != null && Vm != null) ErrorReporter.FireAndForget(() => Vm.OpenMembersAsync(group));
+        if (group == null || Vm == null) return;
+        _flyoutOpener = sender as IInputElement;
+        ErrorReporter.FireAndForget(() => Vm.OpenMembersAsync(group));
+    }
+
+    /// <summary>Focus moves into the flyout when it opens and back to the row button when it closes.</summary>
+    private void Flyout_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if ((bool)e.NewValue)
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, new Action(() => FlyoutCloseButton.Focus()));
+        else
+            _flyoutOpener?.Focus();
+    }
+
+    private void Flyout_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key != System.Windows.Input.Key.Escape) return;
+        Vm?.CloseFlyout();
+        e.Handled = true;
     }
 
     private void FlyoutClose_Click(object sender, RoutedEventArgs e) => Vm?.CloseFlyout();
@@ -230,10 +246,10 @@ public partial class ApplicationDetailView : UserControl
         var member = RowContext<GroupMember>(sender);
         if (member == null || Vm == null) return;
 
-        var result = MessageBox.Show(
+        var confirmed = AppServices.Dialogs.Confirm(
             $"Remove \"{member.DisplayName}\" from \"{Vm.FlyoutGroup?.GroupName}\"?\n\nThis affects every app assigned to the group.",
-            "Remove member", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-        if (result != MessageBoxResult.Yes) return;
+            "Remove member", "Remove member", "Keep member");
+        if (!confirmed) return;
 
         ErrorReporter.FireAndForget(() => Vm.RemoveMemberAsync(member));
     }
@@ -242,10 +258,10 @@ public partial class ApplicationDetailView : UserControl
     {
         if (Vm == null) return;
 
-        var result = MessageBox.Show(
+        var confirmed = AppServices.Dialogs.Confirm(
             $"Delete \"{Vm.Detail.DisplayName}\" from Intune?\n\nThis permanently removes the Win32 app from the tenant. This cannot be undone.",
-            "Delete from Intune", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-        if (result != MessageBoxResult.Yes) return;
+            "Delete from Intune", "Delete from Intune", "Keep app");
+        if (!confirmed) return;
 
         ErrorReporter.FireAndForget(async () =>
         {

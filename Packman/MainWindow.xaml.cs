@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Input;
 using Packman.Services;
 using Packman.ViewModels;
 using Wpf.Ui.Controls;
@@ -9,13 +10,19 @@ namespace Packman;
 public partial class MainWindow : FluentWindow
 {
     private bool _closeConfirmed;
+    private bool _closeRequested;
 
     public MainWindow()
     {
         DataContext = new MainViewModel();
         InitializeComponent();
 
-        ApplicationsPage.AppOpened += app => { AppDetailPage.Show(app); ShowOnly(AppDetailPage, "Applications / Detail"); };
+        ApplicationsPage.AppOpened += app =>
+        {
+            AppDetailPage.Show(app);
+            TrackRepublish(AppDetailPage.ViewModel);
+            ShowOnly(AppDetailPage, "Applications / Detail");
+        };
         ApplicationsPage.ConnectRequested += () => SettingsNavBtn.IsChecked = true;
 
         AppDetailPage.BackRequested += () => ShowOnly(ApplicationsPage, "Applications");
@@ -32,6 +39,26 @@ public partial class MainWindow : FluentWindow
 
         AppNavigation.Requested += Navigate;
         Closed += (_, _) => AppNavigation.Requested -= Navigate;
+    }
+
+    /// <summary>A republish on the detail page locks the wizard stepper like any other running job.</summary>
+    private void TrackRepublish(ApplicationDetailViewModel? detail)
+    {
+        if (detail == null || DataContext is not MainViewModel main) return;
+        detail.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(ApplicationDetailViewModel.IsUpdating)) main.IsRepublishing = detail.IsUpdating;
+        };
+    }
+
+    /// <summary>The generate, publish or republish in flight, with how to stop it. Null when idle.</summary>
+    private (string Name, ICommand Cancel)? RunningJob(MainViewModel vm)
+    {
+        if (vm.CreatePackage.IsGenerating) return ("package generation", vm.CreatePackage.CancelCommand);
+        if (vm.Upload.Publish.IsRunning) return ("publish", vm.Upload.Publish.CancelCommand);
+        if (UploadIntunePage.ViewModel.Publish.IsRunning) return ("publish", UploadIntunePage.ViewModel.Publish.CancelCommand);
+        if (AppDetailPage.ViewModel is { IsUpdating: true } detail) return ("republish", detail.CancelUpdateCommand);
+        return null;
     }
 
     /// <summary>Page switches asked for from a rail, the title bar or another page.</summary>
@@ -61,20 +88,38 @@ public partial class MainWindow : FluentWindow
     }
 
     /// <summary>
-    /// Lets the script editor save before the app closes. The prompt is awaited, so the
-    /// first close is cancelled and the second runs straight through. A failure here is
-    /// reported and the close still proceeds, rather than trapping the user.
+    /// Asks before abandoning a running job, then lets the script editor save before the app
+    /// closes. The waits are awaited, so the first close is cancelled and the second runs
+    /// straight through. A failure here is reported and the close still proceeds, rather
+    /// than trapping the user.
     /// </summary>
     private void MainWindow_Closing(object sender, CancelEventArgs e)
     {
-        if (_closeConfirmed || DataContext is not MainViewModel vm || !vm.Editor.HasUnsavedChanges) return;
+        if (_closeConfirmed || DataContext is not MainViewModel vm) return;
+
+        var job = RunningJob(vm);
+        if (job == null && !vm.Editor.HasUnsavedChanges) return;
 
         e.Cancel = true;
+        if (_closeRequested) return;   // already stopping a job or asking about the editor
+
+        if (job is { } running)
+        {
+            if (!AppServices.Dialogs.Confirm(
+                    $"The {running.Name} is still running. Closing now cancels it.",
+                    "Packman is busy", $"Cancel {running.Name} and close", "Keep Packman open"))
+                return;
+            running.Cancel.Execute(null);
+        }
+
+        _closeRequested = true;
         ErrorReporter.FireAndForget(async () =>
         {
             bool proceed;
             try
             {
+                // Let the job clean up (a cancelled publish removes the half-built app) first.
+                while (RunningJob(vm) != null) await Task.Delay(250);
                 proceed = await vm.Editor.PromptSaveAllAsync();
             }
             catch (Exception ex)
@@ -83,6 +128,7 @@ public partial class MainWindow : FluentWindow
                 proceed = true;
             }
 
+            _closeRequested = false;
             if (!proceed) return;
             _closeConfirmed = true;
             Close();

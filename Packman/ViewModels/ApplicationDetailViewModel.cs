@@ -17,6 +17,7 @@ public sealed class ApplicationDetailViewModel : ObservableObject
 
     public ApplicationDetailViewModel(IntuneApplication app)
     {
+        CancelUpdateCommand = new RelayCommand(CancelUpdate, () => IsUpdating);
         _groupSearchBox = new IncrementalSearch<EntraGroup>(q => _apps.SearchGroupsAsync(q), () => OnPropertyChanged(nameof(HasGroupResults)));
         _memberSearchBox = new IncrementalSearch<GroupMember>(q => _apps.SearchDevicesAndUsersAsync(q), () => OnPropertyChanged(nameof(HasMemberResults)));
         // Seed from the list row so the header renders now; LoadAsync fills the rest.
@@ -112,6 +113,7 @@ public sealed class ApplicationDetailViewModel : ObservableObject
             OnPropertyChanged(nameof(SourceHintOk));
             OnPropertyChanged(nameof(CanUpdatePackage));
             OnPropertyChanged(nameof(CanRepublish));
+            CancelUpdateCommand.RaiseCanExecuteChanged();
         }
     }
     public bool HasSource => !string.IsNullOrEmpty(_sourcePath);
@@ -214,6 +216,8 @@ public sealed class ApplicationDetailViewModel : ObservableObject
     public int UpdatePercent { get => _updatePercent; private set => Set(ref _updatePercent, value); }
 
     public void CancelUpdate() => _updateCts?.Cancel();
+
+    public RelayCommand CancelUpdateCommand { get; }
 
     /// <summary>
     /// Rebuilds the .intunewin from the package on the share and publishes it as a new

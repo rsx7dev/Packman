@@ -280,10 +280,24 @@
                 </StackPanel>
 
                 <!-- Generation / upgrade status -->
+                <!-- While generating, the activity dock in the footer shows this text instead. -->
                 <TextBlock Margin="0,18,0,0" TextWrapping="Wrap" FontFamily="{StaticResource MonoFontFamily}" FontSize="12" LineHeight="18"
                            Foreground="{DynamicResource MutedBrush}" AutomationProperties.LiveSetting="Polite"
-                           Text="{Binding CreatePackage.StatusText}"
-                           Visibility="{Binding CreatePackage.StatusText, Converter={StaticResource NonEmptyToVis}}"/>
+                           Text="{Binding CreatePackage.StatusText}">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Visibility" Value="Visible"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding CreatePackage.StatusText}" Value="">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding CreatePackage.IsGenerating}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
                 <TextBlock Margin="0,18,0,0" TextWrapping="Wrap" FontFamily="{StaticResource MonoFontFamily}" FontSize="12" LineHeight="18"
                            Foreground="{DynamicResource MutedBrush}" AutomationProperties.LiveSetting="Polite"
                            Text="{Binding Upgrade.StatusText}"

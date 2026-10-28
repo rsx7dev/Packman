@@ -22,6 +22,13 @@ public sealed class StepViewModel : ObservableObject
 
     public bool IsActive => IsCurrent || IsDone;
 
+    /// <summary>The last step has no connector to the next one.</summary>
+    public bool IsLast { get; init; }
+
+    private string? _lockReason;
+    /// <summary>Why the stepper button is disabled, or null while it can be used.</summary>
+    public string? LockReason { get => _lockReason; set => Set(ref _lockReason, value); }
+
     public StepViewModel(int index, string title)
     {
         Index = index;

@@ -460,7 +460,7 @@ public sealed class EditorSessionViewModel : ObservableObject
         {
             var overwrite = _dialogs.Confirm(
                 $"{file.Name} has changed on disk since it was opened.\n\nOverwrite it with your version?",
-                "File changed on disk");
+                "File changed on disk", "Overwrite");
             if (!overwrite) return false;
         }
 
@@ -490,7 +490,7 @@ public sealed class EditorSessionViewModel : ObservableObject
         var file = _active;
         if (file == null) return;
         if (file.IsDirty &&
-            !_dialogs.Confirm($"Discard your unsaved changes to {file.Name} and reload it from disk?", "Reload file"))
+            !_dialogs.Confirm($"Discard your unsaved changes to {file.Name} and reload it from disk?", "Reload file", "Discard and reload", "Keep my changes"))
             return;
 
         await ReadIntoEditorAsync(file);
@@ -507,7 +507,7 @@ public sealed class EditorSessionViewModel : ObservableObject
         var names = string.Join("\n", dirty.Select(f => f.Name));
         var answer = _dialogs.ConfirmOrCancel(
             dirty.Count == 1 ? $"Save changes to {names}?" : $"Save changes to these {dirty.Count} files?\n\n{names}",
-            "Unsaved changes");
+            "Unsaved changes", "Save", "Don't save");
         if (answer == null) return false;
 
         foreach (var file in dirty)
@@ -528,7 +528,7 @@ public sealed class EditorSessionViewModel : ObservableObject
     {
         if (file.IsDirty)
         {
-            var answer = _dialogs.ConfirmOrCancel($"Save changes to {file.Name}?", "Unsaved changes");
+            var answer = _dialogs.ConfirmOrCancel($"Save changes to {file.Name}?", "Unsaved changes", "Save", "Don't save");
             if (answer == null) return;
             if (answer == true && !await SaveAsync(file)) return;
         }
