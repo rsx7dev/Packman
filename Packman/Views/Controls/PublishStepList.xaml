@@ -10,23 +10,7 @@
     <ItemsControl ItemsSource="{Binding Steps}">
         <ItemsControl.ItemTemplate>
             <DataTemplate>
-                <Border CornerRadius="4" Padding="14,11" Margin="0,0,0,8"
-                        Background="{DynamicResource CardBrush}" BorderThickness="1">
-                    <Border.Style>
-                        <Style TargetType="Border">
-                            <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsWorking}" Value="True">
-                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentTextBrush}"/>
-                                    <Setter Property="Background" Value="{DynamicResource PrimarySoftBrush}"/>
-                                </DataTrigger>
-                                <DataTrigger Binding="{Binding IsError}" Value="True">
-                                    <Setter Property="BorderBrush" Value="{DynamicResource BadBrush}"/>
-                                    <Setter Property="Background" Value="{DynamicResource BadSoftBrush}"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </Border.Style>
+                <Border Padding="0,10" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
@@ -34,29 +18,31 @@
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <!-- status square -->
-                        <Grid Grid.Column="0" Width="24" Height="24" VerticalAlignment="Center">
-                            <Border CornerRadius="4" Background="{DynamicResource OkBrush}" Visibility="{Binding IsDone, Converter={StaticResource BoolToVis}}">
+                        <!-- status mark -->
+                        <Grid Grid.Column="0" Width="22" Height="22" VerticalAlignment="Center">
+                            <Border CornerRadius="11" Background="{DynamicResource OkSoftBrush}" Visibility="{Binding IsDone, Converter={StaticResource BoolToVis}}">
                                 <Viewbox Width="12" Height="12">
-                                    <Path Data="{StaticResource IconCheck}" Stroke="{DynamicResource PrimaryFgBrush}" StrokeThickness="2.8" Style="{StaticResource Icon}"/>
+                                    <Path Data="{StaticResource IconCheck}" Stroke="{DynamicResource OkBrush}" StrokeThickness="2.8" Style="{StaticResource Icon}"/>
                                 </Viewbox>
                             </Border>
-                            <Border CornerRadius="4" Background="{DynamicResource PrimaryBrush}" Visibility="{Binding IsWorking, Converter={StaticResource BoolToVis}}"/>
-                            <Border CornerRadius="4" Background="{DynamicResource BadBrush}" Visibility="{Binding IsError, Converter={StaticResource BoolToVis}}">
+                            <Border CornerRadius="11" Background="{DynamicResource PrimarySoftBrush}" Visibility="{Binding IsWorking, Converter={StaticResource BoolToVis}}">
+                                <Ellipse Width="8" Height="8" Fill="{DynamicResource AccentTextBrush}"/>
+                            </Border>
+                            <Border CornerRadius="11" Background="{DynamicResource BadSoftBrush}" Visibility="{Binding IsError, Converter={StaticResource BoolToVis}}">
                                 <Viewbox Width="11" Height="11">
-                                    <Path Data="{StaticResource IconX}" Stroke="{DynamicResource PrimaryFgBrush}" StrokeThickness="2.4" Style="{StaticResource Icon}"/>
+                                    <Path Data="{StaticResource IconX}" Stroke="{DynamicResource BadBrush}" StrokeThickness="2.4" Style="{StaticResource Icon}"/>
                                 </Viewbox>
                             </Border>
-                            <Border CornerRadius="4" Background="{DynamicResource Line2Brush}" Visibility="{Binding IsPending, Converter={StaticResource BoolToVis}}">
-                                <TextBlock Text="{Binding Number}" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource Muted2Brush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Border CornerRadius="11" Background="{DynamicResource Card2Brush}" Visibility="{Binding IsPending, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="{Binding Number}" FontSize="11.5" FontWeight="SemiBold" Foreground="{DynamicResource MutedBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                         </Grid>
 
                         <TextBlock Grid.Column="1" Text="{Binding Title}" Margin="12,0,0,0" VerticalAlignment="Center"
-                                   FontSize="12.5" TextTrimming="CharacterEllipsis">
+                                   FontSize="13" TextTrimming="CharacterEllipsis">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
-                                    <Setter Property="Foreground" Value="{DynamicResource Muted3Brush}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource MutedBrush}"/>
                                     <Style.Triggers>
                                         <DataTrigger Binding="{Binding IsPending}" Value="False">
                                             <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
@@ -68,7 +54,7 @@
                         </TextBlock>
 
                         <TextBlock Grid.Column="2" Text="{Binding StatusLabel}" VerticalAlignment="Center"
-                                   FontFamily="{StaticResource LabelFontFamily}" FontSize="12" FontWeight="SemiBold">
+                                   FontSize="12.5" FontWeight="Medium">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Foreground" Value="{DynamicResource FaintBrush}"/>

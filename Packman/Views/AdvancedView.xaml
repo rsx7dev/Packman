@@ -26,9 +26,9 @@
         <!-- Results dropdown under a search box. -->
         <Style x:Key="ResultsBox" TargetType="{x:Type Border}">
             <Setter Property="Background" Value="{DynamicResource FlyoutBrush}"/>
-            <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource EdgeBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Margin" Value="0,6,0,0"/>
             <Setter Property="Padding" Value="0,4"/>
             <Setter Property="MaxHeight" Value="200"/>
@@ -37,7 +37,7 @@
         <Style x:Key="TableBox" TargetType="{x:Type Border}">
             <Setter Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="CornerRadius" Value="8"/>
             <Setter Property="Margin" Value="0,12,0,0"/>
         </Style>
     </UserControl.Resources>
@@ -78,13 +78,13 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <Border Width="56" Height="56" CornerRadius="6" Background="{DynamicResource PrimaryFaintBrush}"
-                            BorderBrush="{DynamicResource PrimaryLineBrush}" BorderThickness="1">
-                        <controls:LineIcon Data="{DynamicResource IconGroup}" Width="26" Height="26" HorizontalAlignment="Center"
+                    <Border Width="48" Height="48" CornerRadius="11" Background="{DynamicResource Card2Brush}"
+                            BorderBrush="{DynamicResource LineBrush}" BorderThickness="1">
+                        <controls:LineIcon Data="{DynamicResource IconGroup}" Width="24" Height="24" HorizontalAlignment="Center"
                                            Foreground="{DynamicResource AccentTextBrush}"/>
                     </Border>
                     <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding TenantLabel}" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}"
+                        <TextBlock Text="{Binding TenantLabel}" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}"
                                    TextTrimming="CharacterEllipsis"/>
                         <TextBlock Text="Microsoft Entra ID" FontSize="13" Foreground="{DynamicResource Muted2Brush}" Margin="0,2,0,0"/>
                     </StackPanel>
@@ -119,14 +119,13 @@
         <StackPanel>
 
             <!-- Not connected -->
-            <Border Style="{StaticResource SectionPanel}" Padding="30,44" Visibility="{Binding ShowConnectPrompt, Converter={StaticResource BoolToVis}}">
+            <Border Style="{StaticResource SectionPanel}" Padding="0,56" Visibility="{Binding ShowConnectPrompt, Converter={StaticResource BoolToVis}}">
                 <StackPanel>
-                    <Border Width="52" Height="52" CornerRadius="6" Background="{DynamicResource PrimaryFaintBrush}"
-                            BorderBrush="{DynamicResource PrimaryLineBrush}" BorderThickness="1" HorizontalAlignment="Center">
+                    <Border Width="48" Height="48" CornerRadius="12" Background="{DynamicResource Card2Brush}" HorizontalAlignment="Center">
                         <controls:LineIcon Data="{DynamicResource IconShield}" Width="24" Height="24" HorizontalAlignment="Center"
-                                           Foreground="{DynamicResource AccentTextBrush}"/>
+                                           Foreground="{DynamicResource MutedBrush}"/>
                     </Border>
-                    <TextBlock Text="Not connected to Microsoft Intune" Style="{StaticResource H3}" HorizontalAlignment="Center" Margin="0,16,0,0"/>
+                    <TextBlock Text="Not connected to Microsoft Intune" FontSize="16" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}" HorizontalAlignment="Center" Margin="0,16,0,0"/>
                     <TextBlock Text="Sign in on the Settings page to use the directory actions."
                                Style="{StaticResource SubText}" Margin="0,6,0,0"
                                HorizontalAlignment="Center" TextWrapping="Wrap" MaxWidth="420" TextAlignment="Center"/>
@@ -184,7 +183,17 @@
 
                         <TextBlock Text="PC names" Style="{StaticResource FieldLabel}" Margin="0,18,0,7"/>
                         <!-- Plain TextBox in a bordered box: the TextField style is single-line (hidden scrollbars, centred content) -->
-                        <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource ControlStrokeBrush}" BorderThickness="1" CornerRadius="4">
+                        <Border BorderBrush="{DynamicResource ControlStrokeBrush}" BorderThickness="1" CornerRadius="7">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Background" Value="{DynamicResource FieldBrush}"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsKeyboardFocusWithin" Value="True">
+                                            <Setter Property="BorderBrush" Value="{DynamicResource AccentTextBrush}"/>
+                                        </Trigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
                             <TextBox AutomationProperties.Name="PC names" Height="150" AcceptsReturn="True" TextWrapping="Wrap" Padding="12,10"
                                      Background="Transparent" BorderThickness="0"
                                      Foreground="{DynamicResource InkBrush}" CaretBrush="{DynamicResource InkBrush}"
@@ -208,7 +217,7 @@
                             <TextBlock Text="Results" Style="{StaticResource H2}"/>
                             <Border Style="{StaticResource TableBox}">
                                 <StackPanel>
-                                    <Border Background="{DynamicResource Card2Brush}" CornerRadius="6,6,0,0" Padding="14,10"
+                                    <Border Background="{DynamicResource Card2Brush}" CornerRadius="7,7,0,0" Padding="14,10"
                                             BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1">
                                         <Grid>
                                             <Grid.ColumnDefinitions>
@@ -225,7 +234,7 @@
                                         <ItemsControl ItemsSource="{Binding BulkRows}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Border BorderBrush="{DynamicResource Line2Brush}" BorderThickness="0,0,0,1" Padding="14,10">
+                                                    <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1" Padding="14,10">
                                                         <Grid>
                                                             <Grid.ColumnDefinitions>
                                                                 <ColumnDefinition Width="180"/>
@@ -322,7 +331,7 @@
                             <ItemsControl ItemsSource="{Binding DeviceGroups}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border BorderBrush="{DynamicResource Line2Brush}" BorderThickness="0,0,0,1" Padding="14,10">
+                                        <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1" Padding="14,10">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>
@@ -384,7 +393,7 @@
                             <ItemsControl ItemsSource="{Binding GroupApps}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border BorderBrush="{DynamicResource Line2Brush}" BorderThickness="0,0,0,1" Padding="14,10">
+                                        <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1" Padding="14,10">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>

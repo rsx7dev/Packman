@@ -14,7 +14,7 @@
                     <TextBlock TextWrapping="Wrap" Text="A security group is created (or reused if it already exists) on upload and assigned to the app" FontSize="12" Foreground="{DynamicResource MutedBrush}" Margin="0,2,0,0"/>
                 </StackPanel>
                 <!-- On / Off toggle -->
-                <Border Grid.Column="1" Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4" Padding="4" VerticalAlignment="Center">
+                <Border Grid.Column="1" Style="{StaticResource SegmentGroup}" Padding="3" VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal">
                         <RadioButton Style="{StaticResource ContextToggle}" IsChecked="{Binding CreateGroupPerPackageDisabled}">
                             <TextBlock Text="Off" VerticalAlignment="Center"/>
@@ -44,7 +44,7 @@
                 </TextBlock>
                 <!-- Assignment intent for the new group -->
                 <TextBlock Text="Assignment type" Style="{StaticResource FieldLabel}" Margin="0,14,0,7"/>
-                <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4" Padding="4" HorizontalAlignment="Left">
+                <Border Style="{StaticResource SegmentGroup}" Padding="3" HorizontalAlignment="Left">
                     <StackPanel Orientation="Horizontal">
                         <RadioButton Style="{StaticResource ContextToggle}" IsChecked="{Binding NewGroupAvailable}">
                             <TextBlock Text="Available" VerticalAlignment="Center"/>
@@ -68,7 +68,7 @@
                     <TextBlock TextWrapping="Wrap" Text="A second security group assigned with the Uninstall intent, so a device can be removed by group membership" FontSize="12" Foreground="{DynamicResource MutedBrush}" Margin="0,2,0,0"/>
                 </StackPanel>
                 <!-- On / Off toggle -->
-                <Border Grid.Column="1" Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4" Padding="4" VerticalAlignment="Center">
+                <Border Grid.Column="1" Style="{StaticResource SegmentGroup}" Padding="3" VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal">
                         <RadioButton Style="{StaticResource ContextToggle}" IsChecked="{Binding CreateUninstallGroupPerPackageDisabled}">
                             <TextBlock Text="Off" VerticalAlignment="Center"/>
@@ -119,7 +119,7 @@
             <ItemsControl ItemsSource="{Binding ExistingGroups}" Margin="0,12,0,0">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4" Padding="14,10" Margin="0,0,0,8">
+                        <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1" Padding="0,10">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -128,7 +128,7 @@
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Grid.Column="0" Text="{Binding GroupName}" VerticalAlignment="Center" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}" TextTrimming="CharacterEllipsis"/>
                                 <!-- Intent toggle -->
-                                <Border Grid.Column="1" Background="{DynamicResource CardBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4" Padding="3" Margin="0,0,10,0" VerticalAlignment="Center">
+                                <Border Grid.Column="1" Style="{StaticResource SegmentGroup}" Padding="3" Margin="0,0,10,0" VerticalAlignment="Center">
                                     <StackPanel Orientation="Horizontal">
                                         <RadioButton Style="{StaticResource ContextToggle}" IsChecked="{Binding IsAvailable}">
                                             <TextBlock Text="Available" VerticalAlignment="Center"/>

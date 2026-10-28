@@ -4,16 +4,16 @@ using System.Windows.Controls;
 namespace Packman.Views.Controls;
 
 /// <summary>
-/// The layout every page shares: a header card (breadcrumb, title, actions and an optional
-/// strip below such as the stepper or tabs), the body, an optional footer card, and an
-/// optional inspector rail on the right. The template lives in Themes/Styles.xaml.
+/// The layout every page shares: one page sheet holding a header (breadcrumb, title, actions and
+/// an optional strip below such as the stepper or tabs), the body, an optional footer bar and an
+/// optional 312px inspector rail on the right. The template lives in Themes/Styles.xaml.
 /// Below <see cref="CompactWidth"/> the rail stops taking a column and opens over the body
 /// from a header button instead, so the form keeps its width on small or scaled screens.
 /// </summary>
 public class PageFrame : ContentControl
 {
     /// <summary>Frame width below which the rail folds away.</summary>
-    public const double CompactWidth = 1080;
+    public const double CompactWidth = 1000;
 
     public static readonly DependencyProperty TitleProperty = Register<string>(nameof(Title), "");
     public static readonly DependencyProperty SubtitleProperty = Register<string>(nameof(Subtitle), "");
@@ -39,10 +39,10 @@ public class PageFrame : ContentControl
     /// <summary>Buttons or links at the right of the title.</summary>
     public object? HeaderActions { get => GetValue(HeaderActionsProperty); set => SetValue(HeaderActionsProperty, value); }
 
-    /// <summary>Strip under the title inside the header card: the stepper or a tab row.</summary>
+    /// <summary>Strip under the title inside the header: the stepper or a tab row.</summary>
     public object? HeaderBottom { get => GetValue(HeaderBottomProperty); set => SetValue(HeaderBottomProperty, value); }
 
-    /// <summary>Action bar card under the body. Hidden when null.</summary>
+    /// <summary>Action bar under the body. Hidden when null.</summary>
     public object? Footer { get => GetValue(FooterProperty); set => SetValue(FooterProperty, value); }
 
     /// <summary>Inspector on the right. Hidden when null.</summary>

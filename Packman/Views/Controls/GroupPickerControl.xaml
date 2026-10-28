@@ -10,9 +10,8 @@
     <!-- DataContext is a GroupPickerViewModel. Intent toggle, Entra group search,
          result rows and the selected chips. -->
     <StackPanel>
-        <TextBlock Text="Assignment type" Style="{StaticResource FieldLabel}" Margin="0,0,0,7"/>
-        <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1"
-                Padding="4" HorizontalAlignment="Left" CornerRadius="4">
+        <TextBlock Text="Assignment type" Style="{StaticResource FieldLabel}" Margin="0,0,0,6"/>
+        <Border Style="{StaticResource SegmentGroup}">
             <!-- No GroupName: the buttons group by their panel, so two pickers in one window stay independent. -->
             <StackPanel Orientation="Horizontal">
                 <RadioButton Style="{StaticResource ContextToggle}" Content="Required"
@@ -24,7 +23,7 @@
             </StackPanel>
         </Border>
 
-        <TextBlock Text="Assignment groups" Style="{StaticResource FieldLabel}" Margin="0,16,0,7"/>
+        <TextBlock Text="Assignment groups" Style="{StaticResource FieldLabel}" Margin="0,16,0,6"/>
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
@@ -62,7 +61,7 @@
                             CommandParameter="{Binding}">
                         <Button.Template>
                             <ControlTemplate TargetType="Button">
-                                <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" Padding="12,9" CornerRadius="4">
+                                <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" Padding="12,9" CornerRadius="7">
                                     <DockPanel>
                                         <Viewbox DockPanel.Dock="Left" Width="14" Height="14" Margin="0,0,9,0">
                                             <Path Data="{StaticResource IconGroup}" Stroke="{DynamicResource AccentTextBrush}" StrokeThickness="1.8" Style="{StaticResource Icon}"/>

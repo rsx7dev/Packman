@@ -10,15 +10,12 @@
 
     <!-- Step 2 of the wizard: everything the Intune app needs. Nothing is sent from here;
          the rail beside it (WizardRail) tracks what is ready. -->
-    <Border Style="{StaticResource SectionPanel}">
+    <Border Style="{StaticResource SectionPanel}" MaxWidth="860" HorizontalAlignment="Left">
         <StackPanel>
-            <TextBlock Text="Configure deployment" Style="{StaticResource H1}" FontSize="20"/>
-            <Border Style="{StaticResource SectionRule}" Margin="0,16,0,18"/>
-
             <!-- ═══ Install behavior ═══ -->
             <controls:SectionHeader Title="Install behavior" Caption="How Intune installs and uninstalls the application with PSADT."/>
 
-            <TextBlock Text="Name in Intune" Style="{StaticResource FieldLabel}" Margin="0,16,0,7"/>
+            <TextBlock Text="Name in Intune" Style="{StaticResource FieldLabel}" Margin="0,16,0,6"/>
             <TextBox AutomationProperties.Name="Name in Intune" Style="{StaticResource TextField}"
                      Text="{Binding Upload.IntuneDisplayName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
 
@@ -59,7 +56,7 @@
                               ItemsSource="{Binding Upload.DeployModes}"
                               SelectedItem="{Binding Upload.SelectedDeployMode, Mode=TwoWay}"/>
                     <TextBlock Text="{Binding Upload.DeployModeHint}" Margin="0,7,0,0" TextWrapping="Wrap"
-                               FontSize="12" LineHeight="17" Foreground="{DynamicResource Muted2Brush}"/>
+                               FontSize="12" LineHeight="17" Foreground="{DynamicResource MutedBrush}"/>
                 </StackPanel>
                 <StackPanel Grid.Column="2">
                     <ContentControl Style="{StaticResource FieldRow}" Tag="Install context" Content="{Binding Upload.InstallContextText}" Margin="0,2,0,8"/>
@@ -91,7 +88,7 @@
             <!-- ═══ Detection rule ═══ -->
             <controls:SectionHeader Title="Detection rule" Caption="How Intune detects that the application is installed."/>
 
-            <TextBlock Text="Detection method" Style="{StaticResource FieldLabel}" Margin="0,16,0,7"/>
+            <TextBlock Text="Detection method" Style="{StaticResource FieldLabel}" Margin="0,16,0,6"/>
             <ComboBox AutomationProperties.Name="Detection method" HorizontalAlignment="Left" MinWidth="300"
                       ItemsSource="{Binding Upload.DetectionMethods}"
                       SelectedItem="{Binding Upload.SelectedDetectionMethod, Mode=TwoWay}"/>
@@ -168,11 +165,12 @@
             </StackPanel>
 
             <DockPanel Margin="0,12,0,0">
-                <Border DockPanel.Dock="Left" Style="{StaticResource Chip}" VerticalAlignment="Top" Padding="7,3">
-                    <TextBlock Text="Rule" FontFamily="{StaticResource UIFontFamily}" FontWeight="SemiBold" Foreground="{DynamicResource AccentTextBrush}"/>
+                <Border DockPanel.Dock="Left" Style="{StaticResource Chip}" VerticalAlignment="Top" Padding="8,1" CornerRadius="5"
+                        Background="{DynamicResource PrimaryFaintBrush}" BorderBrush="{DynamicResource PrimaryLineBrush}" BorderThickness="1">
+                    <TextBlock Text="Rule" FontFamily="{StaticResource UIFontFamily}" FontSize="11" FontWeight="SemiBold" Foreground="{DynamicResource AccentTextBrush}"/>
                 </Border>
                 <TextBlock Text="{Binding Upload.DetectionSummary}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12" LineHeight="18"
-                           Foreground="{DynamicResource Muted2Brush}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                           Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" VerticalAlignment="Center"/>
             </DockPanel>
 
             <Border Style="{StaticResource SectionRule}"/>
@@ -243,8 +241,8 @@
                     <ControlTemplate TargetType="ToggleButton">
                         <StackPanel Orientation="Horizontal" Background="Transparent" TextElement.Foreground="{DynamicResource Text2Brush}">
                             <controls:LineIcon x:Name="chev" Data="{DynamicResource IconChevR}" Width="14" Height="14"/>
-                            <TextBlock Text="Return codes" Margin="8,0,0,0" FontSize="14" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            <TextBlock Margin="10,0,0,0" FontSize="12.5" VerticalAlignment="Center" Foreground="{DynamicResource Muted2Brush}">
+                            <TextBlock Text="Return codes" Margin="8,0,0,0" FontSize="13.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock Margin="10,0,0,0" FontSize="12.5" VerticalAlignment="Center" Foreground="{DynamicResource MutedBrush}">
                                 <Run Text="{Binding Upload.ReturnCodes.Count, Mode=OneWay}"/><Run Text=" mapped"/>
                             </TextBlock>
                         </StackPanel>
@@ -292,7 +290,7 @@
 
             <TextBlock Text="{Binding Upload.StatusText}" Margin="0,18,0,0" TextWrapping="Wrap"
                        FontFamily="{StaticResource MonoFontFamily}" FontSize="12" LineHeight="18"
-                       Foreground="{DynamicResource Muted2Brush}"
+                       Foreground="{DynamicResource MutedBrush}"
                        Visibility="{Binding Upload.StatusText, Converter={StaticResource NonEmptyToVis}}"/>
         </StackPanel>
     </Border>

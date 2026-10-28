@@ -10,11 +10,10 @@
 
     <!-- Step 1 of the wizard. The rail beside it (WizardRail) shows what this form doesn't:
          the resolved package folder, installer type, product code and what's still missing. -->
-    <StackPanel>
+    <StackPanel MaxWidth="860" HorizontalAlignment="Left">
 
         <!-- ═══ Generated: the optional tools, before moving on to Configure ═══ -->
-        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,12"
-                Visibility="{Binding HasPackage, Converter={StaticResource BoolToVis}}">
+        <Border Style="{StaticResource SectionPanel}" Visibility="{Binding HasPackage, Converter={StaticResource BoolToVis}}">
             <StackPanel>
                 <DockPanel>
                     <Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Content="Start a new package"
@@ -27,7 +26,7 @@
                     <StackPanel>
                         <TextBlock Text="Package generated" Style="{StaticResource H2}"/>
                         <TextBlock Text="{Binding CreatePackage.CurrentPackagePath}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12"
-                                   Foreground="{DynamicResource Muted2Brush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                                   Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
                     </StackPanel>
                 </DockPanel>
 
@@ -42,7 +41,7 @@
                                 <controls:LineIcon Data="{DynamicResource IconCode}"/>
                                 <TextBlock Text="Edit script" Margin="9,0,0,0" FontSize="13.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
                             </StackPanel>
-                            <TextBlock Margin="0,8,0,0" FontSize="12" LineHeight="18" TextWrapping="Wrap" Foreground="{DynamicResource Muted2Brush}">
+                            <TextBlock Margin="0,8,0,0" FontSize="12" LineHeight="18" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}">
                                 <TextBlock.Style>
                                     <Style TargetType="TextBlock">
                                         <Setter Property="Text" Value="Review the install and uninstall logic in Invoke-AppDeployToolkit.ps1."/>
@@ -65,7 +64,7 @@
                                 <TextBlock Text="Remote test" Margin="9,0,0,0" FontSize="13.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
                             </StackPanel>
                             <TextBlock Text="Install on a test device and discover a detection rule." Margin="0,8,0,0"
-                                       FontSize="12" LineHeight="18" TextWrapping="Wrap" Foreground="{DynamicResource Muted2Brush}"/>
+                                       FontSize="12" LineHeight="18" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}"/>
                         </StackPanel>
                     </Button>
                     <Button Command="{Binding OpenPackageFolderCommand}" Style="{StaticResource ToolCard}" Margin="6,0,0,0">
@@ -75,19 +74,20 @@
                                 <TextBlock Text="Open folder" Margin="9,0,0,0" FontSize="13.5" FontWeight="SemiBold" VerticalAlignment="Center"/>
                             </StackPanel>
                             <TextBlock Text="Inspect the package on the network share." Margin="0,8,0,0"
-                                       FontSize="12" LineHeight="18" TextWrapping="Wrap" Foreground="{DynamicResource Muted2Brush}"/>
+                                       FontSize="12" LineHeight="18" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}"/>
                         </StackPanel>
                     </Button>
                 </UniformGrid>
+                <Border Style="{StaticResource SectionRule}"/>
             </StackPanel>
         </Border>
 
         <!-- ═══ The form ═══ -->
         <Border Style="{StaticResource SectionPanel}">
             <StackPanel>
-                <!-- Title + mode -->
+                <!-- Mode -->
                 <DockPanel>
-                    <Border DockPanel.Dock="Right" Style="{StaticResource SegmentGroup}" IsEnabled="{Binding CanEditPackageInputs}" VerticalAlignment="Center">
+                    <Border Style="{StaticResource SegmentGroup}" IsEnabled="{Binding CanEditPackageInputs}" VerticalAlignment="Center">
                         <StackPanel Orientation="Horizontal">
                             <RadioButton Style="{StaticResource ModeToggle}" Content="Create new"
                                          IsChecked="{Binding IsUpgradeMode, Mode=TwoWay, Converter={StaticResource InverseBool}}"/>
@@ -95,9 +95,8 @@
                                          IsChecked="{Binding IsUpgradeMode, Mode=TwoWay}"/>
                         </StackPanel>
                     </Border>
-                    <TextBlock Text="Package" Style="{StaticResource H1}" FontSize="20" VerticalAlignment="Center"/>
                 </DockPanel>
-                <Border Style="{StaticResource SectionRule}" Margin="0,16,0,18"/>
+                <Border Style="{StaticResource SectionRule}" Margin="0,20,0,22"/>
 
                 <!-- ═══ CREATE NEW ═══ -->
                 <StackPanel x:Name="SourceFields" IsEnabled="{Binding CanEditPackageInputs}"
@@ -105,12 +104,12 @@
                     <controls:SectionHeader Title="Start with your installer"
                                             Caption="Choose the source first. Review the detected details before generating your package."/>
 
-                    <TextBlock Style="{StaticResource FieldLabel}" Margin="0,16,0,7">
+                    <TextBlock Style="{StaticResource FieldLabel}" Margin="0,16,0,6">
                         <Run Text="Source installer"/><Run Text=" *" Foreground="{DynamicResource AccentTextBrush}"/>
                     </TextBlock>
                     <!-- Drop zone: the whole dashed area takes a dropped file, not just the field. -->
                     <Grid AllowDrop="True" PreviewDragOver="SourcesPath_DragOver" Drop="SourcesPath_Drop" Background="Transparent">
-                        <Rectangle RadiusX="6" RadiusY="6" Stroke="{DynamicResource ControlStrokeBrush}" StrokeThickness="1.2"
+                        <Rectangle RadiusX="8" RadiusY="8" Stroke="{DynamicResource ControlStrokeBrush}" StrokeThickness="1.2"
                                    StrokeDashArray="4 3" Fill="{DynamicResource Card2Brush}" SnapsToDevicePixels="True"/>
                         <Grid Margin="14">
                             <Grid.ColumnDefinitions>
@@ -118,7 +117,7 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
-                            <Border Width="40" Height="40" CornerRadius="6" Background="{DynamicResource PrimaryFaintBrush}"
+                            <Border Width="40" Height="40" CornerRadius="9" Background="{DynamicResource PrimaryFaintBrush}"
                                     Margin="0,0,12,0" TextElement.Foreground="{DynamicResource AccentTextBrush}">
                                 <controls:LineIcon Data="{DynamicResource IconUpload}" Width="18" Height="18" HorizontalAlignment="Center"/>
                             </Border>
@@ -182,7 +181,7 @@
                         </StackPanel>
                     </Grid>
 
-                    <TextBlock Text="Install context" Style="{StaticResource FieldLabel}" Margin="0,16,0,7"/>
+                    <TextBlock Text="Install context" Style="{StaticResource FieldLabel}" Margin="0,16,0,6"/>
                     <DockPanel>
                         <Border Style="{StaticResource SegmentGroup}" VerticalAlignment="Center">
                             <StackPanel Orientation="Horizontal">
@@ -193,7 +192,7 @@
                             </StackPanel>
                         </Border>
                         <TextBlock Margin="18,0,0,0" VerticalAlignment="Center" FontSize="12.5" LineHeight="18" TextWrapping="Wrap"
-                                   Foreground="{DynamicResource Muted2Brush}" Text="{Binding CreatePackage.InstallContextHelp}"/>
+                                   Foreground="{DynamicResource MutedBrush}" Text="{Binding CreatePackage.InstallContextHelp}"/>
                     </DockPanel>
 
                     <Border Style="{StaticResource SectionRule}"/>
@@ -206,7 +205,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="Output share" FontSize="13" Foreground="{DynamicResource Muted2Brush}" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                        <TextBlock Text="Output share" FontSize="13" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center" Margin="0,0,16,0"/>
                         <TextBlock Grid.Column="1" Text="{Binding OutputShare}" FontFamily="{StaticResource MonoFontFamily}" FontSize="13"
                                    Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                    ToolTip="{Binding OutputShare}"/>
@@ -233,7 +232,7 @@
                     <controls:SectionHeader Title="Upgrade an existing package"
                                             Caption="Creates a new version that reuses the existing install logic, Files and script edits."/>
 
-                    <TextBlock Text="Existing package folder" Style="{StaticResource FieldLabel}" Margin="0,16,0,7"/>
+                    <TextBlock Text="Existing package folder" Style="{StaticResource FieldLabel}" Margin="0,16,0,6"/>
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
@@ -282,11 +281,11 @@
 
                 <!-- Generation / upgrade status -->
                 <TextBlock Margin="0,18,0,0" TextWrapping="Wrap" FontFamily="{StaticResource MonoFontFamily}" FontSize="12" LineHeight="18"
-                           Foreground="{DynamicResource Muted2Brush}" AutomationProperties.LiveSetting="Polite"
+                           Foreground="{DynamicResource MutedBrush}" AutomationProperties.LiveSetting="Polite"
                            Text="{Binding CreatePackage.StatusText}"
                            Visibility="{Binding CreatePackage.StatusText, Converter={StaticResource NonEmptyToVis}}"/>
                 <TextBlock Margin="0,18,0,0" TextWrapping="Wrap" FontFamily="{StaticResource MonoFontFamily}" FontSize="12" LineHeight="18"
-                           Foreground="{DynamicResource Muted2Brush}" AutomationProperties.LiveSetting="Polite"
+                           Foreground="{DynamicResource MutedBrush}" AutomationProperties.LiveSetting="Polite"
                            Text="{Binding Upgrade.StatusText}"
                            Visibility="{Binding IsUpgradeMode, Converter={StaticResource BoolToVis}}"/>
             </StackPanel>
@@ -294,7 +293,7 @@
 
         <!-- Cross-link for a package built elsewhere. -->
         <TextBlock Margin="4,14,0,4" FontSize="12.5" HorizontalAlignment="Left">
-            <Run Text="Already have a built package?" Foreground="{DynamicResource Muted2Brush}"/>
+            <Run Text="Already have a built package?" Foreground="{DynamicResource MutedBrush}"/>
             <Hyperlink Click="UploadExisting_Click" Foreground="{DynamicResource AccentTextBrush}" TextDecorations="{x:Null}" FontWeight="SemiBold">Upload it directly</Hyperlink>
         </TextBlock>
     </StackPanel>

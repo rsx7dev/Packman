@@ -12,11 +12,11 @@
     <!-- Body of Remote test, in the wizard's tool frame and on the standalone page.
          The host supplies the PageFrame, footer and the "Test session" rail. -->
 
-    <Border Style="{StaticResource SectionPanel}">
+    <Border Style="{StaticResource SectionPanel}" MaxWidth="860" HorizontalAlignment="Left">
         <StackPanel>
 
             <!-- Package: the package root staged on the target. -->
-            <DockPanel Margin="0,0,0,7">
+            <DockPanel Margin="0,0,0,6">
                 <TextBlock DockPanel.Dock="Right" Text="{Binding PackageSourceCaption}" Style="{StaticResource Caption}"/>
                 <TextBlock Text="Package" Style="{StaticResource FieldLabel}" Margin="0"/>
             </DockPanel>
@@ -36,7 +36,7 @@
                         ToolTip="Pick a PSADT package folder on the share to test."/>
             </Grid>
             <TextBlock Text="Generate a package on the Package step and it lands here automatically, or browse to a package already built on the share."
-                       Margin="0,8,0,0" FontSize="12" LineHeight="18" TextWrapping="Wrap" Foreground="{DynamicResource Muted2Brush}"
+                       Margin="0,8,0,0" FontSize="12" LineHeight="18" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}"
                        Visibility="{Binding NeedsPackage, Converter={StaticResource BoolToVis}}"/>
 
             <!-- Target: computer, run context and deploy mode on one row. -->
@@ -65,7 +65,8 @@
                               IsEnabled="{Binding IsIdle}"
                               AutomationProperties.Name="Computer name"
                               ToolTip="Name of the machine to test on. WinRM must be enabled (Enable-PSRemoting)."/>
-                    <Button Grid.Column="1" Style="{StaticResource IconButton}" Width="40" Height="40" Margin="8,0,0,0"
+                    <Button Grid.Column="1" Style="{StaticResource IconButton}" Width="36" Height="36" Margin="8,0,0,0"
+                            BorderBrush="{DynamicResource EdgeBrush}"
                             Command="{Binding CheckOnlineCommand}"
                             ToolTip="Check the computer is online (ping)">
                         <controls:LineIcon Data="{DynamicResource IconPulse}"/>
@@ -73,7 +74,7 @@
                 </Grid>
 
                 <TextBlock Grid.Column="2" Text="Context" Style="{StaticResource FieldLabel}"/>
-                <Border Grid.Column="2" Grid.Row="1" Style="{StaticResource SegmentGroup}" Height="40">
+                <Border Grid.Column="2" Grid.Row="1" Style="{StaticResource SegmentGroup}" Height="36">
                     <StackPanel Orientation="Horizontal">
                         <RadioButton Style="{StaticResource ContextToggle}" Content="System" MinWidth="72"
                                      IsChecked="{Binding IsSystemContext, Mode=TwoWay}" IsEnabled="{Binding IsIdle}"
@@ -94,8 +95,8 @@
             </Grid>
 
             <TextBlock Text="{Binding ContextHelpText}" Margin="0,10,0,0" FontSize="12" LineHeight="18"
-                       TextWrapping="Wrap" Foreground="{DynamicResource Muted2Brush}"/>
-            <TextBlock Margin="0,6,0,0" FontSize="12" LineHeight="18" TextWrapping="Wrap" Foreground="{DynamicResource Muted2Brush}">
+                       TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}"/>
+            <TextBlock Margin="0,6,0,0" FontSize="12" LineHeight="18" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}">
                 <Run Text="Runs the Intune command lines from the staged package: "/>
                 <Run Text="{Binding CommandPreview, Mode=OneWay}" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource InkBrush}"/>
             </TextBlock>
@@ -128,7 +129,7 @@
                 <TextBlock Style="{StaticResource Caption}">
                     <Run Text="Copying package: "/><Run Text="{Binding CopyPercent, Mode=OneWay}"/><Run Text="%"/>
                 </TextBlock>
-                <ProgressBar Height="4" Margin="0,6,0,0" Minimum="0" Maximum="100"
+                <ProgressBar Margin="0,6,0,0" Minimum="0" Maximum="100"
                              Value="{Binding CopyPercent, Mode=OneWay}"
                              AutomationProperties.Name="Copying package"/>
             </StackPanel>
@@ -152,7 +153,7 @@
                                     ToolTip="Replace the publish step's detection rule with this one."/>
                             <TextBlock Text="The publish step holds the wizard's own package, so a package picked from the share cannot feed it."
                                        Margin="0,4,0,0" FontSize="12" LineHeight="18" TextWrapping="Wrap"
-                                       Foreground="{DynamicResource Muted2Brush}"
+                                       Foreground="{DynamicResource MutedBrush}"
                                        Visibility="{Binding IsSelectedPackage, Converter={StaticResource BoolToVis}}"/>
                         </StackPanel>
                     </StackPanel>
@@ -170,8 +171,8 @@
                 <TextBlock Text="Output" Style="{StaticResource H2}" VerticalAlignment="Center"/>
             </DockPanel>
 
-            <Border Background="{DynamicResource CodeBgBrush}" BorderBrush="{DynamicResource LineBrush}"
-                    BorderThickness="1" CornerRadius="6" Padding="16,14" MinHeight="360" MaxHeight="600">
+            <Border Style="{StaticResource Card}" Background="{DynamicResource CodeBgBrush}"
+                    Padding="16,14" MinHeight="300" MaxHeight="600">
                 <Grid>
                     <TextBlock Text="Output from the device appears here when a test runs."
                                FontFamily="{StaticResource MonoFontFamily}" FontSize="12"

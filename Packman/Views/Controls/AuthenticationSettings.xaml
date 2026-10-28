@@ -7,8 +7,8 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type RadioButton}">
-                        <Border x:Name="bd" Background="{DynamicResource ControlBrush}" BorderBrush="{DynamicResource ControlStrokeBrush}"
-                                BorderThickness="1" CornerRadius="6" Padding="16,14">
+                        <Border x:Name="bd" Background="{DynamicResource ControlBrush}" BorderBrush="{DynamicResource EdgeBrush}"
+                                BorderThickness="1" CornerRadius="8" Padding="16,14">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
@@ -188,14 +188,14 @@
         <ItemsControl ItemsSource="{Binding ConnectionChecks}" Margin="0,12,0,0" Focusable="False">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Border BorderBrush="{DynamicResource Line2Brush}" BorderThickness="0,0,0,1" Padding="0,8">
+                    <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1" Padding="0,8">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Orientation="Horizontal">
-                                <Rectangle Width="7" Height="7" RadiusX="3.5" RadiusY="3.5" VerticalAlignment="Center" Margin="0,0,10,0">
+                                <Rectangle Width="8" Height="8" RadiusX="4" RadiusY="4" VerticalAlignment="Center" Margin="0,0,10,0">
                                     <Rectangle.Style>
                                         <Style TargetType="Rectangle">
                                             <Setter Property="Fill" Value="{DynamicResource BadBrush}"/>

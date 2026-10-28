@@ -7,8 +7,8 @@
     <UserControl.Resources>
         <!-- One command line with its copy button. Tag = the text to copy. -->
         <Style x:Key="CopyButton" TargetType="Button" BasedOn="{StaticResource IconButton}">
-            <Setter Property="Width" Value="34"/>
-            <Setter Property="Height" Value="34"/>
+            <Setter Property="Width" Value="36"/>
+            <Setter Property="Height" Value="36"/>
             <Setter Property="Margin" Value="10,0,0,0"/>
             <Setter Property="ToolTip" Value="Copy"/>
         </Style>
@@ -16,7 +16,7 @@
 
     <!-- Step 3 of the wizard: everything that will be sent, with routes back to change it.
          The rail beside it (WizardRail) shows publish readiness and the tenant. -->
-    <StackPanel>
+    <StackPanel MaxWidth="860" HorizontalAlignment="Left">
         <Border Style="{StaticResource SectionPanel}"
                 Visibility="{Binding Upload.Publish.IsNotPublishing, Converter={StaticResource BoolToVis}}">
             <StackPanel>
@@ -42,11 +42,11 @@
                         </Button>
                     </StackPanel>
                     <StackPanel>
-                        <TextBlock Text="Review &amp; publish" Style="{StaticResource H1}" FontSize="20"/>
-                        <TextBlock Text="Check what will be sent to Microsoft Intune before publishing." Style="{StaticResource SubText}" Margin="0,4,0,0"/>
+                        <TextBlock Text="Review &amp; publish" Style="{StaticResource H2}"/>
+                        <TextBlock Text="Check what will be sent to Microsoft Intune before publishing." Style="{StaticResource SubText}" Margin="0,2,0,0"/>
                     </StackPanel>
                 </DockPanel>
-                <Border Style="{StaticResource SectionRule}" Margin="0,16,0,18"/>
+                <Border Style="{StaticResource SectionRule}" Margin="0,16,0,22"/>
 
                 <!-- Package -->
                 <TextBlock Text="Package" Style="{StaticResource H2}" Margin="0,0,0,12"/>
@@ -82,14 +82,14 @@
                         <RowDefinition Height="8"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Text="Install" FontSize="13" Foreground="{DynamicResource Muted2Brush}" VerticalAlignment="Center"/>
+                    <TextBlock Text="Install" FontSize="13" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center"/>
                     <TextBox Grid.Column="1" Style="{StaticResource MonoField}" IsReadOnly="True" FontSize="12.5" AutomationProperties.Name="Install command line"
                              Text="{Binding Upload.InstallCommandPreview, Mode=OneWay}"/>
                     <Button Grid.Column="2" Style="{StaticResource CopyButton}" AutomationProperties.Name="Copy install command"
                             Tag="{Binding Upload.InstallCommandPreview}" Click="Copy_Click">
                         <controls:LineIcon Data="{DynamicResource IconCopy}" Width="15" Height="15"/>
                     </Button>
-                    <TextBlock Grid.Row="2" Text="Uninstall" FontSize="13" Foreground="{DynamicResource Muted2Brush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Row="2" Text="Uninstall" FontSize="13" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center"/>
                     <TextBox Grid.Row="2" Grid.Column="1" Style="{StaticResource MonoField}" IsReadOnly="True" FontSize="12.5" AutomationProperties.Name="Uninstall command line"
                              Text="{Binding Upload.UninstallCommandPreview, Mode=OneWay}"/>
                     <Button Grid.Row="2" Grid.Column="2" Style="{StaticResource CopyButton}" AutomationProperties.Name="Copy uninstall command"
