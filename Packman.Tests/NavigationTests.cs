@@ -106,7 +106,7 @@ public class NavigationTests
     {
         var window = LoadMainWindow();
 
-        var navNames = NavButtons(window).Select(b => Named(b, "Name")).Order().ToList();
+        var navNames = NavButtons(window).Select(b => Named(b, "Name")!).Order().ToList();
         var targets = MenuBarItems(window)
             .Select(b => (string?)b.Attribute("IsChecked") ?? "")
             .Select(binding => binding.Split("ElementName=")[1].Split(',', '}')[0])
