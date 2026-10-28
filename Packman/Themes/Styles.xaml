@@ -1211,82 +1211,79 @@
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                            </Grid.RowDefinitions>
 
-                            <Grid Grid.Column="0">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-
-                                <!-- Header -->
-                                <StackPanel Grid.Row="0">
-                                    <Grid Margin="32,22,32,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto"/>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <ContentPresenter x:Name="leading" Content="{TemplateBinding Leading}" VerticalAlignment="Center" Margin="0,0,16,0"/>
-                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                            <ContentPresenter x:Name="crumb" Content="{TemplateBinding Breadcrumb}" Margin="0,0,0,6"
-                                                              TextElement.FontSize="12.5" TextElement.Foreground="{DynamicResource MutedBrush}"/>
-                                            <TextBlock Text="{TemplateBinding Title}" Style="{StaticResource H1}" TextTrimming="CharacterEllipsis"/>
-                                            <TextBlock x:Name="sub" Text="{TemplateBinding Subtitle}" Style="{StaticResource SubText}"
-                                                       Margin="0,2,0,0" TextWrapping="Wrap"/>
-                                        </StackPanel>
-                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top" Margin="16,0,0,0">
-                                            <ContentPresenter Content="{TemplateBinding HeaderActions}" VerticalAlignment="Center"/>
-                                            <!-- Compact only: brings the rail over the body. -->
-                                            <ToggleButton x:Name="railToggle" Style="{x:Null}" Visibility="Collapsed" Margin="8,0,0,0"
-                                                          Cursor="Hand" FocusVisualStyle="{StaticResource FocusVisual}"
-                                                          ToolTip="Show or hide the details panel" AutomationProperties.Name="Details panel"
-                                                          IsChecked="{Binding IsRailOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
-                                                <ToggleButton.Template>
-                                                    <ControlTemplate TargetType="{x:Type ToggleButton}">
-                                                        <Border x:Name="tb" Background="{DynamicResource ControlBrush}" BorderBrush="{DynamicResource EdgeBrush}"
-                                                                BorderThickness="1" CornerRadius="7" Padding="12,5" MinHeight="34">
-                                                            <StackPanel Orientation="Horizontal" TextElement.Foreground="{DynamicResource InkBrush}">
-                                                                <controls:LineIcon Data="{DynamicResource IconInfo}" Width="15" Height="15"/>
-                                                                <TextBlock Text="Details" Margin="7,0,0,0" FontSize="13" FontWeight="Medium" VerticalAlignment="Center"/>
-                                                            </StackPanel>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsChecked" Value="True">
-                                                                <Setter TargetName="tb" Property="BorderBrush" Value="{DynamicResource AccentTextBrush}"/>
-                                                                <Setter TargetName="tb" Property="Background" Value="{DynamicResource PrimaryFaintBrush}"/>
-                                                            </Trigger>
-                                                            <Trigger Property="IsMouseOver" Value="True">
-                                                                <Setter TargetName="tb" Property="Background" Value="{DynamicResource ControlHoverBrush}"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </ToggleButton.Template>
-                                            </ToggleButton>
-                                        </StackPanel>
-                                    </Grid>
-                                    <Border x:Name="bottom" Margin="32,16,32,0" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1">
-                                        <ContentPresenter Content="{TemplateBinding HeaderBottom}"/>
-                                    </Border>
-                                </StackPanel>
-
-                                <!-- Body. Scrolling is switched off (not removed) for bodies that manage
-                                     their own, so a WebView2 never sits in a scrolled viewport. -->
-                                <ScrollViewer x:Name="scroll" Grid.Row="1" Focusable="False"
-                                              VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                    <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
-                                                      Margin="32,24,32,28"/>
-                                </ScrollViewer>
-
-                                <!-- Footer -->
-                                <Border x:Name="footer" Grid.Row="2" Padding="32,14" MinHeight="62"
-                                        BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0">
-                                    <ContentPresenter Content="{TemplateBinding Footer}" VerticalAlignment="Center"/>
+                            <!-- Header -->
+                            <StackPanel Grid.Row="0">
+                                <Grid Margin="32,22,32,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <ContentPresenter x:Name="leading" Content="{TemplateBinding Leading}" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                        <ContentPresenter x:Name="crumb" Content="{TemplateBinding Breadcrumb}" Margin="0,0,0,6"
+                                                          TextElement.FontSize="12.5" TextElement.Foreground="{DynamicResource MutedBrush}"/>
+                                        <TextBlock Text="{TemplateBinding Title}" Style="{StaticResource H1}" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock x:Name="sub" Text="{TemplateBinding Subtitle}" Style="{StaticResource SubText}"
+                                                   Margin="0,2,0,0" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Top" Margin="16,0,0,0">
+                                        <ContentPresenter Content="{TemplateBinding HeaderActions}" VerticalAlignment="Center"/>
+                                        <!-- Compact only: brings the rail over the body. -->
+                                        <ToggleButton x:Name="railToggle" Style="{x:Null}" Visibility="Collapsed" Margin="8,0,0,0"
+                                                      Cursor="Hand" FocusVisualStyle="{StaticResource FocusVisual}"
+                                                      ToolTip="Show or hide the details panel" AutomationProperties.Name="Details panel"
+                                                      IsChecked="{Binding IsRailOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}">
+                                            <ToggleButton.Template>
+                                                <ControlTemplate TargetType="{x:Type ToggleButton}">
+                                                    <Border x:Name="tb" Background="{DynamicResource ControlBrush}" BorderBrush="{DynamicResource EdgeBrush}"
+                                                            BorderThickness="1" CornerRadius="7" Padding="12,5" MinHeight="34">
+                                                        <StackPanel Orientation="Horizontal" TextElement.Foreground="{DynamicResource InkBrush}">
+                                                            <controls:LineIcon Data="{DynamicResource IconInfo}" Width="15" Height="15"/>
+                                                            <TextBlock Text="Details" Margin="7,0,0,0" FontSize="13" FontWeight="Medium" VerticalAlignment="Center"/>
+                                                        </StackPanel>
+                                                    </Border>
+                                                    <ControlTemplate.Triggers>
+                                                        <Trigger Property="IsChecked" Value="True">
+                                                            <Setter TargetName="tb" Property="BorderBrush" Value="{DynamicResource AccentTextBrush}"/>
+                                                            <Setter TargetName="tb" Property="Background" Value="{DynamicResource PrimaryFaintBrush}"/>
+                                                        </Trigger>
+                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                            <Setter TargetName="tb" Property="Background" Value="{DynamicResource ControlHoverBrush}"/>
+                                                        </Trigger>
+                                                    </ControlTemplate.Triggers>
+                                                </ControlTemplate>
+                                            </ToggleButton.Template>
+                                        </ToggleButton>
+                                    </StackPanel>
+                                </Grid>
+                                <Border x:Name="bottom" Margin="32,16,32,0" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1">
+                                    <ContentPresenter Content="{TemplateBinding HeaderBottom}"/>
                                 </Border>
-                            </Grid>
+                            </StackPanel>
+
+                            <!-- Body. Scrolling is switched off (not removed) for bodies that manage
+                                 their own, so a WebView2 never sits in a scrolled viewport. -->
+                            <ScrollViewer x:Name="scroll" Grid.Row="1" Focusable="False"
+                                          VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                                                  Margin="32,24,32,28"/>
+                            </ScrollViewer>
+
+                            <!-- Footer -->
+                            <Border x:Name="footer" Grid.Row="2" Padding="32,14" MinHeight="62"
+                                    BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0">
+                                <ContentPresenter Content="{TemplateBinding Footer}" VerticalAlignment="Center"/>
+                            </Border>
 
                             <!-- Rail -->
-                            <Border x:Name="rail" Grid.Column="1" Width="312" Background="{DynamicResource RailBrush}"
+                            <Border x:Name="rail" Grid.Column="1" Grid.RowSpan="3" Width="312" Background="{DynamicResource RailBrush}"
                                     BorderBrush="{DynamicResource LineBrush}" BorderThickness="1,0,0,0" CornerRadius="0,9,9,0">
                                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
                                     <ContentPresenter Content="{TemplateBinding Rail}" Margin="22,22,22,24"/>
@@ -1317,6 +1314,10 @@
                         <Trigger Property="IsCompact" Value="True">
                             <Setter TargetName="rail" Property="Grid.Column" Value="0"/>
                             <Setter TargetName="rail" Property="Grid.ColumnSpan" Value="2"/>
+                            <Setter TargetName="rail" Property="Grid.Row" Value="1"/>
+                            <Setter TargetName="rail" Property="Grid.RowSpan" Value="2"/>
+                            <Setter TargetName="rail" Property="CornerRadius" Value="0,0,9,0"/>
+                            <Setter TargetName="rail" Property="BorderThickness" Value="1,1,0,0"/>
                             <Setter TargetName="rail" Property="HorizontalAlignment" Value="Right"/>
                             <Setter TargetName="rail" Property="Panel.ZIndex" Value="10"/>
                             <Setter TargetName="rail" Property="Background" Value="{DynamicResource FlyoutBrush}"/>
