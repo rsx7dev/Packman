@@ -26,9 +26,9 @@
                                 <ColumnDefinition Width="130"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="{TemplateBinding Tag}" FontSize="13" Foreground="{DynamicResource Muted2Brush}"
+                            <TextBlock Text="{TemplateBinding Tag}" FontSize="13" Foreground="{DynamicResource MutedBrush}"
                                        TextWrapping="Wrap" Margin="0,0,12,0"/>
-                            <ContentPresenter Grid.Column="1" TextElement.Foreground="{DynamicResource TextBrush}" TextElement.FontSize="13">
+                            <ContentPresenter Grid.Column="1" TextElement.Foreground="{DynamicResource InkBrush}" TextElement.FontSize="13">
                                 <ContentPresenter.Resources>
                                     <DataTemplate DataType="{x:Type sys:String}">
                                         <TextBlock Text="{Binding}" TextWrapping="Wrap"/>
@@ -55,8 +55,8 @@
             <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
         <Style x:Key="ReqValue" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="14"/>
-            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="FontSize" Value="13.5"/>
+            <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
             <Setter Property="Margin" Value="0,4,0,0"/>
         </Style>
@@ -80,7 +80,7 @@
         <controls:PageFrame.Breadcrumb>
             <StackPanel Orientation="Horizontal">
                 <Button Style="{StaticResource Breadcrumb}" Content="Applications" FontFamily="{StaticResource UIFontFamily}"
-                        FontSize="13" Click="Back_Click"/>
+                        FontSize="12.5" Click="Back_Click"/>
                 <TextBlock Text="  /  " VerticalAlignment="Center"/>
                 <TextBlock Text="{Binding Detail.DisplayName}" VerticalAlignment="Center" Foreground="{DynamicResource Text2Brush}"
                            TextTrimming="CharacterEllipsis" MaxWidth="420"/>
@@ -88,7 +88,7 @@
         </controls:PageFrame.Breadcrumb>
 
         <controls:PageFrame.Leading>
-            <controls:AppIdentity Title="{Binding Detail.DisplayName}" TileSize="64" IsTileOnly="True"/>
+            <controls:AppIdentity Title="{Binding Detail.DisplayName}" TileSize="48" IsTileOnly="True"/>
         </controls:PageFrame.Leading>
 
         <controls:PageFrame.HeaderActions>
@@ -113,7 +113,7 @@
         </controls:PageFrame.HeaderActions>
 
         <controls:PageFrame.HeaderBottom>
-            <StackPanel Orientation="Horizontal" Margin="-10,0,0,0">
+            <StackPanel Orientation="Horizontal">
                 <RadioButton Style="{StaticResource PageTab}" Content="Overview"
                              IsChecked="{Binding Tab, Mode=TwoWay, Converter={StaticResource StringMatch}, ConverterParameter=overview}"/>
                 <RadioButton Style="{StaticResource PageTab}" Content="Package"
@@ -129,7 +129,7 @@
                 <TextBlock Text="Deployment status" Style="{StaticResource RailTitle}"/>
 
                 <StackPanel Margin="0,14,0,0" Visibility="{Binding HasSummary, Converter={StaticResource BoolToVis}}">
-                    <Border Height="6" CornerRadius="3" Background="{DynamicResource Line2Brush}" ClipToBounds="True" Margin="0,0,0,4">
+                    <Border Height="8" CornerRadius="4" Background="{DynamicResource EdgeBrush}" ClipToBounds="True" Margin="0,0,0,4">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="{Binding SumInstalled, Converter={StaticResource CountToStar}}"/>
@@ -214,7 +214,7 @@
 
                     <!-- ═══════ OVERVIEW ═══════ -->
                     <StackPanel Visibility="{Binding IsOverview, Converter={StaticResource BoolToVis}}">
-                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,12">
+                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,28">
                             <StackPanel>
                                 <controls:SectionHeader Title="Application information" Caption="Key details about this application."/>
                                 <Grid Margin="0,18,0,0">
@@ -247,7 +247,7 @@
                         </Border>
 
                         <!-- Assignments at a glance; managed on the Deployment tab. -->
-                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,12">
+                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,28">
                             <StackPanel>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -266,7 +266,7 @@
                                 <ItemsControl ItemsSource="{Binding Detail.AssignedGroups}" Margin="0,12,0,0" Focusable="False">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border BorderBrush="{DynamicResource Line2Brush}" BorderThickness="0,0,0,1" Padding="0,10">
+                                            <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1" Padding="0,10">
                                                 <Grid>
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="Auto"/>
@@ -290,7 +290,7 @@
                         </Border>
 
                         <!-- Source path only; everything actionable lives on the Package tab. -->
-                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,12">
+                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,28">
                             <StackPanel>
                                 <controls:SectionHeader Title="Package source" Caption="Location of the application package files."/>
                                 <Grid Margin="0,16,0,0">
@@ -315,7 +315,7 @@
                         </Border>
 
                         <!-- Danger zone: out of the always-visible rail, at the end of the overview. -->
-                        <Border Style="{StaticResource SectionPanel}" BorderBrush="{DynamicResource BadLineBrush}">
+                        <Border Style="{StaticResource SectionPanel}" BorderBrush="{DynamicResource BadLineBrush}" BorderThickness="1" CornerRadius="10" Padding="22,18">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
@@ -336,7 +336,7 @@
 
                     <!-- ═══════ PACKAGE ═══════ -->
                     <StackPanel Visibility="{Binding IsPackage, Converter={StaticResource BoolToVis}}">
-                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,12">
+                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,28">
                             <StackPanel>
                                 <controls:SectionHeader Title="Package source" Caption="Location of the application package files."/>
                                 <TextBlock Text="Network share location" Style="{StaticResource FieldLabel}" Margin="0,18,0,7"/>
@@ -347,7 +347,7 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1"
-                                            CornerRadius="4" Padding="12,9" MinHeight="40">
+                                            CornerRadius="7" Padding="12,9" MinHeight="36">
                                         <TextBlock Text="{Binding SourcePathDisplay}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12.5"
                                                    Foreground="{DynamicResource TextBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
                                                    ToolTip="{Binding SourcePathDisplay}"/>
@@ -413,7 +413,7 @@
 
                     <!-- ═══════ DEPLOYMENT ═══════ -->
                     <StackPanel Visibility="{Binding IsDeployment, Converter={StaticResource BoolToVis}}">
-                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,12">
+                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,28">
                             <StackPanel>
                                 <controls:SectionHeader Title="Command lines" Caption="Intune runs these to install and uninstall the application."/>
                                 <Grid Margin="0,16,0,0">
@@ -433,7 +433,7 @@
                                         </StackPanel>
                                     </Button>
                                 </Grid>
-                                <Border Height="1" Background="{DynamicResource Line2Brush}" Margin="0,12"/>
+                                <Border Height="1" Background="{DynamicResource LineBrush}" Margin="0,12"/>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="150"/>
@@ -455,7 +455,7 @@
                         </Border>
 
                         <!-- Detection rules: type + summary per rule, edited in place. -->
-                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,12">
+                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,28">
                             <StackPanel>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -500,7 +500,7 @@
                                 <ItemsControl ItemsSource="{Binding DetectionDisplays}" Focusable="False">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border BorderBrush="{DynamicResource Line2Brush}" BorderThickness="0,0,0,1" Padding="0,10">
+                                            <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1" Padding="0,10">
                                                 <StackPanel>
                                                     <!-- Read row -->
                                                     <Grid Visibility="{Binding IsEditing, Converter={StaticResource InverseBoolToVis}}">
@@ -529,7 +529,7 @@
                                                     <!-- Inline editor: the row turns into a focused card. -->
                                                     <Border Visibility="{Binding IsEditing, Converter={StaticResource BoolToVis}}"
                                                             Background="{DynamicResource Card2Brush}" BorderBrush="{DynamicResource AccentTextBrush}"
-                                                            BorderThickness="1" CornerRadius="6" Padding="18,16">
+                                                            BorderThickness="1" CornerRadius="8" Padding="18,16">
                                                         <StackPanel>
                                                             <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
                                                                 <Border Style="{StaticResource Chip}" VerticalAlignment="Center">
@@ -624,7 +624,7 @@
                         </Border>
 
                         <!-- Requirements -->
-                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,12">
+                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,28">
                             <StackPanel>
                                 <controls:SectionHeader Title="Requirements" Caption="What a device needs before Intune installs the application."/>
                                 <UniformGrid Columns="3" Margin="0,6,0,0">
@@ -681,7 +681,7 @@
                                                     AutomationProperties.Name="{Binding GroupName}" FocusVisualStyle="{StaticResource FocusVisualInset}">
                                                 <Button.Template>
                                                     <ControlTemplate TargetType="Button">
-                                                        <Border x:Name="rb" Background="Transparent" BorderBrush="{DynamicResource Line2Brush}" BorderThickness="0,0,0,1">
+                                                        <Border x:Name="rb" Background="Transparent" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1">
                                                             <ContentPresenter/>
                                                         </Border>
                                                         <ControlTemplate.Triggers>
@@ -735,7 +735,7 @@
                                             Click="AddAssignment_Click" IsEnabled="{Binding CanAddAssignment}"/>
                                 </Grid>
                                 <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1"
-                                        CornerRadius="4" Margin="0,8,0,0" MaxHeight="180"
+                                        CornerRadius="8" Margin="0,8,0,0" MaxHeight="180"
                                         Visibility="{Binding HasGroupResults, Converter={StaticResource BoolToVis}}">
                                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                                         <ItemsControl ItemsSource="{Binding GroupResults}">
@@ -760,7 +760,7 @@
                  page behind it, so it covers the body until it finishes. -->
             <Grid Visibility="{Binding IsUpdating, Converter={StaticResource BoolToVis}}">
                 <Border Background="{DynamicResource BgBrush}" Opacity="0.75" CornerRadius="8"/>
-                <Border Style="{StaticResource PanelCard}" Background="{DynamicResource FlyoutBrush}" BorderBrush="{DynamicResource ControlStrokeBrush}"
+                <Border Style="{StaticResource Card}" Background="{DynamicResource FlyoutBrush}" BorderBrush="{DynamicResource EdgeBrush}" CornerRadius="14"
                         Width="420" Padding="24" VerticalAlignment="Center" HorizontalAlignment="Center">
                     <StackPanel>
                         <TextBlock Text="Updating package content" Style="{StaticResource H2}"/>
@@ -780,8 +780,8 @@
             <Border Background="{DynamicResource BgBrush}" Opacity="0.6" CornerRadius="8"
                     Visibility="{Binding IsFlyoutOpen, Converter={StaticResource BoolToVis}}"
                     MouseLeftButtonDown="FlyoutBackdrop_MouseDown"/>
-            <Border HorizontalAlignment="Right" Width="360" Style="{StaticResource PanelCard}"
-                    Background="{DynamicResource FlyoutBrush}" BorderBrush="{DynamicResource ControlStrokeBrush}"
+            <Border HorizontalAlignment="Right" Width="360" Style="{StaticResource Card}" CornerRadius="10,0,0,10"
+                    Background="{DynamicResource FlyoutBrush}" BorderBrush="{DynamicResource EdgeBrush}"
                     Visibility="{Binding IsFlyoutOpen, Converter={StaticResource BoolToVis}}">
                 <Grid Margin="20">
                     <Grid.RowDefinitions>
@@ -828,7 +828,7 @@
                     </StackPanel>
 
                     <Border Grid.Row="3" Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1"
-                            CornerRadius="4" Margin="0,0,0,8" MaxHeight="160"
+                            CornerRadius="8" Margin="0,0,0,8" MaxHeight="160"
                             Visibility="{Binding HasMemberResults, Converter={StaticResource BoolToVis}}">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <ItemsControl ItemsSource="{Binding MemberSearchResults}">
@@ -852,13 +852,13 @@
                         </ScrollViewer>
                     </Border>
 
-                    <Border Grid.Row="4" Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="4"
+                    <Border Grid.Row="4" Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="8"
                             Visibility="{Binding FlyoutHasGroup, Converter={StaticResource BoolToVis}}">
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <ItemsControl ItemsSource="{Binding Members}" Margin="12,4">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
-                                        <Border BorderBrush="{DynamicResource Line2Brush}" BorderThickness="0,0,0,1" Padding="0,7">
+                                        <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1" Padding="0,7">
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*"/>

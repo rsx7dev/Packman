@@ -14,7 +14,7 @@
     <UserControl.Resources>
         <!-- Toolbar action: an outlined button with an icon and a label. -->
         <Style x:Key="ToolbarButton" TargetType="Button" BasedOn="{StaticResource GhostButton}">
-            <Setter Property="Padding" Value="14,7"/>
+            <Setter Property="Padding" Value="14,5"/>
         </Style>
 
         <!-- Flat button used inside the file tabs; the shared IconButton style fixes a
@@ -91,7 +91,7 @@
 
     <Grid>
         <!-- No package yet -->
-        <Border Style="{StaticResource SectionPanel}" VerticalAlignment="Top"
+        <Border Style="{StaticResource CalloutNeutral}" VerticalAlignment="Top" Padding="20,18"
                 Visibility="{Binding Editor.HasPackage, Converter={StaticResource InverseBoolToVis}}">
             <controls:SectionHeader Title="No package generated yet"
                                     Caption="Go back to the Package step to create the package first."/>
@@ -106,9 +106,9 @@
             </Grid.RowDefinitions>
 
             <!-- Toolbar -->
-            <Border Grid.Row="0" Style="{StaticResource PanelCard}" Padding="16,12,8,4" Margin="0,0,0,12">
+            <Border Grid.Row="0" Style="{StaticResource PanelCard}" Margin="0,0,0,8">
                 <WrapPanel Orientation="Horizontal">
-                    <Button Style="{StaticResource PrimaryButton}" Padding="16,8" Margin="0,0,8,8"
+                    <Button Style="{StaticResource PrimaryButton}" Margin="0,0,8,8"
                             Command="{Binding Editor.SaveCommand}" ToolTip="Save the active file (Ctrl+S)">
                         <StackPanel Orientation="Horizontal">
                             <controls:LineIcon Data="{DynamicResource IconSave}" Width="16" Height="16"/>
@@ -164,7 +164,7 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- Collapsed rail -->
-                <Border x:Name="TreeRail" Grid.Column="0" Style="{StaticResource PanelCard}" Padding="6" Visibility="Collapsed">
+                <Border x:Name="TreeRail" Grid.Column="0" Style="{StaticResource Card}" Background="{DynamicResource RailBrush}" Padding="6" Visibility="Collapsed">
                     <Button Style="{StaticResource IconButton}" Width="34" Height="34" BorderThickness="0"
                             VerticalAlignment="Top" ToolTip="Show package files" Click="ToggleTree_Click">
                         <controls:LineIcon Data="{DynamicResource IconFolder}" Width="16" Height="16"/>
@@ -172,7 +172,7 @@
                 </Border>
 
                 <!-- Package files navigator -->
-                <Border x:Name="TreePanel" Grid.Column="0" Width="250" Style="{StaticResource PanelCard}" Padding="10,10,6,10">
+                <Border x:Name="TreePanel" Grid.Column="0" Width="250" Style="{StaticResource Card}" Background="{DynamicResource RailBrush}" Padding="10,10,6,10">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
@@ -186,7 +186,7 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" VerticalAlignment="Center">
-                                <TextBlock Text="Package files" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}"/>
+                                <TextBlock Text="Package files" FontSize="13.5" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}"/>
                                 <TextBlock Text="{Binding Editor.PackageName}" ToolTip="{Binding Editor.PackageName}" Margin="0,2,0,0"
                                            FontFamily="{StaticResource MonoFontFamily}" FontSize="11.5"
                                            Foreground="{DynamicResource MutedBrush}" TextTrimming="CharacterEllipsis"/>
@@ -227,7 +227,7 @@
                 <!-- Tab strip, Monaco (WebView2) and the status bar in one panel. The tab strip
                      and status bar keep the WebView2 HWND clear of the panel's rounded corners,
                      which it cannot be clipped to. -->
-                <Border Grid.Column="2" Style="{StaticResource PanelCard}">
+                <Border Grid.Column="2" Style="{StaticResource Card}" Background="{DynamicResource PanelBrush}" Padding="0">
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>

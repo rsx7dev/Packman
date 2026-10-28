@@ -21,7 +21,8 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="{Binding FooterText}" Style="{StaticResource FooterHint}" Margin="18,0"/>
+                <TextBlock Text="{Binding FooterText}" Style="{StaticResource FooterHint}" Margin="0,0,18,0"
+                           HorizontalAlignment="Left" TextAlignment="Left"/>
                 <Button Grid.Column="1" Style="{StaticResource PrimaryButton}" MinWidth="180"
                         Command="{Binding UploadCommand}">
                     <StackPanel Orientation="Horizontal">
@@ -87,7 +88,7 @@
         <!-- ═══════════ BODY ═══════════ -->
         <Grid>
             <!-- The form, until a publish starts. -->
-            <Border Style="{StaticResource SectionPanel}"
+            <Border Style="{StaticResource SectionPanel}" MaxWidth="860" HorizontalAlignment="Left"
                     Visibility="{Binding Publish.IsNotPublishing, Converter={StaticResource BoolToVis}}">
                 <StackPanel>
 
@@ -123,7 +124,7 @@
                                               Subtitle="{Binding Manufacturer}"
                                               Meta="{Binding PackageMeta}"
                                               IconPath="{Binding PackageIconPath}"/>
-                        <TextBlock Text="Name in Intune" Style="{StaticResource FieldLabel}" Margin="0,18,0,7"/>
+                        <TextBlock Text="Name in Intune" Style="{StaticResource FieldLabel}" Margin="0,18,0,6"/>
                         <TextBox AutomationProperties.Name="Name in Intune" Style="{StaticResource TextField}"
                                  Text="{Binding IntuneDisplayName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                     </StackPanel>
@@ -152,7 +153,7 @@
                     <TextBlock Text="From Settings ▸ Intune Defaults, with the deploy mode below applied." Style="{StaticResource Caption}"
                                TextWrapping="Wrap" Margin="0,7,0,0"/>
 
-                    <TextBlock Text="PSADT deploy mode" Style="{StaticResource FieldLabel}" Margin="0,16,0,7"/>
+                    <TextBlock Text="PSADT deploy mode" Style="{StaticResource FieldLabel}" Margin="0,16,0,6"/>
                     <ComboBox AutomationProperties.Name="PSADT deploy mode" HorizontalAlignment="Left" MinWidth="220"
                               ItemsSource="{Binding DeployModes}"
                               SelectedItem="{Binding SelectedDeployMode, Mode=TwoWay}"/>
@@ -165,7 +166,7 @@
                     <ItemsControl ItemsSource="{Binding DetectionRules}" Focusable="False">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="6" Padding="14,10" Margin="0,0,0,8">
+                                <Border Background="{DynamicResource Card2Brush}" CornerRadius="8" Padding="14,10" Margin="0,0,0,8">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
@@ -174,7 +175,7 @@
                                         <StackPanel>
                                             <TextBlock Text="{Binding Title}" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}" TextWrapping="Wrap"/>
                                             <TextBlock Text="{Binding Description}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12"
-                                                       Foreground="{DynamicResource Muted2Brush}" Margin="0,3,0,0" TextWrapping="Wrap"/>
+                                                       Foreground="{DynamicResource MutedBrush}" Margin="0,3,0,0" TextWrapping="Wrap"/>
                                         </StackPanel>
                                         <Button Grid.Column="1" Style="{StaticResource RowIconButton}" VerticalAlignment="Top" Margin="8,0,0,0"
                                                 Command="{Binding DataContext.RemoveRuleCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
@@ -192,7 +193,7 @@
 
                     <!-- Add-rule editor -->
                     <Border Background="{DynamicResource Card2Brush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1"
-                            CornerRadius="6" Padding="16,14">
+                            CornerRadius="8" Padding="16,14">
                         <StackPanel>
                             <TextBlock Text="Detection method" Style="{StaticResource FieldLabel}"/>
                             <ComboBox AutomationProperties.Name="Detection method"

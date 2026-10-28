@@ -2,81 +2,73 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:sys="clr-namespace:System;assembly=System.Runtime">
 
-    <!-- Fluent dark. The window is Mica, so surfaces above it are translucent
-         white layers rather than opaque colours — that is what lets the desktop
-         tint bleed through. Only the wells (code, editor) stay solid. Amber
-         remains the accent. -->
-    <Color x:Key="BgColor">#1B1B1B</Color>
-    <Color x:Key="ShellColor">#202020</Color>
-    <!-- Content surface: nearly opaque so text on it stays readable over Mica. -->
-    <Color x:Key="SurfaceColor">#D9202020</Color>
-    <!-- Flyouts float over arbitrary content, so this one stays opaque. -->
-    <Color x:Key="FlyoutColor">#2C2C2C</Color>
-    <!-- Page panels (header, body sections, footer, rail): a step up from the shell, near-opaque so
-         text stays readable over Mica. -->
-    <Color x:Key="PanelColor">#EB2A2A2A</Color>
-    <Color x:Key="CardColor">#0FFFFFFF</Color>
-    <Color x:Key="Card2Color">#0AFFFFFF</Color>
-    <Color x:Key="RailColor">#0AFFFFFF</Color>
-    <Color x:Key="LineColor">#15FFFFFF</Color>
-    <Color x:Key="Line2Color">#0FFFFFFF</Color>
-    <Color x:Key="Line3Color">#12FFFFFF</Color>
-    <Color x:Key="EdgeColor">#1FFFFFFF</Color>
-    <Color x:Key="Edge2Color">#8CFFFFFF</Color>
-        <!-- Boundary of anything you can type in or click. Alpha chosen so the
-         composite clears 3:1 against both the card and the surface, which the
-         old hairline missed by a factor of two. -->
-    <Color x:Key="ControlStrokeColor">#66FFFFFF</Color>
-<Color x:Key="FieldColor">#0FFFFFFF</Color>
+    <!-- Quiet Ledger, dark. Same roles as the light theme on opaque graphite surfaces.
+         Amber stays the one brand colour; green/amber/red are status only. -->
+    <Color x:Key="BgColor">#1E1F21</Color>
+    <Color x:Key="ShellColor">#141516</Color>
+    <Color x:Key="SurfaceColor">#1E1F21</Color>
+    <Color x:Key="FlyoutColor">#252628</Color>
+    <Color x:Key="PanelColor">#1E1F21</Color>
+    <Color x:Key="CardColor">#1E1F21</Color>
+    <Color x:Key="Card2Color">#252628</Color>
+    <Color x:Key="RailColor">#1A1B1D</Color>
+    <Color x:Key="LineColor">#2E3033</Color>
+    <Color x:Key="Line2Color">#26282A</Color>
+    <Color x:Key="Line3Color">#2A2C2F</Color>
+    <Color x:Key="EdgeColor">#43464B</Color>
+    <Color x:Key="Edge2Color">#6F737B</Color>
+    <!-- Boundary of anything you can type in or click: clears 3:1 against the page and the sunk surface. -->
+    <Color x:Key="ControlStrokeColor">#6F737B</Color>
+    <Color x:Key="FieldColor">#1E1F21</Color>
     <!-- Resting / hover surface for outlined controls. -->
-    <Color x:Key="ControlColor">#0FFFFFFF</Color>
-    <Color x:Key="ControlHoverColor">#17FFFFFF</Color>
+    <Color x:Key="ControlColor">#1E1F21</Color>
+    <Color x:Key="ControlHoverColor">#2A2B2E</Color>
 
-    <Color x:Key="InkColor">#FFFFFFFF</Color>
-    <Color x:Key="TextColor">#F0FFFFFF</Color>
-    <Color x:Key="Text2Color">#C8FFFFFF</Color>
+    <Color x:Key="InkColor">#F3F3F4</Color>
+    <Color x:Key="TextColor">#DCDDE0</Color>
+    <Color x:Key="Text2Color">#DCDDE0</Color>
     <!-- De-emphasis ramp, on the Fluent text alphas. Every step here carries
          text, so each one clears WCAG AA (4.5:1) once composited over the
          surface; MarkColor is the only value below that and is reserved for
          non-text marks — it still clears the 3:1 those need. -->
-    <Color x:Key="MutedColor">#C8FFFFFF</Color>
-    <Color x:Key="Muted2Color">#B4FFFFFF</Color>
-    <Color x:Key="Muted3Color">#A0FFFFFF</Color>
-    <Color x:Key="DimColor">#8BFFFFFF</Color>
-    <Color x:Key="Dim2Color">#8BFFFFFF</Color>
-    <Color x:Key="FaintColor">#8BFFFFFF</Color>
-    <Color x:Key="MarkColor">#73FFFFFF</Color>
+    <Color x:Key="MutedColor">#A3A7B0</Color>
+    <Color x:Key="Muted2Color">#A3A7B0</Color>
+    <Color x:Key="Muted3Color">#A3A7B0</Color>
+    <Color x:Key="DimColor">#8F939C</Color>
+    <Color x:Key="Dim2Color">#8F939C</Color>
+    <Color x:Key="FaintColor">#8F939C</Color>
+    <Color x:Key="MarkColor">#6F737B</Color>
 
     <!-- Success / caution / critical. Caution sits at hue 50 and critical at
          355, both held clear of the amber accent at 33 so a state can never be
          read as the brand. -->
-    <Color x:Key="OkColor">#6CCB5F</Color>
-    <Color x:Key="WarnColor">#E8CE4A</Color>
-    <Color x:Key="BadColor">#FF6470</Color>
-    <Color x:Key="DangerColor">#FF6470</Color>
-    <Color x:Key="OkSoftColor">#1F6CCB5F</Color>
-    <Color x:Key="OkLineColor">#6B6CCB5F</Color>
-    <Color x:Key="WarnSoftColor">#1FE8CE4A</Color>
-    <Color x:Key="WarnLineColor">#6BE8CE4A</Color>
-    <Color x:Key="BadSoftColor">#1CFF6470</Color>
-    <Color x:Key="BadLineColor">#6BFF6470</Color>
+    <Color x:Key="OkColor">#5CC48C</Color>
+    <Color x:Key="WarnColor">#E6C25A</Color>
+    <Color x:Key="BadColor">#FF8A80</Color>
+    <Color x:Key="DangerColor">#FF8A80</Color>
+    <Color x:Key="OkSoftColor">#18291F</Color>
+    <Color x:Key="OkLineColor">#4D5CC48C</Color>
+    <Color x:Key="WarnSoftColor">#2C2512</Color>
+    <Color x:Key="WarnLineColor">#4DE6C25A</Color>
+    <Color x:Key="BadSoftColor">#341B19</Color>
+    <Color x:Key="BadLineColor">#4DFF8A80</Color>
 
     <!-- Accent. PrimaryFgColor is what sits on top of a filled accent block. -->
     <Color x:Key="PrimaryColor">#E0A050</Color>
-    <Color x:Key="Primary2Color">#C98A3C</Color>
-    <Color x:Key="PrimaryFgColor">#1B1B1B</Color>
-    <Color x:Key="PrimaryFaintColor">#12E0A050</Color>
-    <Color x:Key="PrimarySoftColor">#16E0A050</Color>
-    <Color x:Key="PrimaryDimColor">#28E0A050</Color>
-    <Color x:Key="PrimaryLineColor">#66E0A050</Color>
+    <Color x:Key="Primary2Color">#EBB064</Color>
+    <Color x:Key="PrimaryFgColor">#1B1407</Color>
+    <Color x:Key="PrimaryFaintColor">#2E2618</Color>
+    <Color x:Key="PrimarySoftColor">#2E2618</Color>
+    <Color x:Key="PrimaryDimColor">#3F3019</Color>
+    <Color x:Key="PrimaryLineColor">#5A4524</Color>
     <!-- Amber as text, an icon or a hairline rather than a fill. Same value as
          the fill here; the light theme has to darken it to stay legible. -->
-    <Color x:Key="AccentTextColor">#E0A050</Color>
+    <Color x:Key="AccentTextColor">#EDB468</Color>
 
-    <Color x:Key="CodeBgColor">#1B1B1B</Color>
-    <Color x:Key="CodeTxtColor">#F0FFFFFF</Color>
-    <Color x:Key="CodeBarTxtColor">#C8FFFFFF</Color>
-    <Color x:Key="CodeCommentColor">#8BFFFFFF</Color>
+    <Color x:Key="CodeBgColor">#151618</Color>
+    <Color x:Key="CodeTxtColor">#DCDDE0</Color>
+    <Color x:Key="CodeBarTxtColor">#A3A7B0</Color>
+    <Color x:Key="CodeCommentColor">#8F939C</Color>
 
     <!-- Brushes -->
     <SolidColorBrush x:Key="BgBrush" Color="{StaticResource BgColor}"/>
@@ -134,6 +126,18 @@
     <SolidColorBrush x:Key="CodeTxtBrush" Color="{StaticResource CodeTxtColor}"/>
     <SolidColorBrush x:Key="CodeBarTxtBrush" Color="{StaticResource CodeBarTxtColor}"/>
     <SolidColorBrush x:Key="CodeCommentBrush" Color="{StaticResource CodeCommentColor}"/>
+
+    <!-- Menubar (shown instead of the left nav when it is hidden). -->
+    <Color x:Key="DockColor">#2C2F33</Color>
+    <Color x:Key="DockHoverColor">#3B3F45</Color>
+    <Color x:Key="DockTextColor">#C5CAD0</Color>
+    <Color x:Key="DockActiveColor">#F4F5F6</Color>
+    <Color x:Key="DockActiveTextColor">#15181C</Color>
+    <SolidColorBrush x:Key="DockBrush" Color="{StaticResource DockColor}"/>
+    <SolidColorBrush x:Key="DockHoverBrush" Color="{StaticResource DockHoverColor}"/>
+    <SolidColorBrush x:Key="DockTextBrush" Color="{StaticResource DockTextColor}"/>
+    <SolidColorBrush x:Key="DockActiveBrush" Color="{StaticResource DockActiveColor}"/>
+    <SolidColorBrush x:Key="DockActiveTextBrush" Color="{StaticResource DockActiveTextColor}"/>
 
     <!-- The logo mark is a flat block. -->
 
