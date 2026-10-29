@@ -25,6 +25,13 @@ public partial class MainWindow : FluentWindow
         };
         ApplicationsPage.ConnectRequested += () => SettingsNavBtn.IsChecked = true;
 
+        // The standalone Upload page publishes on its own; the wizard stepper waits for it too.
+        UploadIntunePage.ViewModel.Publish.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(PublishRunViewModel.IsRunning) && DataContext is MainViewModel main)
+                main.IsUploadPageRunning = UploadIntunePage.ViewModel.Publish.IsRunning;
+        };
+
         AppDetailPage.BackRequested += () => ShowOnly(ApplicationsPage, "Applications");
         AppDetailPage.Deleted += () =>
         {
@@ -51,14 +58,15 @@ public partial class MainWindow : FluentWindow
         };
     }
 
-    /// <summary>The generate, publish or republish in flight, with how to stop it. Null when idle.</summary>
-    private (string Name, ICommand Cancel)? RunningJob(MainViewModel vm)
+    /// <summary>Every generate, publish or republish in flight, with how to stop it. Empty when idle.</summary>
+    private List<(string Name, ICommand Cancel)> RunningJobs(MainViewModel vm)
     {
-        if (vm.CreatePackage.IsGenerating) return ("package generation", vm.CreatePackage.CancelCommand);
-        if (vm.Upload.Publish.IsRunning) return ("publish", vm.Upload.Publish.CancelCommand);
-        if (UploadIntunePage.ViewModel.Publish.IsRunning) return ("publish", UploadIntunePage.ViewModel.Publish.CancelCommand);
-        if (AppDetailPage.ViewModel is { IsUpdating: true } detail) return ("republish", detail.CancelUpdateCommand);
-        return null;
+        var jobs = new List<(string, ICommand)>();
+        if (vm.CreatePackage.IsGenerating) jobs.Add(("package generation", vm.CreatePackage.CancelCommand));
+        if (vm.Upload.Publish.IsRunning) jobs.Add(("publish", vm.Upload.Publish.CancelCommand));
+        if (UploadIntunePage.ViewModel.Publish.IsRunning) jobs.Add(("upload", UploadIntunePage.ViewModel.Publish.CancelCommand));
+        if (AppDetailPage.ViewModel is { IsUpdating: true } detail) jobs.Add(("republish", detail.CancelUpdateCommand));
+        return jobs;
     }
 
     /// <summary>Page switches asked for from a rail, the title bar or another page.</summary>
@@ -97,19 +105,20 @@ public partial class MainWindow : FluentWindow
     {
         if (_closeConfirmed || DataContext is not MainViewModel vm) return;
 
-        var job = RunningJob(vm);
-        if (job == null && !vm.Editor.HasUnsavedChanges) return;
+        var jobs = RunningJobs(vm);
+        if (jobs.Count == 0 && !vm.Editor.HasUnsavedChanges) return;
 
         e.Cancel = true;
         if (_closeRequested) return;   // already stopping a job or asking about the editor
 
-        if (job is { } running)
+        if (jobs.Count > 0)
         {
+            var names = string.Join(" and ", jobs.Select(j => j.Name));
             if (!AppServices.Dialogs.Confirm(
-                    $"The {running.Name} is still running. Closing now cancels it.",
-                    "Packman is busy", $"Cancel {running.Name} and close", "Keep Packman open"))
+                    $"The {names} {(jobs.Count == 1 ? "is" : "are")} still running. Closing now cancels {(jobs.Count == 1 ? "it" : "them")}.",
+                    "Packman is busy", $"Cancel {names} and close", "Keep Packman open"))
                 return;
-            running.Cancel.Execute(null);
+            foreach (var job in jobs) job.Cancel.Execute(null);
         }
 
         _closeRequested = true;
@@ -120,7 +129,7 @@ public partial class MainWindow : FluentWindow
             {
                 await Task.Yield();   // Close() below must not run inside this Closing event
                 // Let the job clean up (a cancelled publish removes the half-built app) first.
-                while (RunningJob(vm) != null) await Task.Delay(250);
+                while (RunningJobs(vm).Count > 0) await Task.Delay(250);
                 proceed = await vm.Editor.PromptSaveAllAsync();
             }
             catch (Exception ex)

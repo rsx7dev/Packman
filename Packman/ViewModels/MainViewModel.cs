@@ -120,8 +120,16 @@ public sealed class MainViewModel : ObservableObject
         set { if (Set(ref _isRepublishing, value)) RefreshStepLocks(); }
     }
 
+    private bool _isUploadPageRunning;
+    /// <summary>Set by the window while the standalone Upload page publishes.</summary>
+    public bool IsUploadPageRunning
+    {
+        get => _isUploadPageRunning;
+        set { if (Set(ref _isUploadPageRunning, value)) RefreshStepLocks(); }
+    }
+
     /// <summary>A generate, upgrade, publish or republish is in flight; the stepper and Back wait for it.</summary>
-    public bool IsJobRunning => CreatePackage.IsGenerating || Upgrade.IsBusy || Upload.Publish.IsRunning || IsRepublishing;
+    public bool IsJobRunning => CreatePackage.IsGenerating || Upgrade.IsBusy || Upload.Publish.IsRunning || IsRepublishing || IsUploadPageRunning;
 
     private string? _backLockReason;
     public string? BackLockReason { get => _backLockReason; private set => Set(ref _backLockReason, value); }
