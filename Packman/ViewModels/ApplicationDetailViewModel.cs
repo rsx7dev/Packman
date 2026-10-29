@@ -140,7 +140,7 @@ public sealed class ApplicationDetailViewModel : ObservableObject
     public int SumRemaining => SumNotInstalled + SumNotApplicable;
 
     /// <summary>The per-device list under the rollup; loads on its own so the page does not wait for it.</summary>
-    public DeviceStatusViewModel Devices { get; }
+    public DeviceStatusViewModel Devices { get; init; }
 
     /// <summary>Shown instead of the counts when there are none to show.</summary>
     public string StatsEmptyText =>
