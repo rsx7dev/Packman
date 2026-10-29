@@ -26,6 +26,9 @@ jobs:
       - name: Build
         run: dotnet build Packman.sln --no-restore -c Release
 
+      - name: Device status unit and WPF checks
+        run: dotnet run --file tests/DeviceStatusTests.cs -c Release
+
       - name: Render native UI previews
         run: dotnet run --file scripts/RenderUiPreviews.cs -c Release -- artifacts/ui-previews
 

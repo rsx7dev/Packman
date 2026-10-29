@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
-# Offline restore, Release build and the device status checks. Packman is a WPF app
-# (net10.0-windows), so this runs only on Windows with the .NET 10 SDK; anywhere else it fails.
+# Portable parser/CSV checks everywhere; Windows also builds Packman and checks WPF.
 set -euo pipefail
 cd "$(dirname "$0")"
-case "$(uname -s)" in
-    MINGW*|MSYS*|CYGWIN*) ;;
-    *) echo "check.sh: needs Windows with the .NET 10 SDK (WPF cannot build or run on $(uname -s)). Run it on the Windows node." >&2; exit 1 ;;
-esac
 command -v dotnet >/dev/null || { echo "check.sh: dotnet not found; install the .NET 10 SDK." >&2; exit 1; }
-dotnet restore Packman.sln
-dotnet build Packman.sln --no-restore -c Release
-dotnet run --file tests/DeviceStatusTests.cs -c Release
+check_target=tests/DeviceStatusUnitTests.cs
+case "$(uname -s)" in
+    MINGW*|MSYS*|CYGWIN*) check_target=tests/DeviceStatusTests.cs ;;
+    *)
+        # File-app caches and .NET named mutexes need writable locations in CI sandboxes.
+        export XDG_DATA_HOME="${XDG_DATA_HOME:-$PWD/artifacts/check-data}"
+        export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-$PWD/artifacts/check-runtime}"
+        mkdir -p "$XDG_DATA_HOME" "$XDG_RUNTIME_DIR"
+        ;;
+esac
+dotnet restore "$check_target"
+dotnet build "$check_target" --no-restore -c Release
+dotnet run --file "$check_target" --no-build -c Release

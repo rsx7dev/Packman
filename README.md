@@ -198,6 +198,13 @@ dotnet run --file scripts/RenderUiPreviews.cs -c Release -- artifacts/ui-preview
 
 The solution contains only the desktop application; no separate test project is required.
 
+Run `./check.sh` with the .NET 10 SDK (Git Bash on Windows). On Linux and macOS it
+restores, builds and runs the tenant-free report parser and CSV unit checks against
+the production sources. On Windows it also builds Packman in Release and runs the
+ViewModel and WPF layout checks. Windows CI runs that complete harness with
+`dotnet run --file tests/DeviceStatusTests.cs -c Release`; portable checks alone do
+not verify the Windows application. All commands propagate failures.
+
 ## Offline builds
 
 `NuGet.config` at the repo root points restore at `packages/`, a folder of `.nupkg`

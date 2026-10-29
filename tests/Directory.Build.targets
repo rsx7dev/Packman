@@ -1,0 +1,14 @@
+<Project>
+  <ItemGroup>
+    <Compile Include="$(MSBuildThisFileDirectory)DeviceStatusChecks.cs" />
+  </ItemGroup>
+  <!-- File-based apps compile one entry file by default. Link the actual production
+       sources for the portable harness; Windows tests reference the whole app. -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'DeviceStatusUnitTests.cs'">
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Services/Intune/IntuneService.DeviceStatusReport.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Models/DeviceInstallStatus.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/CsvWriter.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/InstallErrorText.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/JsonExtensions.cs" />
+  </ItemGroup>
+</Project>

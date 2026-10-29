@@ -248,22 +248,6 @@ public partial class IntuneService
         return new InstallationStatistics();
     }
 
-    private static Dictionary<string, int> ReadReportColumns(JsonElement root)
-    {
-        var columns = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        if (!root.TryGetProperty("Schema", out var schema) || schema.ValueKind != JsonValueKind.Array)
-            return columns;
-
-        var index = 0;
-        foreach (var column in schema.EnumerateArray())
-        {
-            var name = column.GetSafeString("Column");
-            if (!string.IsNullOrEmpty(name)) columns[name] = index;
-            index++;
-        }
-        return columns;
-    }
-
     // ── Delete ──────────────────────────────────────────
     public async Task DeleteApplicationAsync(string id, CancellationToken ct = default)
     {
