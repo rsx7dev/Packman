@@ -96,7 +96,12 @@ public sealed class DeviceStatusViewModel : ObservableObject
 
     public string CountText => _all.Count == 0 ? "" : $"Showing {Rows.Count:N0} of {_all.Count:N0} devices";
 
-    // ── ActivityDock: shown once the report needs more than one page ──
+    // ── ActivityDock: shown once a load runs past DockDelay, or as soon as the report needs more pages ──
+    /// <summary>How long a load may run, first request included, before the dock offers Cancel.</summary>
+    public TimeSpan DockDelay { get; init; } = TimeSpan.FromSeconds(1.5);
+
+    private int _loadGeneration;
+
     private bool _isDockActive;
     public bool IsDockActive { get => _isDockActive; private set => Set(ref _isDockActive, value); }
 
@@ -106,13 +111,21 @@ public sealed class DeviceStatusViewModel : ObservableObject
     private int _dockPercent;
     public int DockPercent { get => _dockPercent; private set => Set(ref _dockPercent, value); }
 
+    /// <summary>Until a page reports a total, the dock shows activity rather than a percentage.</summary>
+    private bool _isDockIndeterminate = true;
+    public bool IsDockIndeterminate { get => _isDockIndeterminate; private set => Set(ref _isDockIndeterminate, value); }
+
     public async Task LoadAsync()
     {
         if (IsLoading) return;
         _cts?.Dispose();
         _cts = new CancellationTokenSource();
         ErrorText = "";
+        DockPhase = "Waiting for Intune…";
+        DockPercent = 0;
+        IsDockIndeterminate = true;
         IsLoading = true;
+        _ = ShowDockIfSlowAsync(++_loadGeneration);
         try
         {
             var rows = await _load(new LoadProgress(this), _cts.Token);
@@ -139,12 +152,26 @@ public sealed class DeviceStatusViewModel : ObservableObject
         }
     }
 
+    private async Task ShowDockIfSlowAsync(int generation)
+    {
+        await Task.Delay(DockDelay);
+        if (IsLoading && generation == _loadGeneration) IsDockActive = true;
+    }
+
     private void OnProgress(int read, int total)
     {
         if (!IsLoading) return;
-        if (total > read) IsDockActive = true;
-        DockPhase = $"Read {read:N0} of {total:N0} devices";
-        DockPercent = total == 0 ? 0 : read * 100 / total;
+        if (total > read)
+        {
+            IsDockActive = true;
+            IsDockIndeterminate = false;
+            DockPhase = $"Read {read:N0} of {total:N0} devices";
+            DockPercent = read * 100 / total;
+        }
+        else
+        {
+            DockPhase = $"Read {read:N0} devices";
+        }
     }
 
     /// <summary>Reports in line: the service resumes on the UI thread between pages.</summary>

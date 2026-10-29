@@ -188,6 +188,7 @@
                                        IsActive="{Binding Devices.IsDockActive}"
                                        Phase="{Binding Devices.DockPhase}"
                                        Progress="{Binding Devices.DockPercent}"
+                                       IsIndeterminate="{Binding Devices.IsDockIndeterminate}"
                                        CancelCommand="{Binding Devices.CancelCommand}"/>
             </StackPanel>
         </controls:PageFrame.Footer>
