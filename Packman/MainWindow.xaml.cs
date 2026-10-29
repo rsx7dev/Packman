@@ -58,9 +58,9 @@ public partial class MainWindow : FluentWindow
         for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
         {
             var child = VisualTreeHelper.GetChild(parent, i);
-            if (child is TitleBarButton { Name: var name } button)
+            if (child is TitleBarButton button)
             {
-                var label = name switch
+                var label = System.Windows.Automation.AutomationProperties.GetAutomationId(button) switch
                 {
                     "TitleBarMinimizeButton" => "Minimize",
                     "TitleBarMaximizeButton" => "Maximize or restore",
