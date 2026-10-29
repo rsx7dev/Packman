@@ -82,7 +82,7 @@
         </Grid.RowDefinitions>
 
         <!-- ═══════════ TITLE BAR ═══════════ -->
-        <ui:TitleBar Grid.Row="0" Height="44" Padding="12,0,0,0">
+        <ui:TitleBar x:Name="TitleBarControl" Grid.Row="0" Height="44" Padding="12,0,0,0">
             <ui:TitleBar.Header>
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Style="{StaticResource IconButton}" Width="28" Height="28" BorderThickness="0"

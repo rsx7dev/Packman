@@ -142,7 +142,8 @@
                                     </StackPanel>
                                 </Border>
                                 <!-- Remove -->
-                                <Button Grid.Column="2" Style="{StaticResource RowIconButton}" Command="{Binding RemoveCommand}" VerticalAlignment="Center" ToolTip="Remove">
+                                <Button Grid.Column="2" Style="{StaticResource RowIconButton}" Command="{Binding RemoveCommand}" VerticalAlignment="Center" ToolTip="Remove"
+                                        AutomationProperties.Name="{Binding GroupName, StringFormat='Remove {0}'}">
                                     <Viewbox Width="15" Height="15">
                                         <Path Data="{StaticResource IconTrash}" Stroke="{DynamicResource MutedBrush}" StrokeThickness="1.8" Style="{StaticResource Icon}"/>
                                     </Viewbox>

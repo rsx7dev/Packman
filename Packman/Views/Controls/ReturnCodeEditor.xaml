@@ -28,7 +28,8 @@
                             <ComboBoxItem Content="Failed" Tag="{x:Static models:ReturnCodeType.Failed}"/>
                         </ComboBox>
                         <Button Grid.Column="6" Style="{StaticResource RowIconButton}" Command="{Binding RemoveCommand}"
-                            ToolTip="Remove return code" Content="×" VerticalAlignment="Center"/>
+                            ToolTip="Remove return code" Content="×"
+                            AutomationProperties.Name="{Binding Code, StringFormat='Remove return code {0}'}" VerticalAlignment="Center"/>
                     </Grid>
                 </Border>
             </DataTemplate>

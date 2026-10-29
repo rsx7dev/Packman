@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 using Packman.Services;
 using Packman.ViewModels;
 using Wpf.Ui.Controls;
@@ -46,6 +47,30 @@ public partial class MainWindow : FluentWindow
 
         AppNavigation.Requested += Navigate;
         Closed += (_, _) => AppNavigation.Requested -= Navigate;
+
+        // The title bar template builds the caption buttons without names.
+        Loaded += (_, _) => Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,
+            new Action(() => NameCaptionButtons(TitleBarControl)));
+    }
+
+    private static void NameCaptionButtons(DependencyObject parent)
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is TitleBarButton { Name: var name } button)
+            {
+                var label = name switch
+                {
+                    "TitleBarMinimizeButton" => "Minimize",
+                    "TitleBarMaximizeButton" => "Maximize or restore",
+                    "TitleBarCloseButton" => "Close",
+                    _ => null,
+                };
+                if (label != null) System.Windows.Automation.AutomationProperties.SetName(button, label);
+            }
+            NameCaptionButtons(child);
+        }
     }
 
     /// <summary>A republish on the detail page locks the wizard stepper like any other running job.</summary>

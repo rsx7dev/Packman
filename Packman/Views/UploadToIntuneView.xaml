@@ -197,6 +197,12 @@
                                         <Button Grid.Column="1" Style="{StaticResource RowIconButton}" VerticalAlignment="Top" Margin="8,0,0,0"
                                                 Command="{Binding DataContext.RemoveRuleCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                                 CommandParameter="{Binding}" ToolTip="Remove rule">
+                                            <AutomationProperties.Name>
+                                                <MultiBinding StringFormat="Remove rule {0}: {1}">
+                                                    <Binding Path="Title"/>
+                                                    <Binding Path="Description"/>
+                                                </MultiBinding>
+                                            </AutomationProperties.Name>
                                             <controls:LineIcon Data="{DynamicResource IconX}" Width="14" Height="14"/>
                                         </Button>
                                     </Grid>
