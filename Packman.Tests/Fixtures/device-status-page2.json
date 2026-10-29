@@ -1,0 +1,24 @@
+{
+  "TotalRowCount": 3,
+  "Schema": [
+    { "Column": "DeviceName", "PropertyType": "String" },
+    { "Column": "UserPrincipalName", "PropertyType": "String" },
+    { "Column": "UserName", "PropertyType": "String" },
+    { "Column": "Platform", "PropertyType": "String" },
+    { "Column": "AppVersion", "PropertyType": "String" },
+    { "Column": "DeviceId", "PropertyType": "String" },
+    { "Column": "LastModifiedDateTime", "PropertyType": "DateTime" },
+    { "Column": "AppInstallState", "PropertyType": "Int32" },
+    { "Column": "AppInstallState_loc", "PropertyType": "String" },
+    { "Column": "AppInstallStateDetails", "PropertyType": "Int32" },
+    { "Column": "AppInstallStateDetails_loc", "PropertyType": "String" },
+    { "Column": "ErrorCode", "PropertyType": "Int32" },
+    { "Column": "HexErrorCode", "PropertyType": "String" },
+    { "Column": "ApplicationId", "PropertyType": "String" },
+    { "Column": "UserId", "PropertyType": "String" }
+  ],
+  "Values": [
+    ["KIOSK-ZOË", "zoe.muller@contoso.com", "Zoë Müller", "Windows", "", "11111111-0000-0000-0000-000000000003", "2026-10-22T11:00:00Z", 5, "Pending install", 0, "Download in progress", 0, "0", "app-1", "user-3"]
+  ],
+  "SessionId": ""
+}

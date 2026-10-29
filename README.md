@@ -132,6 +132,9 @@ These are native Windows CI renders with sample data; they do not show a live te
 - **Application detail** — metadata, install and uninstall command lines, requirements,
   publishing state, deployment status rollup (installed / pending / failed / not installed /
   not applicable) and a link into the Intune admin center.
+- **Devices** — each device's install status for the app from the Intune device install status
+  report, with search by device or user, status filters with counts, the reported detail and error
+  code for a selected device, and CSV export of the filtered list.
 - **Package source check** — locates the package on your share and verifies the deploy script,
   the `.intunewin` (size compared against Intune), `detection.xml` and the icon.
 - **Edit detection rules** on a published app (add, edit, delete) and PATCH them back.
@@ -648,7 +651,12 @@ From here you can **copy the path**, **open the folder**, or **edit the script**
 
 Requirements show install context, restart behavior, maximum install time and disk space.
 The sidebar shows the deployment rollup: targeted devices with an installed / pending / failed
-bar plus not-installed and not-applicable counts. Assignment actions include:
+bar plus not-installed and not-applicable counts. The Overview's **Devices** section lists every
+device that reported, with the report's own status detail and the error code in hex and decimal;
+codes Microsoft documents (Windows Installer, Win32, Intune) also get their published meaning.
+**Export CSV** saves the rows on show as UTF-8 CSV, with formula-like values prefixed by `'` so
+Excel treats them as text. The report needs `DeviceManagementApps.Read.All`, which the
+`DeviceManagementApps.ReadWrite.All` permission above includes. Assignment actions include:
 
 - Add an assignment: pick Required / Available / Uninstall, search Entra, add.
 - Remove an assignment.

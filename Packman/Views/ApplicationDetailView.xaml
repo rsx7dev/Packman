@@ -68,6 +68,45 @@
             <Setter Property="FontSize" Value="12.5"/>
         </Style>
 
+        <!-- Device table row: hairline under, amber bar + soft amber wash when selected (as the Applications table). -->
+        <Style x:Key="DeviceRow" TargetType="ListBoxItem">
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusVisualInset}"/>
+            <Setter Property="AutomationProperties.Name" Value="{Binding DeviceName}"/>
+            <Setter Property="AutomationProperties.HelpText" Value="{Binding StatusLabel}"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ListBoxItem">
+                        <Border x:Name="rb" Height="44" Background="Transparent" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1">
+                            <Grid>
+                                <Border x:Name="edge" Width="3" HorizontalAlignment="Left" Background="Transparent"/>
+                                <ContentPresenter Margin="12,0,12,0" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="rb" Property="Background" Value="{DynamicResource ControlHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsSelected" Value="True">
+                                <Setter TargetName="rb" Property="Background" Value="{DynamicResource PrimarySoftBrush}"/>
+                                <Setter TargetName="edge" Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Device table cell. -->
+        <Style x:Key="DeviceCell" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+            <Setter Property="Margin" Value="0,0,12,0"/>
+        </Style>
+
         <!-- "Saved to Intune immediately" note next to edit controls. -->
         <Style x:Key="WriteNote" TargetType="DockPanel">
             <Setter Property="Margin" Value="0,12,0,0"/>
@@ -125,11 +164,32 @@
 
         <!-- ═══════ Rail: deployment status and Intune publishing, on every tab ═══════ -->
         <controls:PageFrame.Footer>
-            <controls:ActivityDock JobName="Republishing content"
-                                   IsActive="{Binding IsUpdating}"
-                                   Phase="{Binding UpdateStatus}"
-                                   Progress="{Binding UpdatePercent}"
-                                   CancelCommand="{Binding CancelUpdateCommand}"/>
+            <!-- Collapsed while neither job runs, so the frame drops the footer bar. -->
+            <StackPanel>
+                <StackPanel.Style>
+                    <Style TargetType="StackPanel">
+                        <Setter Property="Visibility" Value="Collapsed"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsUpdating}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Devices.IsDockActive}" Value="True">
+                                <Setter Property="Visibility" Value="Visible"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </StackPanel.Style>
+                <controls:ActivityDock JobName="Republishing content"
+                                       IsActive="{Binding IsUpdating}"
+                                       Phase="{Binding UpdateStatus}"
+                                       Progress="{Binding UpdatePercent}"
+                                       CancelCommand="{Binding CancelUpdateCommand}"/>
+                <controls:ActivityDock JobName="Loading device install status"
+                                       IsActive="{Binding Devices.IsDockActive}"
+                                       Phase="{Binding Devices.DockPhase}"
+                                       Progress="{Binding Devices.DockPercent}"
+                                       CancelCommand="{Binding Devices.CancelCommand}"/>
+            </StackPanel>
         </controls:PageFrame.Footer>
 
         <controls:PageFrame.Rail>
@@ -295,6 +355,163 @@
                                 </ItemsControl>
                                 <TextBlock Text="No assignments yet." Style="{StaticResource SubText}" Margin="0,12,0,0"
                                            Visibility="{Binding HasAssignments, Converter={StaticResource InverseBoolToVis}}"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Devices: each device's install status from the Intune report, searched and filtered here. -->
+                        <Border Style="{StaticResource SectionPanel}" Margin="0,0,0,28" DataContext="{Binding Devices}">
+                            <StackPanel>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <controls:SectionHeader Title="Devices" Caption="Install status each device last reported for this app."/>
+                                    <Button Grid.Column="1" Style="{StaticResource GhostButton}" VerticalAlignment="Top" Margin="16,0,0,0"
+                                            Command="{Binding RefreshCommand}" ToolTip="Reload the device report from Intune"
+                                            AutomationProperties.Name="Refresh devices">
+                                        <StackPanel Orientation="Horizontal">
+                                            <controls:LineIcon Data="{DynamicResource IconRefresh}"/>
+                                            <TextBlock Text="Refresh" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                    <Button Grid.Column="2" Style="{StaticResource GhostButton}" VerticalAlignment="Top" Margin="10,0,0,0"
+                                            Click="ExportDevices_Click" IsEnabled="{Binding CanExport}" ToolTipService.ShowOnDisabled="True"
+                                            ToolTip="Save the devices shown, as filtered, to a CSV file"
+                                            AutomationProperties.Name="Export devices to CSV">
+                                        <StackPanel Orientation="Horizontal">
+                                            <controls:LineIcon Data="{DynamicResource IconSave}"/>
+                                            <TextBlock Text="Export CSV" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Button>
+                                </Grid>
+
+                                <!-- Search and status chips -->
+                                <Grid Margin="0,16,0,0">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" MaxWidth="300"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid MinWidth="180" VerticalAlignment="Top">
+                                        <TextBox Style="{StaticResource TextField}" Padding="38,0,11,0" AutomationProperties.Name="Search devices or users"
+                                                 Background="{DynamicResource Card2Brush}" BorderBrush="Transparent"
+                                                 local:PlaceholderText.Text="Search devices or users"
+                                                 Text="{Binding Search, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                        <controls:LineIcon Data="{DynamicResource IconSearch}" HorizontalAlignment="Left" Margin="13,0,0,0"
+                                                           Foreground="{DynamicResource FaintBrush}" IsHitTestVisible="False"/>
+                                    </Grid>
+                                    <Border Grid.Column="1" Style="{StaticResource SegmentGroup}" Margin="12,0,0,0"
+                                            AutomationProperties.Name="Filter by status">
+                                        <WrapPanel>
+                                            <RadioButton Style="{StaticResource ModeToggle}" GroupName="DeviceFilter" Padding="12,5" Content="{Binding AllChip}"
+                                                         IsChecked="{Binding Filter, Mode=TwoWay, Converter={StaticResource StringMatch}, ConverterParameter=all}"/>
+                                            <RadioButton Style="{StaticResource ModeToggle}" GroupName="DeviceFilter" Padding="12,5" Content="{Binding InstalledChip}"
+                                                         IsChecked="{Binding Filter, Mode=TwoWay, Converter={StaticResource StringMatch}, ConverterParameter=installed}"/>
+                                            <RadioButton Style="{StaticResource ModeToggle}" GroupName="DeviceFilter" Padding="12,5" Content="{Binding FailedChip}"
+                                                         IsChecked="{Binding Filter, Mode=TwoWay, Converter={StaticResource StringMatch}, ConverterParameter=failed}"/>
+                                            <RadioButton Style="{StaticResource ModeToggle}" GroupName="DeviceFilter" Padding="12,5" Content="{Binding PendingChip}"
+                                                         IsChecked="{Binding Filter, Mode=TwoWay, Converter={StaticResource StringMatch}, ConverterParameter=pending}"/>
+                                            <RadioButton Style="{StaticResource ModeToggle}" GroupName="DeviceFilter" Padding="12,5" Content="{Binding NotInstalledChip}"
+                                                         IsChecked="{Binding Filter, Mode=TwoWay, Converter={StaticResource StringMatch}, ConverterParameter=notinstalled}"/>
+                                            <RadioButton Style="{StaticResource ModeToggle}" GroupName="DeviceFilter" Padding="12,5" Content="{Binding NotApplicableChip}"
+                                                         IsChecked="{Binding Filter, Mode=TwoWay, Converter={StaticResource StringMatch}, ConverterParameter=notapplicable}"/>
+                                        </WrapPanel>
+                                    </Border>
+                                </Grid>
+
+                                <Border Style="{StaticResource CalloutBad}" Margin="0,14,0,0"
+                                        Visibility="{Binding ErrorText, Converter={StaticResource NonEmptyToVis}}">
+                                    <DockPanel>
+                                        <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconAlert}" VerticalAlignment="Top"
+                                                           Margin="0,2,10,0" Foreground="{DynamicResource BadBrush}"/>
+                                        <TextBlock Text="{Binding ErrorText}" FontSize="13" TextWrapping="Wrap" AutomationProperties.LiveSetting="Assertive"/>
+                                    </DockPanel>
+                                </Border>
+
+                                <!-- Column heads and rows -->
+                                <Grid Margin="12,16,12,0" Visibility="{Binding HasRows, Converter={StaticResource BoolToVis}}">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="130"/>
+                                        <ColumnDefinition Width="130"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Device" Style="{StaticResource TableHead}"/>
+                                    <TextBlock Grid.Column="1" Text="User" Style="{StaticResource TableHead}"/>
+                                    <TextBlock Grid.Column="2" Text="Status" Style="{StaticResource TableHead}"/>
+                                    <TextBlock Grid.Column="3" Text="Last modified" Style="{StaticResource TableHead}"/>
+                                </Grid>
+                                <Border Height="1" Background="{DynamicResource LineBrush}" Margin="0,10,0,0"
+                                        Visibility="{Binding HasRows, Converter={StaticResource BoolToVis}}"/>
+                                <ListBox ItemsSource="{Binding Rows}" SelectionMode="Single" MaxHeight="396"
+                                         SelectedItem="{Binding Selected, Mode=TwoWay}"
+                                         ItemContainerStyle="{StaticResource DeviceRow}"
+                                         AutomationProperties.Name="Devices"
+                                         Visibility="{Binding HasRows, Converter={StaticResource BoolToVis}}"
+                                         VirtualizingPanel.IsVirtualizing="True"
+                                         VirtualizingPanel.VirtualizationMode="Recycling"
+                                         VirtualizingPanel.ScrollUnit="Pixel">
+                                    <ListBox.Template>
+                                        <ControlTemplate TargetType="ListBox">
+                                            <ScrollViewer CanContentScroll="True" Focusable="False"
+                                                          VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                                                <ItemsPresenter/>
+                                            </ScrollViewer>
+                                        </ControlTemplate>
+                                    </ListBox.Template>
+                                    <ListBox.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <VirtualizingStackPanel/>
+                                        </ItemsPanelTemplate>
+                                    </ListBox.ItemsPanel>
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="130"/>
+                                                    <ColumnDefinition Width="130"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding DeviceName}" Style="{StaticResource DeviceCell}" FontWeight="SemiBold"
+                                                           Foreground="{DynamicResource InkBrush}" ToolTip="{Binding DeviceName}"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding UserPrincipalName}" Style="{StaticResource DeviceCell}"
+                                                           ToolTip="{Binding UserPrincipalName}"/>
+                                                <ContentControl Grid.Column="2" Content="{Binding}" ContentTemplate="{StaticResource StatusBadgeTemplate}"
+                                                                HorizontalAlignment="Left" VerticalAlignment="Center" Focusable="False"/>
+                                                <TextBlock Grid.Column="3" Text="{Binding LastModifiedText}" Style="{StaticResource DeviceCell}" Margin="0"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+
+                                <!-- Loading, empty, not loaded, no matches -->
+                                <TextBlock Text="{Binding StateText}" Style="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,14,0,0"
+                                           AutomationProperties.LiveSetting="Polite"
+                                           Visibility="{Binding StateText, Converter={StaticResource NonEmptyToVis}}"/>
+                                <TextBlock Text="No devices match the search and status filter." Style="{StaticResource SubText}" Margin="0,14,0,0"
+                                           Visibility="{Binding HasNoMatches, Converter={StaticResource BoolToVis}}"/>
+                                <TextBlock Text="{Binding CountText}" Style="{StaticResource Caption}" Margin="0,10,0,0"
+                                           Visibility="{Binding HasRows, Converter={StaticResource BoolToVis}}"/>
+
+                                <!-- Selected device: the report's detail text first, then the error code. -->
+                                <Border Background="{DynamicResource Card2Brush}" CornerRadius="8" Padding="18,16" Margin="0,14,0,0"
+                                        Visibility="{Binding HasSelection, Converter={StaticResource BoolToVis}}">
+                                    <StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                            <TextBlock Text="{Binding Selected.DeviceName}" Style="{StaticResource H3}" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                                            <ContentControl Content="{Binding Selected}" ContentTemplate="{StaticResource StatusBadgeTemplate}"
+                                                            VerticalAlignment="Center" Focusable="False"/>
+                                        </StackPanel>
+                                        <ContentControl Style="{StaticResource Fact}" Tag="Status detail" Content="{Binding Selected.DetailText}"
+                                                        AutomationProperties.Name="{Binding Selected.DetailText, StringFormat='Status detail: {0}'}"
+                                                        AutomationProperties.LiveSetting="Polite"/>
+                                        <ContentControl Style="{StaticResource Fact}" Tag="User" Content="{Binding Selected.UserPrincipalName}"/>
+                                        <ContentControl Style="{StaticResource Fact}" Tag="OS version" Content="{Binding Selected.OsVersionText}"/>
+                                        <ContentControl Style="{StaticResource Fact}" Tag="Last modified" Content="{Binding Selected.LastModifiedText}" Margin="0"/>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </Border>
 

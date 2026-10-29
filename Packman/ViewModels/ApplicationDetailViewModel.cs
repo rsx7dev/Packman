@@ -20,6 +20,7 @@ public sealed class ApplicationDetailViewModel : ObservableObject
         CancelUpdateCommand = new RelayCommand(CancelUpdate, () => IsUpdating);
         _groupSearchBox = new IncrementalSearch<EntraGroup>(q => _apps.SearchGroupsAsync(q), () => OnPropertyChanged(nameof(HasGroupResults)));
         _memberSearchBox = new IncrementalSearch<GroupMember>(q => _apps.SearchDevicesAndUsersAsync(q), () => OnPropertyChanged(nameof(HasMemberResults)));
+        Devices = new DeviceStatusViewModel((progress, ct) => _apps.GetDeviceInstallStatusAsync(app.Id, progress, ct));
         // Seed from the list row so the header renders now; LoadAsync fills the rest.
         Detail = new ApplicationDetail
         {
@@ -137,6 +138,9 @@ public sealed class ApplicationDetailViewModel : ObservableObject
     public int SumNotInstalled => Detail.Statistics?.NotInstalled ?? 0;
     public int SumNotApplicable => Detail.Statistics?.NotApplicable ?? 0;
     public int SumRemaining => SumNotInstalled + SumNotApplicable;
+
+    /// <summary>The per-device list under the rollup; loads on its own so the page does not wait for it.</summary>
+    public DeviceStatusViewModel Devices { get; }
 
     /// <summary>Shown instead of the counts when there are none to show.</summary>
     public string StatsEmptyText =>

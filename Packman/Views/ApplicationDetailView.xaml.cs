@@ -43,6 +43,7 @@ public partial class ApplicationDetailView : UserControl
         var vm = new ApplicationDetailViewModel(app);
         DataContext = vm;
         ErrorReporter.FireAndForget(vm.LoadAsync);
+        ErrorReporter.FireAndForget(vm.Devices.LoadAsync);
     }
 
     private void Back_Click(object sender, RoutedEventArgs e) => BackRequested?.Invoke();
@@ -77,6 +78,31 @@ public partial class ApplicationDetailView : UserControl
         {
             if (await Vm.UpdatePackageContentAsync()) Updated?.Invoke();
         });
+    }
+
+    // ── Devices ──
+
+    /// <summary>Saves the rows on show, as filtered and searched, to a CSV file the user picks.</summary>
+    private void ExportDevices_Click(object sender, RoutedEventArgs e)
+    {
+        if (Vm == null) return;
+        var dialog = new Microsoft.Win32.SaveFileDialog
+        {
+            Title = "Export device install status",
+            Filter = "CSV files (*.csv)|*.csv",
+            DefaultExt = ".csv",
+            FileName = $"{string.Concat(Vm.Detail.DisplayName.Split(Path.GetInvalidFileNameChars()))} device status.csv",
+        };
+        if (dialog.ShowDialog(Window.GetWindow(this)) != true) return;
+
+        try
+        {
+            Vm.Devices.ExportCsv(dialog.FileName);
+        }
+        catch (Exception ex)
+        {
+            AppServices.Dialogs.Warn($"Could not export the device list: {ex.Message}", "Export failed");
+        }
     }
 
     private void ManageAssignments_Click(object sender, RoutedEventArgs e)

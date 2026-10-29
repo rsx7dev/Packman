@@ -1,0 +1,21 @@
+{
+  "TotalRowCount": 3,
+  "Schema": [
+    { "Column": "HexErrorCode", "PropertyType": "String" },
+    { "Column": "AppInstallStateDetails_loc", "PropertyType": "String" },
+    { "Column": "OSVersion", "PropertyType": "String" },
+    { "Column": "LastModifiedDateTime", "PropertyType": "DateTime" },
+    { "Column": "AssignmentFilterIdsExist", "PropertyType": "Boolean" },
+    { "Column": "UserPrincipalName", "PropertyType": "String" },
+    { "Column": "AppInstallState", "PropertyType": "Int32" },
+    { "Column": "ErrorCode", "PropertyType": "Int64" },
+    { "Column": "DeviceName", "PropertyType": "String" },
+    { "Column": "AppInstallState_loc", "PropertyType": "String" }
+  ],
+  "Values": [
+    ["0x00000643", "Installer exited with \"1603\", rolled back", "10.0.22631.4317", "2026-10-23T07:45:00Z", false, "megan.bowen@contoso.com", 2, 1603, "SALES-LT-07", "Failed"],
+    ["0x87D30065", "", "10.0.26100.2033", "2026-10-24T12:00:00Z", false, "alex.wilber@contoso.com", 2, 2278752357, "SALES-LT-08", "Failed"],
+    ["0", "Not applicable for this device", "", "2026-10-25T16:20:00Z", true, "lee.gu@contoso.com", -1, 0, "SALES-LT-09", "Not applicable"]
+  ],
+  "SessionId": ""
+}

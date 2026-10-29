@@ -1,0 +1,25 @@
+{
+  "TotalRowCount": 3,
+  "Schema": [
+    { "Column": "DeviceName", "PropertyType": "String" },
+    { "Column": "UserPrincipalName", "PropertyType": "String" },
+    { "Column": "UserName", "PropertyType": "String" },
+    { "Column": "Platform", "PropertyType": "String" },
+    { "Column": "AppVersion", "PropertyType": "String" },
+    { "Column": "DeviceId", "PropertyType": "String" },
+    { "Column": "LastModifiedDateTime", "PropertyType": "DateTime" },
+    { "Column": "AppInstallState", "PropertyType": "Int32" },
+    { "Column": "AppInstallState_loc", "PropertyType": "String" },
+    { "Column": "AppInstallStateDetails", "PropertyType": "Int32" },
+    { "Column": "AppInstallStateDetails_loc", "PropertyType": "String" },
+    { "Column": "ErrorCode", "PropertyType": "Int32" },
+    { "Column": "HexErrorCode", "PropertyType": "String" },
+    { "Column": "ApplicationId", "PropertyType": "String" },
+    { "Column": "UserId", "PropertyType": "String" }
+  ],
+  "Values": [
+    ["LAB-PC-01", "adele.vance@contoso.com", "Adele Vance", "Windows", "4.2.0", "11111111-0000-0000-0000-000000000001", "2026-10-20T08:15:00Z", 1, "Installed", 0, "", 0, "0", "app-1", "user-1"],
+    ["LAB-PC-02", "renee.dubois@contoso.com", "Renée Dubois", "Windows", "4.2.0", "11111111-0000-0000-0000-000000000002", "2026-10-21T09:30:00Z", 2, "Failed", 0, "The application was not detected after installation completed successfully", -2016345060, "0x87D1041C", "app-1", "user-2"]
+  ],
+  "SessionId": ""
+}

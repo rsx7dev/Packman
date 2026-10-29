@@ -1,0 +1,15 @@
+{
+  "TotalRowCount": 0,
+  "Schema": [
+    { "Column": "DeviceName", "PropertyType": "String" },
+    { "Column": "UserPrincipalName", "PropertyType": "String" },
+    { "Column": "AppInstallState", "PropertyType": "Int32" },
+    { "Column": "AppInstallState_loc", "PropertyType": "String" },
+    { "Column": "AppInstallStateDetails_loc", "PropertyType": "String" },
+    { "Column": "ErrorCode", "PropertyType": "Int32" },
+    { "Column": "HexErrorCode", "PropertyType": "String" },
+    { "Column": "LastModifiedDateTime", "PropertyType": "DateTime" }
+  ],
+  "Values": [],
+  "SessionId": ""
+}
