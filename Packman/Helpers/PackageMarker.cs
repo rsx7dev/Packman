@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Packman.Helpers;
 
@@ -26,6 +27,12 @@ public static class PackageMarker
         public string DisplayVersion { get; set; } = "";
         public string IntunewinFileName { get; set; } = "";
         public long UnencryptedSize { get; set; }
+
+        /// <summary>
+        /// Read from a legacy .intune-appid.json, which has no tenant: only trust it once the app
+        /// is known to exist in the connected tenant.
+        /// </summary>
+        [JsonIgnore] public bool IsLegacy { get; init; }
     }
 
     private sealed class LegacyMarker
@@ -36,17 +43,28 @@ public static class PackageMarker
     /// <summary>Path of the link file for a package folder.</summary>
     public static string PathFor(string packagePath) => Path.Combine(packagePath, "Intune", FileName);
 
-    /// <summary>Writes or overwrites the link. Throws when the folder is not writable.</summary>
-    public static void Save(string packagePath, Link link)
+    /// <summary>
+    /// Writes or overwrites the link. Returns null, or the warning to show when it could not be
+    /// written; a failed write never fails the upload.
+    /// </summary>
+    public static string? Save(string packagePath, Link link)
     {
-        Directory.CreateDirectory(Path.Combine(packagePath, "Intune"));
-        File.WriteAllText(PathFor(packagePath), JsonSerializer.Serialize(link, JsonOptions));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(packagePath, "Intune"));
+            File.WriteAllText(PathFor(packagePath), JsonSerializer.Serialize(link, JsonOptions));
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return $"The upload succeeded, but {PathFor(packagePath)} could not be written: {ex.Message} " +
+                "Until it is, Packman will not offer Republish content or Edit script for this app.";
+        }
     }
 
     /// <summary>
-    /// The package's link, or null when it has none or it cannot be read. Without packman.id an
-    /// older .intune-appid.json is used; that link has an empty TenantId, so callers must check
-    /// the app exists in the connected tenant before trusting it.
+    /// The package's link, or null when it has none or it cannot be read. A packman.id needs both
+    /// ids. Only without one is an older .intune-appid.json used, as an <see cref="Link.IsLegacy"/> link.
     /// </summary>
     public static Link? Read(string packagePath)
     {
@@ -54,16 +72,31 @@ public static class PackageMarker
         {
             var path = PathFor(packagePath);
             if (File.Exists(path))
-                return JsonSerializer.Deserialize<Link>(File.ReadAllText(path), JsonOptions);
+            {
+                var link = JsonSerializer.Deserialize<Link>(File.ReadAllText(path), JsonOptions);
+                return link is { AppId.Length: > 0, TenantId.Length: > 0 } ? link : null;
+            }
 
             var legacy = Path.Combine(packagePath, LegacyFileName);
             var appId = File.Exists(legacy) ? JsonSerializer.Deserialize<LegacyMarker>(File.ReadAllText(legacy), JsonOptions)?.IntuneAppId : null;
-            return string.IsNullOrEmpty(appId) ? null : new Link { AppId = appId };
+            return string.IsNullOrEmpty(appId) ? null : new Link { AppId = appId, IsLegacy = true };
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"Error reading {FileName}: {ex.Message}");
             return null;
         }
+    }
+
+    /// <summary>
+    /// The app an upgrade of this package supersedes, or "". A legacy link counts only when
+    /// <paramref name="appExists"/> finds the app in the connected tenant.
+    /// </summary>
+    public static async Task<string> PredecessorAppIdAsync(string packagePath, Func<string, Task<bool>> appExists)
+    {
+        var link = Read(packagePath);
+        if (link is { IsLegacy: true } && !await appExists(link.AppId))
+            return "";
+        return link?.AppId ?? "";
     }
 }

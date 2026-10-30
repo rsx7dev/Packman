@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Portable parser/CSV checks everywhere; Windows also builds Packman and checks WPF.
+# Portable parser/CSV and package-link checks everywhere; Windows also builds Packman and checks WPF.
 set -euo pipefail
 cd "$(dirname "$0")"
 command -v dotnet >/dev/null || { echo "check.sh: dotnet not found; install the .NET 10 SDK." >&2; exit 1; }
@@ -16,3 +16,6 @@ esac
 dotnet restore "$check_target"
 dotnet build "$check_target" --no-restore -c Release
 dotnet run --file "$check_target" --no-build -c Release
+dotnet restore tests/PackageLinkTests.cs
+dotnet build tests/PackageLinkTests.cs --no-restore -c Release
+dotnet run --file tests/PackageLinkTests.cs --no-build -c Release

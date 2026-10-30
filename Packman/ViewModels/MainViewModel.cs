@@ -456,11 +456,8 @@ public sealed class MainViewModel : ObservableObject
         CreatePackage.Version = Upgrade.NewVersion;
         CreatePackage.SourcesPath = Upgrade.NewSourcePath;
         CreatePackage.CurrentPackagePath = newPackagePath;
-        var link = PackageMarker.Read(Upgrade.ExistingPackagePath);
-        // An .intune-appid.json from older builds has no tenant: use it only when the connected tenant has that app.
-        if (link is { TenantId: "" } && !(_auth.IsSignedIn && await AppServices.Apps.ApplicationExistsAsync(link.AppId)))
-            link = null;
-        CreatePackage.PredecessorAppId = link?.AppId ?? "";
+        CreatePackage.PredecessorAppId = await PackageMarker.PredecessorAppIdAsync(Upgrade.ExistingPackagePath,
+            async id => _auth.IsSignedIn && await AppServices.Apps.ApplicationExistsAsync(id));
 
         RaisePackageDependents();
     }

@@ -635,8 +635,9 @@ the App ID with a copy action, and **Delete from Intune**. Three tabs:
 description, and the current assignments (read-only here; *Manage in Deployment* jumps to the tab
 that edits them).
 
-**Package** — where the app lives on your share. Packman searches the Intune Applications path for a
-matching `<Vendor>_<AppName>\<Version>` folder and runs an integrity check:
+**Package** — where the app lives on your share. Packman searches the `<Vendor>_<AppName>\<Version>`
+folders under the Intune Applications path for the one whose `Intune\packman.id` links it to this app
+and runs an integrity check:
 
 | Check | Meaning |
 |---|---|

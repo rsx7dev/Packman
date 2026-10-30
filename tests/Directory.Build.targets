@@ -1,5 +1,5 @@
 <Project>
-  <ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'DeviceStatusUnitTests.cs' Or '$(MSBuildProjectName)' == 'DeviceStatusTests.cs'">
     <Compile Include="$(MSBuildThisFileDirectory)DeviceStatusChecks.cs" />
   </ItemGroup>
   <!-- File-based apps compile one entry file by default. Link the actual production
@@ -10,5 +10,9 @@
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/CsvWriter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/InstallErrorText.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/JsonExtensions.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'PackageLinkTests.cs'">
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/PackageMarker.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/PackageSourceLocator.cs" />
   </ItemGroup>
 </Project>

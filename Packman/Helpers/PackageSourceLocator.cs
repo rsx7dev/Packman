@@ -3,34 +3,30 @@ using System.IO;
 namespace Packman.Helpers;
 
 /// <summary>
-/// Finds an app's package folder on the share. Layout is
-/// {root}\{Vendor}_{AppName}\{version}; the Intune display name is matched against both.
+/// Finds an app's package folder on the share. Layout is {root}\{Vendor}_{AppName}\{version};
+/// a folder belongs to an app only through its <see cref="PackageMarker"/> link, never by name.
 /// </summary>
 public static class PackageSourceLocator
 {
-    /// <summary>Returns the app's version folder (or newest version folder), or null when not found.</summary>
-    public static string? Locate(string shareRoot, string publisher, string displayName, string version)
+    /// <summary>
+    /// Returns the version folder linked to this app in this tenant, or null when none is. A legacy
+    /// link has no tenant and matches on the app id alone: the caller has just loaded that app
+    /// from the connected tenant, which proves it exists there. When several folders are linked,
+    /// the latest upload wins.
+    /// </summary>
+    public static string? FindLinked(string shareRoot, string appId, string? tenantId)
     {
         try
         {
             if (string.IsNullOrWhiteSpace(shareRoot) || !Directory.Exists(shareRoot))
                 return null;
 
-            var appFolder = FindAppFolder(shareRoot, publisher, displayName);
-            if (appFolder == null)
-                return null;
-
-            if (!string.IsNullOrWhiteSpace(version))
-            {
-                var versionFolder = Path.Combine(appFolder, version);
-                if (Directory.Exists(versionFolder))
-                    return versionFolder;
-            }
-
-            // Numeric order, so 1.10 beats 1.9; anything unparsable sorts last, by name.
-            return Directory.GetDirectories(appFolder)
-                .OrderByDescending(d => System.Version.TryParse(Path.GetFileName(d), out var v) ? v : new Version(0, 0))
-                .ThenByDescending(Path.GetFileName, StringComparer.OrdinalIgnoreCase)
+            return Directory.EnumerateDirectories(shareRoot)
+                .SelectMany(Directory.EnumerateDirectories)
+                .Select(folder => (folder, link: PackageMarker.Read(folder)))
+                .Where(x => x.link != null && x.link.AppId == appId && (x.link.IsLegacy || x.link.TenantId == tenantId))
+                .OrderByDescending(x => x.link!.UploadedAt, StringComparer.Ordinal)
+                .Select(x => x.folder)
                 .FirstOrDefault();
         }
         catch
@@ -38,20 +34,4 @@ public static class PackageSourceLocator
             return null;   // unreachable share or no permission; the page shows "not found"
         }
     }
-
-    private static string? FindAppFolder(string root, string publisher, string displayName)
-    {
-        foreach (var candidate in new[] { $"{publisher} {displayName}", $"{publisher}_{displayName}", displayName })
-        {
-            var folder = Path.Combine(root, Underscore(candidate));
-            if (Directory.Exists(folder))
-                return folder;
-        }
-
-        var suffix = Underscore(displayName);
-        return Directory.GetDirectories(root)
-            .FirstOrDefault(d => Path.GetFileName(d)!.EndsWith(suffix, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static string Underscore(string s) => s.Trim().Replace(' ', '_');
 }

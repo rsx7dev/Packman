@@ -584,9 +584,9 @@ public sealed class ApplicationDetailViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Finds the package's version folder on the share and runs the integrity checks. The
-    /// folder only counts when its packman.id links it to this app in the connected tenant.
-    /// Enumeration runs off the UI thread; failure leaves "not found".
+    /// Finds the version folder on the share whose packman.id links it to this app in the
+    /// connected tenant, and runs the integrity checks. Enumeration runs off the UI thread;
+    /// failure leaves "not found".
     /// </summary>
     private async Task LocateSourceAsync()
     {
@@ -596,12 +596,7 @@ public sealed class ApplicationDetailViewModel : ObservableObject
 
         var (path, script, checks) = await Task.Run(() =>
         {
-            var p = PackageSourceLocator.Locate(root, d.Publisher, d.DisplayName, d.Version);
-            var link = p == null ? null : PackageMarker.Read(p);
-            // A legacy .intune-appid.json link has no tenant; its app id matching this app, just
-            // loaded from the connected tenant, proves the app exists there.
-            if (link == null || link.AppId != d.Id || (link.TenantId != "" && link.TenantId != tenantId))
-                p = null;
+            var p = PackageSourceLocator.FindLinked(root, d.Id, tenantId);
             return p == null
                 ? ((string?)null, (string?)null, new List<SourceCheck>())
                 : (p, FindScript(p), BuildChecks(p, d.Size, d.SizeFormatted));
