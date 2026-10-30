@@ -24,6 +24,7 @@ internal static partial class DeviceStatusTests
         ("CSV fields are quoted per RFC 4180", CsvQuoting),
         ("Formula-like CSV fields get an apostrophe", CsvFormulaGuard),
         ("CSV writer emits UTF-8 with BOM and keeps accents", CsvWriterAccents),
+        ("Share scan finds packages by script or .intunewin, newest first, and changes nothing", ShareScan),
     ];
 
     private static int ReportResult()
@@ -169,6 +170,46 @@ internal static partial class DeviceStatusTests
         Equal("a=b", CsvWriter.Field("a=b"));
         return Task.CompletedTask;
     }
+
+    private static Task ShareScan()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"packman-share-{Guid.NewGuid():N}");
+        try
+        {
+            Touch(root, "Contoso_Reader", "1.9", "Invoke-AppDeployToolkit.ps1");
+            Touch(root, "Contoso_Reader", "1.10", "Application", "Invoke-AppDeployToolkit.ps1");
+            Touch(root, "Contoso_Reader", "1.10", "Intune", "Reader.intunewin");
+            Touch(root, "Fabrikam_Zip", "2.0", "Intune", "Zip.intunewin");
+            Touch(root, "Fabrikam_Zip", "scratch", "notes.txt");
+            Touch(root, "stray.txt");
+            var before = Snapshot(root);
+
+            var found = ApplicationShareScanner.Scan(root);
+
+            Sequence(new[] { "Contoso_Reader 1.10", "Contoso_Reader 1.9", "Fabrikam_Zip 2.0" },
+                found.Select(p => $"{p.AppFolderName} {p.Version}").ToArray());
+            True(found[0].HasScript && found[0].HasIntuneWin, "1.10 has both the script and the .intunewin");
+            True(found[2].HasIntuneWin && !found[2].HasScript, "Zip 2.0 has only the .intunewin");
+            Sequence(before, Snapshot(root));
+            Equal(0, ApplicationShareScanner.Scan(Path.Combine(root, "missing")).Count);
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+        return Task.CompletedTask;
+    }
+
+    private static void Touch(string root, params string[] parts)
+    {
+        var file = Path.Combine([root, .. parts]);
+        Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+        File.WriteAllText(file, "x");
+    }
+
+    private static string[] Snapshot(string root) => Directory
+        .EnumerateFileSystemEntries(root, "*", SearchOption.AllDirectories)
+        .Select(e => $"{e} {File.GetLastWriteTimeUtc(e).Ticks}").Order().ToArray();
 
     private static Task CsvWriterAccents()
     {

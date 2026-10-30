@@ -211,6 +211,8 @@
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding IsNavHidden}" Value="True">
                                 <Setter Property="Margin" Value="12,0,12,12"/>
+                                <!-- Wide enough for a page with its rail; the sheet sits in the middle. -->
+                                <Setter Property="MaxWidth" Value="1240"/>
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>

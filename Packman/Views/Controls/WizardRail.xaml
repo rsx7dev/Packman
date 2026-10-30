@@ -107,6 +107,7 @@
 
         <!-- ═══ Step 3: Publish readiness ═══ -->
         <StackPanel Visibility="{Binding Steps[2].IsCurrent, Converter={StaticResource BoolToVis}}">
+            <StackPanel Visibility="{Binding Upload.Publish.IsNotPublishing, Converter={StaticResource BoolToVis}}">
             <TextBlock Text="Publish readiness" Style="{StaticResource RailTitle}" Margin="0,0,0,8"/>
             <controls:StatusRow Label="Package" Value="{Binding HasPackage, Converter={StaticResource BoolToText}, ConverterParameter='Ready|Not generated'}"
                                 Kind="{Binding HasPackage, Converter={StaticResource BoolToText}, ConverterParameter='ok|bad'}"/>
@@ -141,6 +142,11 @@
                     </StackPanel>
                 </DockPanel>
             </Border>
+            </StackPanel>
+
+            <!-- The publish run takes the rail's place while it runs and until Done. -->
+            <controls:PublishStatusControl DataContext="{Binding Upload.Publish}"
+                                           Visibility="{Binding IsPublishing, Converter={StaticResource BoolToVis}}"/>
         </StackPanel>
     </Grid>
 </UserControl>

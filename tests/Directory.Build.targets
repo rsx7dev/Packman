@@ -10,5 +10,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/CsvWriter.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/InstallErrorText.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/JsonExtensions.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/ApplicationShareScanner.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/PsadtLayout.cs" />
   </ItemGroup>
 </Project>

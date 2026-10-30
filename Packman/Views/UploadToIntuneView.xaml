@@ -52,7 +52,8 @@
 
         <!-- ═══════════ RAIL ═══════════ -->
         <controls:PageFrame.Rail>
-            <StackPanel>
+            <Grid>
+            <StackPanel Visibility="{Binding Publish.IsNotPublishing, Converter={StaticResource BoolToVis}}">
                 <TextBlock Text="Publish readiness" Style="{StaticResource RailTitle}"/>
 
                 <StackPanel Margin="0,18,0,8" Visibility="{Binding IsValidated, Converter={StaticResource BoolToVis}}">
@@ -100,13 +101,18 @@
                     </DockPanel>
                 </Border>
             </StackPanel>
+
+            <!-- The publish run takes the rail's place while it runs and until Done. -->
+            <controls:PublishStatusControl DataContext="{Binding Publish}" VerticalAlignment="Top"
+                                           Visibility="{Binding IsPublishing, Converter={StaticResource BoolToVis}}"/>
+            </Grid>
         </controls:PageFrame.Rail>
 
         <!-- ═══════════ BODY ═══════════ -->
         <Grid>
-            <!-- The form, until a publish starts. -->
+            <!-- Locked while a publish runs; its progress is in the rail. -->
             <Border Style="{StaticResource SectionPanel}" MaxWidth="860" HorizontalAlignment="Left"
-                    Visibility="{Binding Publish.IsNotPublishing, Converter={StaticResource BoolToVis}}">
+                    IsEnabled="{Binding Publish.IsNotPublishing}">
                 <StackPanel>
 
                     <!-- Package folder -->
@@ -390,10 +396,6 @@
                     <controls:GroupPickerControl DataContext="{Binding GroupPicker}"/>
                 </StackPanel>
             </Border>
-
-            <!-- Publishing progress and result, in place of the form (the control is its own card). -->
-            <controls:PublishStatusControl DataContext="{Binding Publish}" VerticalAlignment="Top"
-                                           Visibility="{Binding IsPublishing, Converter={StaticResource BoolToVis}}"/>
         </Grid>
     </controls:PageFrame>
 </UserControl>
