@@ -241,15 +241,14 @@ internal static partial class DeviceStatusTests
     private static void NavHiddenCentersPages()
     {
         EnsureApp();
-        var window = new MainWindow { Width = 1800, Height = 900 };
-        var main = (MainViewModel)window.DataContext;
+        var (root, main) = WindowContent(new MainWindow());
         var wasHidden = main.IsNavHidden;   // the setter saves the setting; put it back
         try
         {
             main.IsNavHidden = false;
-            var (shown, shownRoot) = PagesBounds(window);
+            var (shown, shownRoot) = PagesBounds(root);
             main.IsNavHidden = true;
-            var (hidden, hiddenRoot) = PagesBounds(window);
+            var (hidden, hiddenRoot) = PagesBounds(root);
 
             True(shown.Left > 12, $"with the nav shown the pages start right of it (left {shown.Left})");
             True(shown.Width > 1240, $"with the nav shown the pages fill the space (width {shown.Width})");
@@ -265,14 +264,26 @@ internal static partial class DeviceStatusTests
     }
 
     /// <summary>The page area's bounds in the window's content, and that content's width.</summary>
-    private static (Rect Bounds, double RootWidth) PagesBounds(MainWindow window)
+    private static (Rect Bounds, double RootWidth) PagesBounds(FrameworkElement root)
+    {
+        var host = (FrameworkElement)root.FindName("PagesHost");
+        LayOut(root);
+        return (host.TransformToAncestor(root).TransformBounds(new Rect(host.RenderSize)), root.ActualWidth);
+    }
+
+    /// <summary>
+    /// A window that is never shown does not lay out its content, so the content is lifted out
+    /// and laid out on its own at a fixed size, with the window's view model.
+    /// </summary>
+    private static (FrameworkElement Root, MainViewModel Main) WindowContent(MainWindow window)
     {
         var root = (FrameworkElement)window.Content;
-        var host = (FrameworkElement)window.FindName("PagesHost");
-        window.Measure(new Size(window.Width, window.Height));
-        window.Arrange(new Rect(0, 0, window.Width, window.Height));
-        window.UpdateLayout();
-        return (host.TransformToAncestor(root).TransformBounds(new Rect(host.RenderSize)), root.ActualWidth);
+        window.Content = null;
+        root.Width = 1800;
+        root.Height = 900;
+        var main = (MainViewModel)window.DataContext;
+        root.DataContext = main;
+        return (root, main);
     }
 
     private static void UploadPageProgressInRail()
@@ -285,10 +296,9 @@ internal static partial class DeviceStatusTests
     private static void WizardProgressInRail()
     {
         EnsureApp();
-        var window = new MainWindow { Width = 1800, Height = 900 };
-        var main = (MainViewModel)window.DataContext;
+        var (root, main) = WindowContent(new MainWindow());
         main.CurrentStepIndex = 2;
-        AssertProgressInRail(window, main.Upload.Publish);
+        AssertProgressInRail(root, main.Upload.Publish);
     }
 
     private static void AssertProgressInRail(FrameworkElement host, PublishRunViewModel publish)
@@ -311,7 +321,7 @@ internal static partial class DeviceStatusTests
 
     private static void LayOut(FrameworkElement host)
     {
-        var size = host is Window w ? new Size(w.Width, w.Height) : new Size(1320, 900);
+        var size = host.Width > 0 ? new Size(host.Width, host.Height) : new Size(1320, 900);
         host.Measure(size);
         host.Arrange(new Rect(new Point(), size));
         host.UpdateLayout();
