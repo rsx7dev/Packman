@@ -6,7 +6,7 @@ namespace Packman.Helpers;
 
 /// <summary>
 /// packman.id in the package folder root: links the folder to the Intune app Packman uploaded
-/// from it. It sits outside Application\, so it never ends up in the .intunewin.
+/// from it. The .intunewin build never packs it.
 /// </summary>
 public static class PackageMarker
 {

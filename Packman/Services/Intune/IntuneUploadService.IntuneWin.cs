@@ -59,6 +59,31 @@ public partial class IntuneUploadService
         foreach (var stale in Directory.GetFiles(outputFolder, "*.intunewin"))
             File.Delete(stale);
 
+        // IntuneWinAppUtil has no exclude switch. When packman.id sits in the build source
+        // (a flat layout), pack a temp copy without it so link changes never alter content.
+        // In the standard layout it lives in the package root, outside Application\.
+        string? staging = null;
+        if (File.Exists(Path.Combine(applicationFolder, PackageMarker.FileName)))
+        {
+            staging = Directory.CreateTempSubdirectory("packman-build-").FullName;
+            DirectoryCopy.Copy(applicationFolder, staging, ct);
+            File.Delete(Path.Combine(staging, PackageMarker.FileName));
+        }
+
+        try
+        {
+            return await RunIntuneWinAppUtilAsync(staging ?? applicationFolder, outputFolder, ct);
+        }
+        finally
+        {
+            // A leftover temp copy is harmless; it must not fail the build.
+            if (staging != null)
+                try { Directory.Delete(staging, recursive: true); } catch { }
+        }
+    }
+
+    private async Task<string> RunIntuneWinAppUtilAsync(string sourceFolder, string outputFolder, CancellationToken ct)
+    {
         var startInfo = new ProcessStartInfo
         {
             FileName = _converterPath,
@@ -67,9 +92,8 @@ public partial class IntuneUploadService
             RedirectStandardError = true,
             CreateNoWindow = true,
         };
-        // Only Application\ is packed, so packman.id in the package root never reaches the .intunewin.
-        startInfo.ArgumentList.Add("-c"); startInfo.ArgumentList.Add(applicationFolder);
-        startInfo.ArgumentList.Add("-s"); startInfo.ArgumentList.Add(setupFile);
+        startInfo.ArgumentList.Add("-c"); startInfo.ArgumentList.Add(sourceFolder);
+        startInfo.ArgumentList.Add("-s"); startInfo.ArgumentList.Add(Path.Combine(sourceFolder, PsadtLayout.SetupFileName));
         startInfo.ArgumentList.Add("-o"); startInfo.ArgumentList.Add(outputFolder);
         startInfo.ArgumentList.Add("-q");
 
