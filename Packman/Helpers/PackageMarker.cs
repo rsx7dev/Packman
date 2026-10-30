@@ -12,6 +12,9 @@ public static class PackageMarker
 {
     public const string FileName = "packman.id";
 
+    /// <summary>What builds before packman.id wrote in the package root. Read only, never written.</summary>
+    private const string LegacyFileName = ".intune-appid.json";
+
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
 
     public sealed class Link
@@ -25,6 +28,11 @@ public static class PackageMarker
         public long UnencryptedSize { get; set; }
     }
 
+    private sealed class LegacyMarker
+    {
+        public string IntuneAppId { get; set; } = "";
+    }
+
     /// <summary>Path of the link file for a package folder.</summary>
     public static string PathFor(string packagePath) => Path.Combine(packagePath, "Intune", FileName);
 
@@ -35,13 +43,22 @@ public static class PackageMarker
         File.WriteAllText(PathFor(packagePath), JsonSerializer.Serialize(link, JsonOptions));
     }
 
-    /// <summary>The package's link, or null when it has none or it cannot be read.</summary>
+    /// <summary>
+    /// The package's link, or null when it has none or it cannot be read. Without packman.id an
+    /// older .intune-appid.json is used; that link has an empty TenantId, so callers must check
+    /// the app exists in the connected tenant before trusting it.
+    /// </summary>
     public static Link? Read(string packagePath)
     {
         try
         {
             var path = PathFor(packagePath);
-            return File.Exists(path) ? JsonSerializer.Deserialize<Link>(File.ReadAllText(path), JsonOptions) : null;
+            if (File.Exists(path))
+                return JsonSerializer.Deserialize<Link>(File.ReadAllText(path), JsonOptions);
+
+            var legacy = Path.Combine(packagePath, LegacyFileName);
+            var appId = File.Exists(legacy) ? JsonSerializer.Deserialize<LegacyMarker>(File.ReadAllText(legacy), JsonOptions)?.IntuneAppId : null;
+            return string.IsNullOrEmpty(appId) ? null : new Link { AppId = appId };
         }
         catch (Exception ex)
         {

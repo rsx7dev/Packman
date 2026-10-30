@@ -85,6 +85,13 @@ public partial class IntuneService
                 throw new InvalidOperationException("The Intune session or application list changed while loading. Refresh the applications list.");
     }
 
+    /// <summary>True when the connected tenant has this app. Any failure counts as not found.</summary>
+    public async Task<bool> ApplicationExistsAsync(string id, CancellationToken ct = default)
+    {
+        try { return (await _graph.GetAsync($"{Base}/{id}?$select=id", "Check app exists", ct, throwOnError: false)).IsSuccess; }
+        catch (Exception ex) when (ex is not OperationCanceledException) { return false; }
+    }
+
     // ── Detail ──────────────────────────────────────────
     public async Task<ApplicationDetail> GetApplicationDetailAsync(string id, CancellationToken ct = default)
     {

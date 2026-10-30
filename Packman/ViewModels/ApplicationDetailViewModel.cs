@@ -598,7 +598,9 @@ public sealed class ApplicationDetailViewModel : ObservableObject
         {
             var p = PackageSourceLocator.Locate(root, d.Publisher, d.DisplayName, d.Version);
             var link = p == null ? null : PackageMarker.Read(p);
-            if (link == null || link.AppId != d.Id || link.TenantId != tenantId)
+            // A legacy .intune-appid.json link has no tenant; its app id matching this app, just
+            // loaded from the connected tenant, proves the app exists there.
+            if (link == null || link.AppId != d.Id || (link.TenantId != "" && link.TenantId != tenantId))
                 p = null;
             return p == null
                 ? ((string?)null, (string?)null, new List<SourceCheck>())
