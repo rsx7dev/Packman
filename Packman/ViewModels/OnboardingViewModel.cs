@@ -413,9 +413,10 @@ public sealed class OnboardingViewModel : ObservableObject
     {
         var s = _svc.Settings;
         s.AuthMode = IsInteractive ? AuthMode.Interactive : AuthMode.AppRegistration;
-        s.Authentication.TenantId = TenantId.Trim();
-        s.Authentication.ClientId = ClientId.Trim();
-        s.Authentication.CertificateThumbprint = Thumbprint.Trim();
+        // As typed: sign-in trims them, and an unedited setup must write back exactly what it read.
+        s.Authentication.TenantId = TenantId;
+        s.Authentication.ClientId = ClientId;
+        s.Authentication.CertificateThumbprint = Thumbprint;
         s.NetworkPaths.IntuneApplications = ApplicationsRoot.Trim();
         s.NetworkPaths.PSADTTemplate = TemplatePath.Trim();
         s.NetworkPaths.IntuneWinAppUtil = IntuneWinAppUtilPath.Trim();
