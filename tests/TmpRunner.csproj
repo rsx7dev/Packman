@@ -7,7 +7,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
-    <StartupObject />
+    <Features>$(Features);FileBasedProgram</Features>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="DeviceStatusTests.cs" />
