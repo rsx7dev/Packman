@@ -9,6 +9,9 @@ public sealed record TreeLine(int Depth, string Name, string Note, bool IsFolder
 {
     /// <summary>Left indent in the tree, in device-independent pixels.</summary>
     public double Indent => Depth * 20;
+
+    // The name screen readers announce for a tree row.
+    public override string ToString() => Name;
 }
 
 /// <summary>

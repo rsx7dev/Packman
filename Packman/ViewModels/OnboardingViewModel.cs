@@ -8,7 +8,10 @@ using System.Security.Cryptography.X509Certificates;
 namespace Packman.ViewModels;
 
 /// <summary>One line of the setup summary, with the step that changes it.</summary>
-public sealed record SummaryRow(string Label, string Value, int StepIndex);
+public sealed record SummaryRow(string Label, string Value, int StepIndex)
+{
+    public override string ToString() => $"{Label}: {Value}";
+}
 
 /// <summary>
 /// The first-run setup: connection, paths and package layout, in five steps. Run setup again

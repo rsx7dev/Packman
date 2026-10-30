@@ -67,7 +67,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <Button Style="{StaticResource BackButton}" Command="{Binding BackCommand}" MinWidth="104">
+                        <Button Style="{StaticResource BackButton}" Command="{Binding BackCommand}" MinWidth="104" AutomationProperties.Name="Back">
                             <StackPanel Orientation="Horizontal">
                                 <controls:LineIcon Data="{DynamicResource IconArrowL}" Width="15" Height="15"/>
                                 <TextBlock Text="Back" Margin="8,0,0,0" VerticalAlignment="Center"/>
@@ -75,7 +75,8 @@
                         </Button>
                         <TextBlock Grid.Column="1" Text="{Binding StepHint}" Style="{StaticResource FooterHint}" Margin="18,0"
                                    AutomationProperties.LiveSetting="Polite"/>
-                        <Button Grid.Column="2" Command="{Binding NextCommand}" IsDefault="True" MinWidth="160" Style="{StaticResource PrimaryButton}">
+                        <Button Grid.Column="2" Command="{Binding NextCommand}" IsDefault="True" MinWidth="160" Style="{StaticResource PrimaryButton}"
+                                AutomationProperties.Name="{Binding NextLabel}">
                             <StackPanel Orientation="Horizontal">
                                 <TextBlock Text="{Binding NextLabel}" VerticalAlignment="Center"/>
                                 <controls:LineIcon Data="{DynamicResource IconArrowR}" Width="15" Height="15" Margin="10,0,0,0"/>
