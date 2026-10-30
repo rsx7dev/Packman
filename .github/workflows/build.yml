@@ -29,6 +29,9 @@ jobs:
       - name: Device status unit and WPF checks
         run: dotnet run --file tests/DeviceStatusTests.cs -c Release
 
+      - name: First-run setup checks
+        run: dotnet run --file tests/SetupTests.cs -c Release
+
       - name: Render native UI previews
         run: dotnet run --file scripts/RenderUiPreviews.cs -c Release -- artifacts/ui-previews
 
