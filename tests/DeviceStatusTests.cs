@@ -266,7 +266,7 @@ internal static partial class DeviceStatusTests
     /// <summary>The page area's bounds in the window's content, and that content's width.</summary>
     private static (Rect Bounds, double RootWidth) PagesBounds(FrameworkElement root)
     {
-        var host = (FrameworkElement)root.FindName("PagesHost");
+        var host = (FrameworkElement)LogicalTreeHelper.FindLogicalNode(root, "PagesHost");
         LayOut(root);
         return (host.TransformToAncestor(root).TransformBounds(new Rect(host.RenderSize)), root.ActualWidth);
     }
