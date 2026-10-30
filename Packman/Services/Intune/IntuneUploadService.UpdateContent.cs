@@ -53,7 +53,7 @@ public partial class IntuneUploadService
             log.Section("UPDATE COMPLETE");
             log.Success($"Package content for '{appName}' updated. App ID: {appId}");
 
-            WriteLink(packagePath, appId, log);
+            WriteLink(packagePath, appId, appName, version ?? "", intuneWin, log);
 
             return contentVersionId;
         }

@@ -112,7 +112,7 @@ public partial class IntuneUploadService
             createdAppId = null;
             committedAppId = appId;
 
-            WriteLink(packagePath, appId, log);
+            WriteLink(packagePath, appId, appInfo.DisplayName, appInfo.Version, intuneWin, log);
             Report(progress, log, 97, "Waiting for Intune to finish publishing...");
             await WaitForApplicationPublishedAsync(appId, ct);
 
@@ -179,17 +179,26 @@ public partial class IntuneUploadService
         throw new TimeoutException("Intune has not confirmed the app is published. Check its publishing state before assigning it.");
     }
 
-    /// <summary>Links the package folder to the app. A failed write never fails the upload.</summary>
-    private void WriteLink(string packagePath, string appId, UploadLogger log)
+    /// <summary>Links the package folder to the app through Intune\packman.id. A failed write never fails the upload.</summary>
+    private void WriteLink(string packagePath, string appId, string displayName, string displayVersion, IntuneWinInfo intuneWin, UploadLogger log)
     {
         try
         {
-            PackageMarker.Save(packagePath, appId, _tenantId);
-            log.Success($"Linked the package folder to app {appId} ({PackageMarker.FileName})");
+            PackageMarker.Save(packagePath, new PackageMarker.Link
+            {
+                AppId = appId,
+                TenantId = _tenantId,
+                UploadedAt = DateTime.UtcNow.ToString("o"),
+                DisplayName = displayName,
+                DisplayVersion = displayVersion,
+                IntunewinFileName = Path.GetFileName(intuneWin.IntuneWinPath),
+                UnencryptedSize = intuneWin.UnencryptedContentSize,
+            });
+            log.Success($"Linked the package folder to app {appId} ({PackageMarker.PathFor(packagePath)})");
         }
         catch (Exception ex)
         {
-            LinkWarning = $"The upload succeeded, but {PackageMarker.FileName} could not be written in {packagePath}: {ex.Message} " +
+            LinkWarning = $"The upload succeeded, but {PackageMarker.PathFor(packagePath)} could not be written: {ex.Message} " +
                 "Until it is, Packman will not offer Republish content or Edit script for this app.";
             log.Warning(LinkWarning);
         }
