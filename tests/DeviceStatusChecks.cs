@@ -26,7 +26,7 @@ internal static partial class DeviceStatusTests
         ("CSV writer emits UTF-8 with BOM and keeps accents", CsvWriterAccents),
         ("Share scan finds packages by script or .intunewin, newest first, and changes nothing", ShareScan),
         ("Relationships read as supersedes, superseded by, depends on and required by", ParsesRelationships),
-        ("Catalog ties share packages to Intune app IDs and leaves unmatched ones without", CatalogMatches),
+        ("Catalog lists every Intune app ID, joins share packages and keeps unclaimed ones", CatalogMatches),
     ];
 
     private static int ReportResult()
@@ -227,7 +227,6 @@ internal static partial class DeviceStatusTests
         var packages = new[]
         {
             new SharePackage("Contoso_Reader", "2.0", @"\\share\Contoso_Reader\2.0", true, true),
-            new SharePackage("Contoso_Reader", "1.0", @"\\share\Contoso_Reader\1.0", true, false),
             new SharePackage("Fabrikam_Zip", "3.1", @"\\share\Fabrikam_Zip\3.1", false, true),
         };
         var apps = new[]
@@ -238,21 +237,29 @@ internal static partial class DeviceStatusTests
         };
         var relations = new Dictionary<string, AppRelations>
         {
-            ["reader-2"] = new(["reader-1"], [], [], []),
+            ["reader-2"] = new(["reader-1"], [], ["runtime-1"], []),
         };
 
-        var entries = AppCatalog.Match(packages, apps, relations);
+        var entries = AppCatalog.Build(packages, apps, relations);
 
-        Sequence(new string?[] { "reader-2", "reader-1", null }, entries.Select(e => e.AppId).ToArray());
+        // Every Intune app is listed; the share package belongs to the newest app that matches it,
+        // and the Zip folder, which no app claims, comes last without an ID.
+        Sequence(new string?[] { "reader-2", "reader-2-old", "reader-1", null }, entries.Select(e => e.AppId).ToArray());
+        Equal("2.0", entries[0].Package?.Version);
+        Equal(null, entries[1].Package);
+        Equal(null, entries[2].Package);
+        Equal("Fabrikam_Zip", entries[3].Package?.AppFolderName);
         Sequence(new[] { "reader-1" }, entries[0].Relations.Supersedes.ToArray());
+        Sequence(new[] { "runtime-1" }, entries[0].Relations.DependsOn.ToArray());
         Equal(0, entries[1].Relations.Supersedes.Count);
-        Equal(0, entries[2].Relations.DependsOn.Count);
 
         using var json = JsonDocument.Parse(AppCatalog.ToJson(@"\\share", entries));
         var first = json.RootElement.GetProperty("apps")[0];
         Equal("reader-2", first.GetProperty("appId").GetString());
         Equal("reader-1", first.GetProperty("relations").GetProperty("supersedes")[0].GetString());
-        Equal(JsonValueKind.Null, json.RootElement.GetProperty("apps")[2].GetProperty("appId").ValueKind);
+        Equal("runtime-1", first.GetProperty("relations").GetProperty("dependsOn")[0].GetString());
+        Equal(JsonValueKind.Null, json.RootElement.GetProperty("apps")[3].GetProperty("appId").ValueKind);
+        Equal(JsonValueKind.Null, json.RootElement.GetProperty("apps")[2].GetProperty("package").ValueKind);
         return Task.CompletedTask;
     }
 

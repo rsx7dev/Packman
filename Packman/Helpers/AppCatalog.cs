@@ -11,14 +11,17 @@ public sealed record AppRelations(
     public static readonly AppRelations None = new([], [], [], []);
 }
 
-/// <summary>One share package and, when Intune has it, the app it was published as. AppId is null otherwise.</summary>
+/// <summary>
+/// One catalog line: an Intune app (AppId null for a package Intune doesn't have) and the
+/// share package it was published from (Package null for an app with no folder on the share).
+/// </summary>
 public sealed record CatalogEntry(
-    string AppFolder, string Version, string FolderPath, bool HasScript, bool HasIntuneWin,
-    string? AppId, string? DisplayName, AppRelations Relations);
+    string? AppId, string? DisplayName, string? Publisher, string? Version,
+    SharePackage? Package, AppRelations Relations);
 
 /// <summary>
-/// The JSON catalog tying share packages to their Intune app IDs, with supersedence and
-/// dependency links between those IDs. Pure data: scanning and Graph calls happen elsewhere.
+/// The JSON catalog of every Intune app ID, each with its share package when it has one and its
+/// supersedence and dependency links to other app IDs. Pure data: scanning and Graph calls happen elsewhere.
 /// </summary>
 public static class AppCatalog
 {
@@ -29,24 +32,35 @@ public static class AppCatalog
     };
 
     /// <summary>
-    /// Matches each package to the Intune app named {Publisher}_{DisplayName} with the same version,
-    /// the way packages are named on the share. If an app was published more than once, the newest wins.
+    /// One entry per Intune app, in the order given, joined to its share package when one is named
+    /// {Publisher}_{DisplayName}\{version}; then the packages no app claims. If an app was
+    /// published more than once from the same folder, the newest one claims it.
     /// </summary>
-    public static List<CatalogEntry> Match(IEnumerable<SharePackage> packages, IEnumerable<IntuneApplication> apps,
+    public static List<CatalogEntry> Build(IEnumerable<SharePackage> packages, IEnumerable<IntuneApplication> apps,
         IReadOnlyDictionary<string, AppRelations> relationsByAppId)
     {
-        var byKey = apps
+        var appList = apps.ToList();
+        var packageByKey = packages.ToDictionary(p => Key(p.AppFolderName, p.Version));
+        var newestAppByKey = appList
             .Where(a => !string.IsNullOrWhiteSpace(a.Version))
-            .GroupBy(a => Key(PackagePaths.AppFolderName(a.Publisher, a.DisplayName), PackagePaths.SanitizeSegment(a.Version)))
-            .ToDictionary(g => g.Key, g => g.OrderByDescending(a => a.LastModified).First());
+            .GroupBy(FolderKey)
+            .ToDictionary(g => g.Key, g => g.OrderByDescending(a => a.LastModified).First().Id);
 
-        return packages.Select(p =>
+        var entries = new List<CatalogEntry>();
+        var claimed = new HashSet<string>();
+        foreach (var app in appList)
         {
-            byKey.TryGetValue(Key(p.AppFolderName, p.Version), out var app);
-            var relations = app != null && relationsByAppId.TryGetValue(app.Id, out var r) ? r : AppRelations.None;
-            return new CatalogEntry(p.AppFolderName, p.Version, p.FolderPath, p.HasScript, p.HasIntuneWin,
-                app?.Id, app?.DisplayName, relations);
-        }).ToList();
+            SharePackage? package = null;
+            if (!string.IsNullOrWhiteSpace(app.Version) && newestAppByKey[FolderKey(app)] == app.Id
+                && packageByKey.TryGetValue(FolderKey(app), out package))
+                claimed.Add(FolderKey(app));
+            var relations = relationsByAppId.TryGetValue(app.Id, out var r) ? r : AppRelations.None;
+            entries.Add(new CatalogEntry(app.Id, app.DisplayName, app.Publisher, app.Version, package, relations));
+        }
+
+        entries.AddRange(packageByKey.Where(kv => !claimed.Contains(kv.Key))
+            .Select(kv => new CatalogEntry(null, null, null, null, kv.Value, AppRelations.None)));
+        return entries;
     }
 
     /// <summary>
@@ -82,4 +96,7 @@ public static class AppCatalog
         => JsonSerializer.Serialize(new { share = shareRoot, apps = entries }, JsonOptions);
 
     private static string Key(string folder, string version) => $"{folder}\n{version}".ToLowerInvariant();
+
+    private static string FolderKey(IntuneApplication app)
+        => Key(PackagePaths.AppFolderName(app.Publisher, app.DisplayName), PackagePaths.SanitizeSegment(app.Version));
 }

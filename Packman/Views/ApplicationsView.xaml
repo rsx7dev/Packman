@@ -69,7 +69,7 @@
         <controls:PageFrame.HeaderActions>
             <Button Style="{StaticResource GhostButton}" Command="{Binding ExportCatalogCommand}"
                     ToolTipService.ShowOnDisabled="True"
-                    ToolTip="Match the packages on the IntuneApplications share to their Intune app IDs, with supersedence and dependencies, and save app-catalog.json. Needs a sign-in.">
+                    ToolTip="Save every Intune app ID, with its package on the IntuneApplications share and its supersedence and dependencies, to app-catalog.json. Needs a sign-in.">
                 <StackPanel Orientation="Horizontal">
                     <controls:LineIcon Data="{DynamicResource IconList}"/>
                     <TextBlock Text="Export catalog" Margin="8,0,0,0" VerticalAlignment="Center"/>

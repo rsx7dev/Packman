@@ -92,7 +92,7 @@ public sealed class ApplicationsViewModel : ObservableObject
         try
         {
             var (path, count) = await AppCatalogService.ExportAsync();
-            AppServices.Dialogs.Info($"Wrote {count} package(s) from the share to {path}.", "App catalog");
+            AppServices.Dialogs.Info($"Wrote {count} catalog entries to {path}.", "App catalog");
         }
         catch (Exception ex) { ErrorReporter.Report(ex); }
     }
