@@ -4,61 +4,41 @@ using System.Text.Json;
 
 namespace Packman.Helpers;
 
-/// <summary>Stores the Intune app id next to a package, for supersedence on upgrade.</summary>
+/// <summary>
+/// packman.id in the package folder root: links the folder to the Intune app Packman uploaded
+/// from it. It sits outside Application\, so it never ends up in the .intunewin.
+/// </summary>
 public static class PackageMarker
 {
-    private const string MarkerFileName = ".intune-appid.json";
+    public const string FileName = "packman.id";
 
-    private class Marker
+    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+
+    public sealed class Link
     {
-        public string IntuneAppId { get; set; } = "";
-        public string DisplayName { get; set; } = "";
-        public string Version { get; set; } = "";
-        public string Updated { get; set; } = "";
+        public string AppId { get; set; } = "";
+        public string TenantId { get; set; } = "";
+        public string LinkedAt { get; set; } = "";
     }
 
-    public static bool SaveMarker(string folderPath, string appId, string? displayName = null, string? version = null)
+    /// <summary>Writes or overwrites the link. Throws when the folder is missing or not writable.</summary>
+    public static void Save(string folderPath, string appId, string tenantId)
     {
-        if (string.IsNullOrEmpty(folderPath) || string.IsNullOrEmpty(appId) || !Directory.Exists(folderPath))
-            return false;
+        var link = new Link { AppId = appId, TenantId = tenantId, LinkedAt = DateTime.UtcNow.ToString("o") };
+        File.WriteAllText(Path.Combine(folderPath, FileName), JsonSerializer.Serialize(link, JsonOptions));
+    }
 
+    /// <summary>The folder's link, or null when it has none or it cannot be read.</summary>
+    public static Link? Read(string folderPath)
+    {
         try
         {
-            var marker = new Marker
-            {
-                IntuneAppId = appId,
-                DisplayName = displayName ?? "",
-                Version = version ?? "",
-                Updated = DateTime.UtcNow.ToString("o")
-            };
-            var json = JsonSerializer.Serialize(marker, new JsonSerializerOptions { WriteIndented = true });
-            File.WriteAllText(Path.Combine(folderPath, MarkerFileName), json);
-            return true;
+            var path = Path.Combine(folderPath, FileName);
+            return File.Exists(path) ? JsonSerializer.Deserialize<Link>(File.ReadAllText(path), JsonOptions) : null;
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Error saving app-id marker: {ex.Message}");
-            return false;
-        }
-    }
-
-    public static string? GetMarkerAppId(string folderPath)
-    {
-        if (string.IsNullOrEmpty(folderPath))
-            return null;
-
-        try
-        {
-            var path = Path.Combine(folderPath, MarkerFileName);
-            if (!File.Exists(path))
-                return null;
-
-            var marker = JsonSerializer.Deserialize<Marker>(File.ReadAllText(path));
-            return string.IsNullOrEmpty(marker?.IntuneAppId) ? null : marker.IntuneAppId;
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"Error reading app-id marker: {ex.Message}");
+            Debug.WriteLine($"Error reading {FileName}: {ex.Message}");
             return null;
         }
     }

@@ -123,7 +123,7 @@ These are native Windows CI renders with sample data; they do not show a live te
 - Optional **per-package groups** — an install group and/or an uninstall group created (or
   reused) from a name template on every upload.
 - **Cancel** mid-upload: cleanup is attempted for a known incomplete app; confirmed or uncertain publication retains the app for review.
-- A per-upload **log file**, and a **marker file** in the package folder recording the Intune App ID.
+- A per-upload **log file**, and a `packman.id` link file in the package folder recording the Intune App ID and tenant.
 
 ### Tenant management
 
@@ -390,6 +390,7 @@ the primary button; **← Back** steps back.
     Application\      <- the PSADT template; your installer lands in Application\Files\
     Intune\           <- the .intunewin is built here at upload time
     Icon\             <- the icon extracted from the installer
+    packman.id        <- written on upload; links the folder to its Intune app (not packed)
 ```
 
 then rewrites `Invoke-AppDeployToolkit.ps1` — `AppVendor`, `AppName`, `AppVersion`, `AppArch`,
@@ -550,8 +551,8 @@ Use **Silent** for unattended Intune deployment. Microsoft's Win32 guidance requ
 Before publication, cancelling attempts to remove a known half-created app; the result line
 reports cleanup success or failure. If no app ID was confirmed, check Intune before retrying.
 
-On success the status reads **Uploaded to Intune · App ID …**, a marker file recording the App ID is
-written into the package folder, and — if the package came from the upgrade flow — a
+On success the status reads **Uploaded to Intune · App ID …**, `packman.id` (app ID, tenant ID,
+time) is written into the package folder, and — if the package came from the upgrade flow — a
 **supersedence** relationship is written marking the previous app as superseded by this one.
 
 Packman waits for Intune to report the app as published before assigning groups. If final
@@ -577,7 +578,7 @@ The old package is copied forward — **keeping your script edits and everything
 replaced by the new one, the script metadata and MSI product code are refreshed, and the icon is
 carried over. If the script names no installer, the old one is left next to the new one and the
 status line says so. The wizard then continues exactly as for a new package; on upload the previous app
-(identified by the marker file in the old package folder) is marked as superseded.
+(identified by `packman.id` in the old package folder) is marked as superseded.
 
 Unlike Create, an upgrade **fails** rather than prompting if the target version folder already
 exists — delete it or pick a different version.
@@ -626,7 +627,8 @@ session — **Refresh** forces a re-fetch, and it reports progress while paging 
 
 ### Application detail
 
-The header carries **Republish content** and **Edit script**. The sidebar has **View in Intune**,
+The header carries **Republish content** and **Edit script** when the package folder's `packman.id`
+links it to this app in the connected tenant; otherwise they are hidden. The sidebar has **View in Intune**,
 the App ID with a copy action, and **Delete from Intune**. Three tabs:
 
 **Overview** — publisher, version, category, package type, size, dates, publishing state,
@@ -702,7 +704,7 @@ Three lookups the Intune portal does not offer directly. All require being signe
 | Crash / error logs | `%LocalAppData%\Packman\Logs\Errors\error-<date>.log` |
 | Editor cache | `%LocalAppData%\Packman\WebView2\` |
 | Packages | `<Intune Applications Path>\<Vendor>_<AppName>\<Version>\` |
-| Intune App ID marker | inside the package folder, written on a successful upload |
+| `packman.id` link file | package folder root, written on a successful upload or republish; never packed into the `.intunewin` |
 | Staged test copy | `C:\Temp\Packman\...` on the target machine |
 
 ---
@@ -727,6 +729,7 @@ Known limits, so you do not go looking:
 
 **Editing published apps**
 
+- Apps uploaded outside Packman can't be updated from Packman yet. Linking existing Intune apps is planned.
 - On a published app you can edit **detection rules** and **assignments** only. Display name,
   description, publisher, command lines, requirements, return codes, restart behavior, install time
   and the icon cannot be changed from Packman — publish a new version, or edit those in the Intune

@@ -456,7 +456,7 @@ public sealed class MainViewModel : ObservableObject
         CreatePackage.Version = Upgrade.NewVersion;
         CreatePackage.SourcesPath = Upgrade.NewSourcePath;
         CreatePackage.CurrentPackagePath = newPackagePath;
-        CreatePackage.PredecessorAppId = PackageMarker.GetMarkerAppId(Upgrade.ExistingPackagePath) ?? "";
+        CreatePackage.PredecessorAppId = PackageMarker.Read(Upgrade.ExistingPackagePath)?.AppId ?? "";
 
         RaisePackageDependents();
     }

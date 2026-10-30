@@ -1,4 +1,3 @@
-using Packman.Helpers;
 using System.IO;
 
 namespace Packman.Services;
@@ -26,6 +25,7 @@ public partial class IntuneUploadService
             throw new DirectoryNotFoundException($"Package folder not found: {packagePath}");
 
         using var log = new UploadLogger(string.IsNullOrWhiteSpace(appName) ? appId : appName, "Update");
+        LinkWarning = null;
 
         try
         {
@@ -53,7 +53,7 @@ public partial class IntuneUploadService
             log.Section("UPDATE COMPLETE");
             log.Success($"Package content for '{appName}' updated. App ID: {appId}");
 
-            PackageMarker.SaveMarker(packagePath, appId, appName, version);
+            WriteLink(packagePath, appId, log);
 
             return contentVersionId;
         }

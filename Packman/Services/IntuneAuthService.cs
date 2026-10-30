@@ -2,6 +2,7 @@ using Microsoft.Identity.Client;
 using Microsoft.Identity.Client.Broker;
 using Packman.Models;
 using System.Security.Cryptography.X509Certificates;
+using System.Text.Json;
 
 namespace Packman.Services;
 
@@ -39,11 +40,15 @@ public class IntuneAuthService
         public IAccount? Account { get; init; }
         public X509Certificate2? Certificate { get; init; }
         public required string User { get; init; }
+        public required string TenantId { get; init; }
         public int ActiveRequests { get; set; }
         public bool Retired { get; set; }
     }
 
     public string? SignedInUser { get { lock (_stateLock) return _session?.User; } }
+
+    /// <summary>Directory (tenant) id of the current sign-in; null when signed out.</summary>
+    public string? TenantId { get { lock (_stateLock) return _session?.TenantId; } }
 
     /// <summary>Tenant label from the signed-in UPN's domain ("contoso" for user@contoso.com); "your" when unknown.</summary>
     public string TenantName
@@ -116,7 +121,7 @@ public class IntuneAuthService
 
         var account = result.Account
             ?? throw new InvalidOperationException("Interactive sign-in returned no account.");
-        return new AuthSession { PublicClient = client, Account = account, User = account.Username };
+        return new AuthSession { PublicClient = client, Account = account, User = account.Username, TenantId = TenantIdOf(result.AccessToken) };
     }
 
     private static async Task<AuthSession> SignInWithCertificateAsync(AppSettings.AuthConfig cfg)
@@ -141,12 +146,13 @@ public class IntuneAuthService
                 .Build();
 
             // A bad certificate or missing consent must leave the previous session intact.
-            await client.AcquireTokenForClient(AppOnlyScopes).ExecuteAsync();
+            var result = await client.AcquireTokenForClient(AppOnlyScopes).ExecuteAsync();
             return new AuthSession
             {
                 ConfidentialClient = client,
                 Certificate = certificate,
                 User = $"App registration {cfg.ClientId.Trim()}",
+                TenantId = TenantIdOf(result.AccessToken),
             };
         }
         catch
@@ -154,6 +160,18 @@ public class IntuneAuthService
             certificate.Dispose();
             throw;
         }
+    }
+
+    /// <summary>
+    /// The token's tid claim: the tenant GUID for both sign-in modes, even when Settings
+    /// names the tenant by domain.
+    /// </summary>
+    private static string TenantIdOf(string accessToken)
+    {
+        var payload = accessToken.Split('.')[1].Replace('-', '+').Replace('_', '/');
+        payload = payload.PadRight(payload.Length + (4 - payload.Length % 4) % 4, '=');
+        using var claims = JsonDocument.Parse(Convert.FromBase64String(payload));
+        return claims.RootElement.GetProperty("tid").GetString() ?? "";
     }
 
     private static X509Certificate2 FindCertificate(string thumbprint)

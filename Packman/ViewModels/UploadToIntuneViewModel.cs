@@ -477,7 +477,7 @@ public sealed class UploadToIntuneViewModel : ObservableObject
             ? new NativeCodeSigner(settings.CodeSigning.CertificateThumbprint, settings.CodeSigning.TimestampServer)
             : null;
 
-        var uploadService = new IntuneUploadService(_auth.CreateSessionTokenProvider(), signer, settings.NetworkPaths.IntuneWinAppUtil);
+        var uploadService = new IntuneUploadService(_auth.CreateSessionTokenProvider(), _auth.TenantId ?? "", signer, settings.NetworkPaths.IntuneWinAppUtil);
         var packageRoot = PackageRoot;
         var rules = DetectionRules.ToList();
         var groups = GroupPicker.AssignableGroups;
@@ -496,9 +496,10 @@ public sealed class UploadToIntuneViewModel : ObservableObject
                 requirements, returnCodes,
                 settings.IntuneDefaults.PrivacyUrl, settings.IntuneDefaults.InformationUrl,
                 groups, settings.IntuneDefaults.RestartBehavior, settings.IntuneDefaults.MaxRunTimeMinutes, ct),
-            appId => groups.Count > 0
+            appId => (groups.Count > 0
                 ? $"Published and assigned to {groups.Count} group(s). App ID {appId}"
-                : $"Published successfully. App ID {appId}",
+                : $"Published successfully. App ID {appId}")
+                + (uploadService.LinkWarning is { } linkWarning ? $"{Environment.NewLine}{linkWarning}" : ""),
             () => uploadService.RollbackSucceeded switch
             {
                 true => "Upload cancelled. The partially created app was removed from Intune.",

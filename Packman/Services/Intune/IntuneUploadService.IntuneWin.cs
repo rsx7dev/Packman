@@ -67,6 +67,7 @@ public partial class IntuneUploadService
             RedirectStandardError = true,
             CreateNoWindow = true,
         };
+        // Only Application\ is packed, so packman.id in the package root never reaches the .intunewin.
         startInfo.ArgumentList.Add("-c"); startInfo.ArgumentList.Add(applicationFolder);
         startInfo.ArgumentList.Add("-s"); startInfo.ArgumentList.Add(setupFile);
         startInfo.ArgumentList.Add("-o"); startInfo.ArgumentList.Add(outputFolder);

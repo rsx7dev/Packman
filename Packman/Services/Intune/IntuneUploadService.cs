@@ -26,6 +26,7 @@ public sealed class UploadStateException : Exception
 public partial class IntuneUploadService
 {
     private readonly GraphClient _graph;
+    private readonly string _tenantId;
     private readonly IFileSigner? _signer;
     private readonly string _converterPath;
 
@@ -33,9 +34,13 @@ public partial class IntuneUploadService
     public bool? RollbackSucceeded { get; private set; }
     private readonly List<string> _followUpWarnings = [];
 
-    public IntuneUploadService(Func<Task<string>> tokenProvider, IFileSigner? signer, string converterPath)
+    /// <summary>Why packman.id could not be written after a successful upload; null when it was.</summary>
+    public string? LinkWarning { get; private set; }
+
+    public IntuneUploadService(Func<Task<string>> tokenProvider, string tenantId, IFileSigner? signer, string converterPath)
     {
         _graph = new GraphClient(tokenProvider);
+        _tenantId = tenantId;
         _signer = signer;
         _converterPath = converterPath;
     }
@@ -65,6 +70,7 @@ public partial class IntuneUploadService
         string? createdAppId = null;
         string? committedAppId = null;
         RollbackSucceeded = null;
+        LinkWarning = null;
         _followUpWarnings.Clear();
 
         try
@@ -106,7 +112,7 @@ public partial class IntuneUploadService
             createdAppId = null;
             committedAppId = appId;
 
-            PackageMarker.SaveMarker(packagePath, appId, appInfo.Name, appInfo.Version);
+            WriteLink(packagePath, appId, log);
             Report(progress, log, 97, "Waiting for Intune to finish publishing...");
             await WaitForApplicationPublishedAsync(appId, ct);
 
@@ -171,6 +177,22 @@ public partial class IntuneUploadService
         }
         catch (OperationCanceledException) when (deadlineCts.IsCancellationRequested && !ct.IsCancellationRequested) { }
         throw new TimeoutException("Intune has not confirmed the app is published. Check its publishing state before assigning it.");
+    }
+
+    /// <summary>Links the package folder to the app. A failed write never fails the upload.</summary>
+    private void WriteLink(string packagePath, string appId, UploadLogger log)
+    {
+        try
+        {
+            PackageMarker.Save(packagePath, appId, _tenantId);
+            log.Success($"Linked the package folder to app {appId} ({PackageMarker.FileName})");
+        }
+        catch (Exception ex)
+        {
+            LinkWarning = $"The upload succeeded, but {PackageMarker.FileName} could not be written in {packagePath}: {ex.Message} " +
+                "Until it is, Packman will not offer Republish content or Edit script for this app.";
+            log.Warning(LinkWarning);
+        }
     }
 
     private void RecordFollowUpWarning(string message, UploadLogger log)

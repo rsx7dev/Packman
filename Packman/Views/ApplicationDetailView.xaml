@@ -132,16 +132,17 @@
 
         <controls:PageFrame.HeaderActions>
             <StackPanel Orientation="Horizontal">
+                <!-- Shown only for an app whose package folder Packman linked through packman.id. -->
                 <Button Style="{StaticResource PrimaryButton}" Click="Update_Click" IsEnabled="{Binding CanRepublish}"
-                        ToolTipService.ShowOnDisabled="True"
-                        ToolTip="Rebuild content for this same Intune app. Needs the package folder on the share and a sign-in. For a new app version with supersedence, use Create package, Upgrade existing.">
+                        Visibility="{Binding HasSource, Converter={StaticResource BoolToVis}}" ToolTipService.ShowOnDisabled="True"
+                        ToolTip="Rebuild content for this same Intune app. Needs a sign-in. For a new app version with supersedence, use Create package, Upgrade existing.">
                     <StackPanel Orientation="Horizontal">
                         <controls:LineIcon Data="{DynamicResource IconUpload}"/>
                         <TextBlock Text="Republish content" Margin="8,0,0,0" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
                 <Button Style="{StaticResource GhostButton}" Margin="10,0,0,0" Click="EditScript_Click"
-                        IsEnabled="{Binding HasSource}" ToolTipService.ShowOnDisabled="True"
+                        Visibility="{Binding HasSource, Converter={StaticResource BoolToVis}}"
                         ToolTip="Open the PSADT script from the source share">
                     <StackPanel Orientation="Horizontal">
                         <controls:LineIcon Data="{DynamicResource IconCode}"/>

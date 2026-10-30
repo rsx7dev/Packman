@@ -118,10 +118,10 @@ public sealed class ApplicationDetailViewModel : ObservableObject
         }
     }
     public bool HasSource => !string.IsNullOrEmpty(_sourcePath);
-    public string SourcePathDisplay => _sourcePath ?? "Package not found on the configured share";
+    public string SourcePathDisplay => _sourcePath ?? "No linked package folder on the configured share";
     public string SourceHintText => HasSource
-        ? "Package path validated — ready for updates"
-        : "No matching folder on the share — check the Intune Applications path in Settings";
+        ? "Package folder linked to this app — ready for updates"
+        : "No package folder with a packman.id for this app and tenant — only apps uploaded through Packman can be updated here";
     public bool SourceHintOk => HasSource;
 
     /// <summary>Path to the PSADT script in the source package, when found.</summary>
@@ -236,7 +236,7 @@ public sealed class ApplicationDetailViewModel : ObservableObject
         var packagePath = SourcePath;
         if (string.IsNullOrEmpty(packagePath))
         {
-            StatusText = "No package folder on the share — check the Intune Applications path in Settings.";
+            StatusText = "No linked package folder on the share — only apps uploaded through Packman can be updated here.";
             return false;
         }
 
@@ -257,7 +257,7 @@ public sealed class ApplicationDetailViewModel : ObservableObject
         try
         {
             var uploadService = new IntuneUploadService(
-                AppServices.Auth.CreateSessionTokenProvider(), signer, settings.NetworkPaths.IntuneWinAppUtil);
+                AppServices.Auth.CreateSessionTokenProvider(), AppServices.Auth.TenantId ?? "", signer, settings.NetworkPaths.IntuneWinAppUtil);
 
             var progress = new DetailProgress(this);
             var appId = Detail.Id;
@@ -271,6 +271,8 @@ public sealed class ApplicationDetailViewModel : ObservableObject
 
             // Size and last-modified come from Graph, and the checklist compares against them.
             await LoadAsync();
+            if (uploadService.LinkWarning != null)
+                StatusText = uploadService.LinkWarning;
             return true;
         }
         catch (OperationCanceledException)
@@ -582,17 +584,22 @@ public sealed class ApplicationDetailViewModel : ObservableObject
     }
 
     /// <summary>
-    /// Finds the package's version folder on the share and runs the integrity checks.
+    /// Finds the package's version folder on the share and runs the integrity checks. The
+    /// folder only counts when its packman.id links it to this app in the connected tenant.
     /// Enumeration runs off the UI thread; failure leaves "not found".
     /// </summary>
     private async Task LocateSourceAsync()
     {
         var root = AppServices.Settings.Settings.NetworkPaths.IntuneApplications;
+        var tenantId = AppServices.Auth.TenantId;
         var d = Detail;
 
         var (path, script, checks) = await Task.Run(() =>
         {
             var p = PackageSourceLocator.Locate(root, d.Publisher, d.DisplayName, d.Version);
+            var link = p == null ? null : PackageMarker.Read(p);
+            if (link == null || link.AppId != d.Id || link.TenantId != tenantId)
+                p = null;
             return p == null
                 ? ((string?)null, (string?)null, new List<SourceCheck>())
                 : (p, FindScript(p), BuildChecks(p, d.Size, d.SizeFormatted));
