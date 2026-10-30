@@ -15,7 +15,8 @@ Open **Settings** and complete two sections, then press **Save settings**:
 
 1. **Authentication** — press **Sign in** (interactive needs no app registration), then
    **Test connection** to check Graph read access. Review the documented permissions for publishing and group changes.
-2. **Network Paths** — **Intune Applications Path** (where packages are written), **PSADT Template
+2. **Network Paths** — **Intune Applications Path** (where packages are written, and the only folder
+   scanned when you export the app catalog), **PSADT Template
    Path**, and **IntuneWinAppUtil Path**.
 
 Code signing, group-assignment defaults, Intune defaults and the theme are optional.
@@ -71,6 +72,7 @@ on the test device too; test devices need WinRM and admin-share access.
 | Roll out a new version of an existing package | [Upgrading a package](README.md#upgrading-a-package-to-a-new-version) |
 | Publish a package I already built | [Upload to Intune (standalone)](README.md#upload-to-intune-standalone) |
 | Browse, filter, edit or delete tenant apps | [Applications](README.md#applications--browsing-your-tenant) |
+| List every Intune App ID with its share package, supersedence and dependencies | [App catalog](README.md#application-discovery-and-the-app-catalog) |
 | Bulk-add PCs to a group, or see what targets a group | [Advanced](README.md#advanced--directory-tools) |
 | Know what Packman deliberately does not do | [Limits](README.md#what-packman-cannot-do) |
 | Fix an error message | [Troubleshooting](README.md#troubleshooting) |

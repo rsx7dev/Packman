@@ -8,6 +8,8 @@
             <Grid Margin="0,7,0,0">
                 <TextBox AutomationProperties.Name="Intune Applications Path" Style="{StaticResource TextField}" Text="{Binding IntuneApplicationsPath, UpdateSourceTrigger=PropertyChanged}" local:PlaceholderText.Text="\\server\share\IntuneApps"/>
             </Grid>
+            <TextBlock Style="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,7,0,0"
+                       Text="Also the only folder scanned by Export catalog on the Applications page. A version folder under Vendor_AppName counts as an application when it holds Invoke-AppDeployToolkit.ps1 or a .intunewin. The scan only reads."/>
             <!-- PSADT Template path -->
             <TextBlock Text="PSADT Template Path" Style="{StaticResource FieldLabel}" Margin="0,16,0,0"/>
             <Grid Margin="0,7,0,0">

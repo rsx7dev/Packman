@@ -41,6 +41,7 @@ These are native Windows CI renders with sample data; they do not show a live te
 - [Upgrading a package to a new version](#upgrading-a-package-to-a-new-version)
 - [Upload to Intune (standalone)](#upload-to-intune-standalone)
 - [Applications — browsing your tenant](#applications--browsing-your-tenant)
+  - [Application discovery and the app catalog](#application-discovery-and-the-app-catalog)
 - [Advanced — directory tools](#advanced--directory-tools)
 - [Where things live on disk](#where-things-live-on-disk)
 - [What Packman cannot do](#what-packman-cannot-do)
@@ -129,6 +130,9 @@ These are native Windows CI renders with sample data; they do not show a live te
 
 - **Applications** — browse the Win32 apps in your tenant with search, category / manufacturer /
   last-updated filters, sortable columns and paging.
+- **Export catalog** — saves every Win32 app's Intune App ID, with the package folder it came from on
+  your share and its supersedence and dependency links, to `app-catalog.json`
+  ([details](#application-discovery-and-the-app-catalog)).
 - **Application detail** — metadata, install and uninstall command lines, requirements,
   publishing state, deployment status rollup (installed / pending / failed / not installed /
   not applicable) and a link into the Intune admin center.
@@ -308,7 +312,7 @@ certificate or signing operation fails, publishing stops before building or uplo
 
 | Setting | What it is |
 |---|---|
-| **Intune Applications Path** | Root folder where packages are written, typically a share. |
+| **Intune Applications Path** | Root folder where packages are written, typically a share. It is also the folder Packman scans to discover existing applications ([rules](#application-discovery-and-the-app-catalog)). |
 | **PSADT Template Path** | Your PSADT v4 folder — either the folder containing `Invoke-AppDeployToolkit.ps1` or the script path itself. |
 | **IntuneWinAppUtil Path** | Full path to `IntuneWinAppUtil.exe`. |
 
@@ -673,6 +677,63 @@ Excel treats them as text. The report needs `DeviceManagementApps.Read.All`, whi
 - **Delete from Intune** (sidebar) removes the app and its assignments from the tenant
   after a confirmation. It cannot be undone; devices keep their installed copy.
 
+### Application discovery and the app catalog
+
+**Export catalog** (button in the Applications header, needs a sign-in) is how Packman discovers the
+applications that exist, both in Intune and on your share, and ties them together.
+
+**Recommendation.** Point **Intune Applications Path** at the one share root that holds every package,
+keep the layout Packman writes, and run **Export catalog** whenever you need the current Intune App IDs —
+for example before choosing a predecessor for supersedence or a dependency.
+
+**Where it looks.** Only the configured **Intune Applications Path**, exactly two levels deep:
+
+```
+<Intune Applications Path>\<Vendor>_<AppName>\<Version>\
+```
+
+**What counts as an application.** A `<Version>` folder is a package when it contains either
+- the PSADT script `Invoke-AppDeployToolkit.ps1` (in the folder itself or its `Application\` subfolder), or
+- a built `*.intunewin` (in the folder itself or its `Intune\` subfolder).
+
+Anything else — loose files at the root, empty or scratch folders, deeper folders — is ignored.
+
+**Read-only.** The scan only lists folders and checks that those files exist. It never creates, moves,
+changes or deletes anything on the share, and the catalog is not written there.
+
+**The catalog file.** `%LocalAppData%\Packman\app-catalog.json`, next to your settings, rewritten on each
+export. It has one entry for **every Win32 app in the tenant** (so every Intune App ID), joined to its
+share package when the folder is named `<Publisher>_<DisplayName>\<DisplayVersion>` (spaces as underscores).
+If the same app was published more than once from one folder, the most recently modified app gets the
+package. Packages on the share that no Intune app matches are listed last, with a null `appId`.
+
+```json
+{
+  "share": "\\\\server\\share\\IntuneApps",
+  "apps": [
+    {
+      "appId": "…", "displayName": "Reader", "publisher": "Contoso", "version": "2.0",
+      "package": { "appFolderName": "Contoso_Reader", "version": "2.0", "folderPath": "…",
+                   "hasScript": true, "hasIntuneWin": true },
+      "relations": {
+        "supersedes": ["<App ID>"], "supersededBy": ["<App ID>"],
+        "dependsOn": ["<App ID>"], "requiredBy": ["<App ID>"]
+      }
+    }
+  ]
+}
+```
+
+**Supersedence and dependencies.** `relations` is read from each app's Graph relationships and holds
+App IDs that resolve against `appId` in the same file. `supersedes` / `dependsOn` are the apps this one
+replaces or needs; `supersededBy` / `requiredBy` are the apps that replace or need it. Because the IDs are
+stable, you can use the catalog to pick the right predecessor when upgrading or to check what depends on an
+app before removing it. Packman writes the catalog; it does not read it back, and **Upgrade existing**
+still picks the predecessor from the live tenant list.
+
+The export makes one Graph call per app, so it takes longer on large tenants. Only Win32 apps are listed
+(see [Limits](#what-packman-cannot-do)).
+
 ---
 
 ## Advanced — directory tools
@@ -702,6 +763,7 @@ Three lookups the Intune portal does not offer directly. All require being signe
 | Crash / error logs | `%LocalAppData%\Packman\Logs\Errors\error-<date>.log` |
 | Editor cache | `%LocalAppData%\Packman\WebView2\` |
 | Packages | `<Intune Applications Path>\<Vendor>_<AppName>\<Version>\` |
+| App catalog (Export catalog) | `%LocalAppData%\Packman\app-catalog.json` |
 | Intune App ID marker | inside the package folder, written on a successful upload |
 | Staged test copy | `C:\Temp\Packman\...` on the target machine |
 
