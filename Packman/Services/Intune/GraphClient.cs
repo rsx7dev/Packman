@@ -108,7 +108,8 @@ public sealed class GraphClient
     private static readonly TimeSpan MaxRetryAfter = TimeSpan.FromMinutes(2);
 
     // One client per process: a new handler per call exhausts sockets on a long upload.
-    private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromMinutes(5) };
+    // Settable only so tests can answer Graph with a fake handler.
+    internal static HttpClient Http { get; set; } = new() { Timeout = TimeSpan.FromMinutes(5) };
 
     private static readonly JsonSerializerOptions BodyOptions = new()
     {

@@ -41,6 +41,7 @@ public class IntuneAuthService
         public X509Certificate2? Certificate { get; init; }
         public required string User { get; init; }
         public required string TenantId { get; init; }
+        public string? TestToken { get; init; }
         public int ActiveRequests { get; set; }
         public bool Retired { get; set; }
     }
@@ -215,6 +216,13 @@ public class IntuneAuthService
 
     public bool IsSignedIn { get { lock (_stateLock) return _session != null; } }
 
+    /// <summary>Tests only: a signed-in session with a fixed token and tenant, without MSAL.</summary>
+    internal void UseTestSession(string tenantId, string accessToken)
+    {
+        lock (_stateLock) ReplaceSession(new AuthSession { User = "test", TenantId = tenantId, TestToken = accessToken });
+        StateChanged?.Invoke();
+    }
+
     /// <summary>Graph access token for the current sign-in. Throws when not signed in.</summary>
     public Task<string> GetAccessTokenAsync() => CreateSessionTokenProvider()();
 
@@ -246,11 +254,11 @@ public class IntuneAuthService
 
         try
         {
-            var result = session.ConfidentialClient is { } confidential
+            var token = session.TestToken ?? (session.ConfidentialClient is { } confidential
                 ? await confidential.AcquireTokenForClient(AppOnlyScopes).ExecuteAsync()
-                : await session.PublicClient!.AcquireTokenSilent(InteractiveScopes, session.Account).ExecuteAsync();
+                : await session.PublicClient!.AcquireTokenSilent(InteractiveScopes, session.Account).ExecuteAsync()).AccessToken;
             lock (_stateLock) EnsureSession(generation);
-            return result.AccessToken;
+            return token;
         }
         catch (MsalUiRequiredException ex) when (session.PublicClient != null)
         {

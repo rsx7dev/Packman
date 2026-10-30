@@ -23,7 +23,8 @@ public partial class IntuneUploadService
     private static readonly TimeSpan SasExpiryMargin = TimeSpan.FromMinutes(1);
 
     // Per-request timeouts come from a linked token; the client itself never times out.
-    private static readonly HttpClient AzureBlob = new() { Timeout = Timeout.InfiniteTimeSpan };
+    // Settable only so tests can answer Azure Storage with a fake handler.
+    internal static HttpClient AzureBlob { get; set; } = new() { Timeout = Timeout.InfiniteTimeSpan };
 
     private static string FileUrl(string appId, string contentVersionId, string fileId)
         => $"{GraphClient.MobileApps}/{appId}/microsoft.graph.win32LobApp/contentVersions/{contentVersionId}/files/{fileId}";

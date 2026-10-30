@@ -26,6 +26,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- The Windows link harness swaps in fake Graph/Azure handlers and a test sign-in. -->
+    <InternalsVisibleTo Include="PackageLinkWpfTests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Console UI fonts, embedded so they render without machine installation -->
     <Resource Include="Fonts\*.ttf" />
   </ItemGroup>
