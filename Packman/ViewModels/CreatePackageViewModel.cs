@@ -228,7 +228,7 @@ public class CreatePackageViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(AppName))
             return null;
 
-        var check = new PSADTGenerator(outputPath, templatePath).ValidatePackageCreation(BuildApplicationInfo());
+        var check = new PSADTGenerator(outputPath, templatePath, settings.PackageLayout).ValidatePackageCreation(BuildApplicationInfo());
         return check.PackageExists ? check.ExistingPath : null;
     }
 
@@ -254,7 +254,7 @@ public class CreatePackageViewModel : ObservableObject
 
             var appInfo = BuildApplicationInfo();
 
-            var generator = new PSADTGenerator(outputPath, templatePath);
+            var generator = new PSADTGenerator(outputPath, templatePath, settings.PackageLayout);
             var result = await generator.CreatePackageAsync(appInfo, overwriteExisting, _cts.Token);
             var packagePath = result.PackagePath;
 

@@ -262,9 +262,28 @@ dotnet restore Packman.sln --force
 
 ## First-run setup — the Settings page
 
-Settings has six live sections in the left rail. **Authentication** and **Network Paths** are the
-two you must complete; the rest have working defaults. Press **Save** when done — except
-Appearance, which applies and saves immediately.
+On first launch, before the three paths are set, Packman opens a short setup instead of the main
+window: **Welcome**, **Connection**, **Paths**, **Package layout** and a **Summary**. Back keeps
+what you typed, and nothing is saved until **Finish**.
+
+- **Connection** — choose Interactive sign-in or App registration (Tenant ID, Client ID, and a
+  certificate from `CurrentUser\My` that has a private key; the required Graph permissions are
+  listed with a Copy button). **Test connection** must pass before Next, or choose **Connect
+  later**: packaging works offline, and the Intune pages ask you to sign in until you connect in
+  Settings.
+- **Paths** — the applications share root must exist (a write test creates and deletes a temp
+  file; a read-only root only warns that `packman.id` cannot be written), the PSADT v4 template
+  must hold `Invoke-AppDeployToolkit.ps1` and the `PSAppDeployToolkit` folder, and
+  `IntuneWinAppUtil.exe` must be that file. Links point to the
+  [PSADT releases](https://github.com/PSAppDeployToolkit/PSAppDeployToolkit/releases) and the
+  [Win32 Content Prep Tool](https://github.com/microsoft/Microsoft-Win32-Content-Prep-Tool) pages;
+  Packman downloads nothing.
+- **Package layout** — see [Package layout](#package-layout).
+
+**Run setup again** in Settings reopens it with your current values. The sections below describe
+the same options on the Settings page. **Authentication** and **Network Paths** are the two you
+must complete; the rest have working defaults. Press **Save** when done — except Appearance,
+which applies and saves immediately.
 
 ### Authentication
 
@@ -313,6 +332,20 @@ certificate or signing operation fails, publishing stops before building or uplo
 | **IntuneWinAppUtil Path** | Full path to `IntuneWinAppUtil.exe`. |
 
 Package generation is blocked until the first two are set; upload is blocked until the third is.
+
+### Package layout
+
+Every new package gets `Application` (the PSADT files and installer; only this folder is packed
+into the `.intunewin`) and `Intune` (the built `.intunewin` and `packman.id`). Two things are up to you:
+
+- **Icon** (on by default) — keep the app icon in `Icon`. Off: the icon is extracted for the
+  upload and not kept.
+- **Extra folders** — plain folder names (not `Application`, `Intune` or `Icon`; no `\` or `/`;
+  no reserved Windows names) created empty in every new package. They are not packed into the
+  `.intunewin`, and a new version made with Upgrade copies their contents forward.
+
+The setting applies to new packages only; existing packages are never changed. It is in
+**Settings ▸ Package layout** and in setup.
 
 ### Group Assignment
 

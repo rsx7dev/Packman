@@ -302,7 +302,7 @@ public sealed class PsadtScript
     {
         if (string.IsNullOrEmpty(packagePath)) return null;
 
-        foreach (var folder in new[] { Path.Combine(packagePath, "Application"), packagePath })
+        foreach (var folder in new[] { PsadtLayout.ApplicationFolder(packagePath), packagePath })
         {
             var candidate = Path.Combine(folder, PsadtLayout.ScriptName);
             if (File.Exists(candidate)) return candidate;

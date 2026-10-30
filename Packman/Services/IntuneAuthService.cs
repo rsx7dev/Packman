@@ -24,6 +24,19 @@ public class IntuneAuthService
         "GroupMember.ReadWrite.All",
     ];
 
+    /// <summary>
+    /// The application permissions an app registration needs, with admin consent. The same
+    /// access Packman asks of a signed-in user above; the first-run setup lists and copies them.
+    /// </summary>
+    public static readonly string[] AppPermissions =
+    [
+        "DeviceManagementApps.ReadWrite.All",
+        "Group.ReadWrite.All",
+        "GroupMember.ReadWrite.All",
+        "User.ReadBasic.All",
+        "Device.Read.All",
+    ];
+
     private static readonly string[] AppOnlyScopes = ["https://graph.microsoft.com/.default"];
 
     private readonly object _stateLock = new();

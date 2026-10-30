@@ -62,7 +62,7 @@ public static class IconExtractor
 
         try
         {
-            var iconFolder = Path.Combine(packageFolderPath, "Icon");
+            var iconFolder = PsadtLayout.IconFolder(packageFolderPath);
             if (!Directory.Exists(iconFolder)) return false;
 
             var sanitized = SanitizeFileName(appName);
