@@ -137,4 +137,11 @@ public partial class IntuneService
         "" => "App",
         var other => other,
     };
+
+    /// <summary>The app's supersedence and dependency links to other apps.</summary>
+    public async Task<AppRelations> GetAppRelationsAsync(string appId, CancellationToken ct = default)
+    {
+        var page = (await _graph.GetAsync($"{Base}/{appId}/relationships", "Read app relationships", ct)).Json;
+        return AppCatalog.ParseRelationships(page, appId);
+    }
 }

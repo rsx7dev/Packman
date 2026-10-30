@@ -42,6 +42,7 @@ public sealed class ApplicationsViewModel : ObservableObject
     public RelayCommand SortByNameCommand { get; }
     public RelayCommand SortByUpdatedCommand { get; }
     public RelayCommand ViewInIntuneCommand { get; }
+    public AsyncRelayCommand ExportCatalogCommand { get; }
 
     /// <summary>Raised on row activation; the host swaps in the detail screen.</summary>
     public event Action<IntuneApplication>? OpenRequested;
@@ -69,6 +70,8 @@ public sealed class ApplicationsViewModel : ObservableObject
             catch (Exception ex) { ErrorReporter.Report(ex); }
         });
 
+        ExportCatalogCommand = new AsyncRelayCommand(ExportCatalogAsync, () => _auth.IsSignedIn);
+
         // Sign-out or a different tenant: the cached list belongs to the old session.
         _auth.StateChanged += () =>
         {
@@ -76,11 +79,22 @@ public sealed class ApplicationsViewModel : ObservableObject
             _all.Clear();
             _currentPage = 1;
             ApplyFilters();
+            ExportCatalogCommand.RaiseCanExecuteChanged();
             StatusText = _auth.IsSignedIn ? "" : "Sign in on the Settings page to load applications from Intune.";
             OnPropertyChanged(nameof(ShowEmpty));
             OnPropertyChanged(nameof(ShowConnectPrompt));
             OnPropertyChanged(nameof(ShowPager));
         };
+    }
+
+    private async Task ExportCatalogAsync()
+    {
+        try
+        {
+            var (path, count) = await AppCatalogService.ExportAsync();
+            AppServices.Dialogs.Info($"Wrote {count} package(s) from the share to {path}.", "App catalog");
+        }
+        catch (Exception ex) { ErrorReporter.Report(ex); }
     }
 
     private string _search = "";

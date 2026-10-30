@@ -15,6 +15,7 @@ using Packman.Models;
 using Packman.Services;
 using Packman.ViewModels;
 using Packman.Views;
+using Packman.Views.Controls;
 
 // Offline checks for the Devices section of Application detail: report parsing and paging,
 // error text, CSV export, the view model, and the real view laid out from report JSON.
@@ -31,6 +32,9 @@ internal static partial class DeviceStatusTests
             Run(name, () => Task.Run(check).GetAwaiter().GetResult());
         // WPF needs this STA thread.
         Run("Devices section lays out rows, chips, detail and the empty state", RenderChecks);
+        Run("Hiding the left nav centers the page area; with the nav shown it fills the space", NavHiddenCentersPages);
+        Run("Upload to Intune page shows publish progress in the right rail", UploadPageProgressInRail);
+        Run("Create wizard review step shows publish progress in the right rail", WizardProgressInRail);
 
         return ReportResult();
     }
@@ -198,8 +202,7 @@ internal static partial class DeviceStatusTests
 
     private static void RenderChecks()
     {
-        var app = new App { ShutdownMode = ShutdownMode.OnExplicitShutdown };
-        app.InitializeComponent();
+        EnsureApp();
 
         var populated = Detail("device-status-page1.json", "device-status-page2.json", "device-status-reordered.json");
         var view = Layout(populated);
@@ -224,6 +227,104 @@ internal static partial class DeviceStatusTests
         True(Shown<TextBlock>(empty).Any(t => t.Text == "No devices have reported for this app yet."), "empty state shown");
         Equal(0, Shown<ListBoxItem>(empty).Count());
         True(Shown<Button>(empty).Any(b => AutomationProperties.GetName(b) == "Export devices to CSV" && !b.IsEnabled), "export disabled when empty");
+    }
+
+    private static void EnsureApp()
+    {
+        if (Application.Current != null) return;
+        var app = new App { ShutdownMode = ShutdownMode.OnExplicitShutdown };
+        app.InitializeComponent();
+    }
+
+    // ── Layout: centered pages and publish progress in the rail ──
+
+    private static void NavHiddenCentersPages()
+    {
+        EnsureApp();
+        var window = new MainWindow { Width = 1800, Height = 900 };
+        var main = (MainViewModel)window.DataContext;
+        var wasHidden = main.IsNavHidden;   // the setter saves the setting; put it back
+        try
+        {
+            main.IsNavHidden = false;
+            var (shown, shownRoot) = PagesBounds(window);
+            main.IsNavHidden = true;
+            var (hidden, hiddenRoot) = PagesBounds(window);
+
+            True(shown.Left > 12, $"with the nav shown the pages start right of it (left {shown.Left})");
+            True(shown.Width > 1240, $"with the nav shown the pages fill the space (width {shown.Width})");
+            True(Math.Abs(shown.Right - (shownRoot - 12)) < 1, $"with the nav shown the right edge keeps its margin (right {shown.Right} of {shownRoot})");
+
+            True(hidden.Width <= 1240.5, $"with the nav hidden the pages stop at 1240 (width {hidden.Width})");
+            True(Math.Abs(hidden.Left - (hiddenRoot - hidden.Right)) < 1, $"centered: {hidden.Left} left, {hiddenRoot - hidden.Right} right");
+        }
+        finally
+        {
+            main.IsNavHidden = wasHidden;
+        }
+    }
+
+    /// <summary>The page area's bounds in the window's content, and that content's width.</summary>
+    private static (Rect Bounds, double RootWidth) PagesBounds(MainWindow window)
+    {
+        var root = (FrameworkElement)window.Content;
+        var host = (FrameworkElement)window.FindName("PagesHost");
+        window.Measure(new Size(window.Width, window.Height));
+        window.Arrange(new Rect(0, 0, window.Width, window.Height));
+        window.UpdateLayout();
+        return (host.TransformToAncestor(root).TransformBounds(new Rect(host.RenderSize)), root.ActualWidth);
+    }
+
+    private static void UploadPageProgressInRail()
+    {
+        EnsureApp();
+        var view = new UploadToIntuneView();
+        AssertProgressInRail(view, view.ViewModel.Publish);
+    }
+
+    private static void WizardProgressInRail()
+    {
+        EnsureApp();
+        var window = new MainWindow { Width = 1800, Height = 900 };
+        var main = (MainViewModel)window.DataContext;
+        main.CurrentStepIndex = 2;
+        AssertProgressInRail(window, main.Upload.Publish);
+    }
+
+    private static void AssertProgressInRail(FrameworkElement host, PublishRunViewModel publish)
+    {
+        LayOut(host);
+        Equal(0, Shown<PublishStatusControl>(host).Count());
+
+        // The work never finishes, so the run stays in its publishing state.
+        _ = publish.RunAsync("Publishing Contoso Reader", "Contoso", (_, _) => new TaskCompletionSource<string>().Task,
+            id => id, () => "Cancelled.");
+        LayOut(host);
+
+        var progress = Shown<PublishStatusControl>(host).ToList();
+        Equal(1, progress.Count);
+        var frame = Frames(host).First(f => progress[0].IsDescendantOf(f));
+        var rail = (Border)frame.Template.FindName("rail", frame);
+        True(progress[0].IsDescendantOf(rail), "publish progress sits in the right rail");
+        True(Shown<TextBlock>(progress[0]).Any(t => t.Text == "Publishing Contoso Reader"), "the rail names the running publish");
+    }
+
+    private static void LayOut(FrameworkElement host)
+    {
+        var size = host is Window w ? new Size(w.Width, w.Height) : new Size(1320, 900);
+        host.Measure(size);
+        host.Arrange(new Rect(new Point(), size));
+        host.UpdateLayout();
+    }
+
+    private static IEnumerable<PageFrame> Frames(DependencyObject root)
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = VisualTreeHelper.GetChild(root, i);
+            if (child is PageFrame frame) yield return frame;
+            foreach (var nested in Frames(child)) yield return nested;
+        }
     }
 
     private static ApplicationDetailViewModel Detail(params string[] fixtures)

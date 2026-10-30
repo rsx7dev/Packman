@@ -25,6 +25,8 @@ internal static partial class DeviceStatusTests
         ("Formula-like CSV fields get an apostrophe", CsvFormulaGuard),
         ("CSV writer emits UTF-8 with BOM and keeps accents", CsvWriterAccents),
         ("Share scan finds packages by script or .intunewin, newest first, and changes nothing", ShareScan),
+        ("Relationships read as supersedes, superseded by, depends on and required by", ParsesRelationships),
+        ("Catalog ties share packages to Intune app IDs and leaves unmatched ones without", CatalogMatches),
     ];
 
     private static int ReportResult()
@@ -197,6 +199,60 @@ internal static partial class DeviceStatusTests
         {
             Directory.Delete(root, recursive: true);
         }
+        return Task.CompletedTask;
+    }
+
+    private static Task ParsesRelationships()
+    {
+        using var doc = JsonDocument.Parse("""
+            {"value":[
+              {"@odata.type":"#microsoft.graph.mobileAppSupersedence","targetId":"old-1","targetType":"child","supersedenceType":"update"},
+              {"@odata.type":"#microsoft.graph.mobileAppSupersedence","targetId":"new-1","targetType":"parent"},
+              {"@odata.type":"#microsoft.graph.mobileAppDependency","targetId":"runtime-1","targetType":"child","dependencyType":"autoInstall"},
+              {"@odata.type":"#microsoft.graph.mobileAppDependency","targetId":"plugin-1","targetType":"parent"},
+              {"@odata.type":"#microsoft.graph.mobileAppDependency","targetId":"me","targetType":"child"},
+              {"@odata.type":"#microsoft.graph.mobileAppRelationship","targetId":"other","targetType":"child"}
+            ]}
+            """);
+        var relations = AppCatalog.ParseRelationships(doc.RootElement, "me");
+        Sequence(new[] { "old-1" }, relations.Supersedes.ToArray());
+        Sequence(new[] { "new-1" }, relations.SupersededBy.ToArray());
+        Sequence(new[] { "runtime-1" }, relations.DependsOn.ToArray());
+        Sequence(new[] { "plugin-1" }, relations.RequiredBy.ToArray());
+        return Task.CompletedTask;
+    }
+
+    private static Task CatalogMatches()
+    {
+        var packages = new[]
+        {
+            new SharePackage("Contoso_Reader", "2.0", @"\\share\Contoso_Reader\2.0", true, true),
+            new SharePackage("Contoso_Reader", "1.0", @"\\share\Contoso_Reader\1.0", true, false),
+            new SharePackage("Fabrikam_Zip", "3.1", @"\\share\Fabrikam_Zip\3.1", false, true),
+        };
+        var apps = new[]
+        {
+            new IntuneApplication { Id = "reader-2", Publisher = "Contoso", DisplayName = "Reader", Version = "2.0", LastModified = new DateTime(2026, 2, 1) },
+            new IntuneApplication { Id = "reader-2-old", Publisher = "Contoso", DisplayName = "Reader", Version = "2.0", LastModified = new DateTime(2026, 1, 1) },
+            new IntuneApplication { Id = "reader-1", Publisher = "Contoso", DisplayName = "Reader", Version = "1.0" },
+        };
+        var relations = new Dictionary<string, AppRelations>
+        {
+            ["reader-2"] = new(["reader-1"], [], [], []),
+        };
+
+        var entries = AppCatalog.Match(packages, apps, relations);
+
+        Sequence(new string?[] { "reader-2", "reader-1", null }, entries.Select(e => e.AppId).ToArray());
+        Sequence(new[] { "reader-1" }, entries[0].Relations.Supersedes.ToArray());
+        Equal(0, entries[1].Relations.Supersedes.Count);
+        Equal(0, entries[2].Relations.DependsOn.Count);
+
+        using var json = JsonDocument.Parse(AppCatalog.ToJson(@"\\share", entries));
+        var first = json.RootElement.GetProperty("apps")[0];
+        Equal("reader-2", first.GetProperty("appId").GetString());
+        Equal("reader-1", first.GetProperty("relations").GetProperty("supersedes")[0].GetString());
+        Equal(JsonValueKind.Null, json.RootElement.GetProperty("apps")[2].GetProperty("appId").ValueKind);
         return Task.CompletedTask;
     }
 

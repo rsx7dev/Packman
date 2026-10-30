@@ -12,5 +12,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/JsonExtensions.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/ApplicationShareScanner.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/PsadtLayout.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/AppCatalog.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/PackagePaths.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Models/IntuneApplication.cs" />
   </ItemGroup>
 </Project>

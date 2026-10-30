@@ -66,6 +66,17 @@
     <controls:PageFrame Title="Applications" Subtitle="Browse and manage Win32 applications in Microsoft Intune"
                         IsBodyScrollable="False">
 
+        <controls:PageFrame.HeaderActions>
+            <Button Style="{StaticResource GhostButton}" Command="{Binding ExportCatalogCommand}"
+                    ToolTipService.ShowOnDisabled="True"
+                    ToolTip="Match the packages on the IntuneApplications share to their Intune app IDs, with supersedence and dependencies, and save app-catalog.json. Needs a sign-in.">
+                <StackPanel Orientation="Horizontal">
+                    <controls:LineIcon Data="{DynamicResource IconList}"/>
+                    <TextBlock Text="Export catalog" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+        </controls:PageFrame.HeaderActions>
+
         <controls:PageFrame.Footer>
             <Grid>
                 <Grid.ColumnDefinitions>

@@ -204,7 +204,7 @@
             </DockPanel>
 
             <!-- Pages. Each draws its own panels, so this area stays transparent. -->
-            <Grid Grid.Column="1">
+            <Grid x:Name="PagesHost" Grid.Column="1">
                 <Grid.Style>
                     <Style TargetType="Grid">
                         <Setter Property="Margin" Value="0,0,12,12"/>
