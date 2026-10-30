@@ -7,7 +7,8 @@ using Packman.Helpers;
 // The packman.id link between a package folder and its Intune app: what an upload writes,
 // a failed write, which folder the Application detail page resolves (its Republish content
 // and Edit script actions are shown only for that folder), and the legacy .intune-appid.json
-// fallback. Uses the production sources; no tenant, nothing calls Graph.
+// fallback. Uses the production sources; no tenant, nothing calls Graph. The upload, view model
+// and view paths are covered on Windows by PackageLinkWpfTests.cs.
 //   dotnet run --file tests/PackageLinkTests.cs -c Release
 // Exits non-zero when a check fails.
 internal static class PackageLinkTests
@@ -28,7 +29,7 @@ internal static class PackageLinkTests
         ("A folder linked to the app in this tenant resolves, whatever its name", ResolvesLinkedFolder),
         ("A folder without a link does not resolve", MissingLinkHidden),
         ("A link from another tenant does not resolve", OtherTenantHidden),
-        ("A link to another (deleted) app does not resolve for this app", OtherAppHidden),
+        ("A link to another app does not resolve for this app", OtherAppHidden),
         ("A packman.id without a tenantId is no link, not a legacy one", EmptyTenantRejected),
         ("The latest upload wins when several folders link the same app", LatestUploadWins),
         ("Without packman.id the legacy .intune-appid.json is read as a legacy link", LegacyFallback),
@@ -146,7 +147,7 @@ internal static class PackageLinkTests
 
     private static Task OtherAppHidden()
     {
-        // The folder links a deleted app; the app opened in Packman (it exists in Intune) has another id.
+        // A deleted app returning 404 is covered through the detail page in PackageLinkWpfTests.cs.
         var package = NewPackage(out var share, "Contoso_Reader", "1.0");
         PackageMarker.Save(package, NewLink("deleted-app", Tenant));
         Equal(null, PackageSourceLocator.FindLinked(share, "app-1", Tenant));
