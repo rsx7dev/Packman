@@ -158,7 +158,7 @@ internal static class SetupTests
 
     private static void ConnectionGate()
     {
-        var vm = NewViewModel(TempSettings());
+        var vm = NewViewModel(TempSettings().Service);
         vm.CurrentStepIndex = 1;
         IsFalse(vm.NextCommand.CanExecute(null), "Next blocked before a test or Connect later");
         vm.ConnectLaterCommand.Execute(null);
@@ -167,7 +167,7 @@ internal static class SetupTests
 
     private static void ConnectionPassAndEdit()
     {
-        var vm = NewViewModel(TempSettings());
+        var vm = NewViewModel(TempSettings().Service);
         vm.IsInteractive = false;
         vm.TenantId = AllZeroTenant;
         vm.ClientId = FakeClientId;
@@ -184,7 +184,7 @@ internal static class SetupTests
 
     private static void ConnectionTestsChosenMethod()
     {
-        var vm = NewViewModel(TempSettings());
+        var vm = NewViewModel(TempSettings().Service);
         var calls = new List<(AuthMode Mode, string Tenant)>();
         vm.SignIn = (mode, cfg, _) =>
         {
@@ -217,7 +217,7 @@ internal static class SetupTests
 
     private static void ConnectionEditDuringTest()
     {
-        var vm = NewViewModel(TempSettings());
+        var vm = NewViewModel(TempSettings().Service);
         vm.SignIn = (_, _, _) =>
         {
             AppServices.Auth.UseTestSession(AllZeroTenant, FakeToken());
@@ -238,7 +238,7 @@ internal static class SetupTests
 
     private static void PathEditDuringCheck()
     {
-        var vm = NewViewModel(TempSettings());
+        var vm = NewViewModel(TempSettings().Service);
         vm.CurrentStepIndex = 2;
         vm.ApplicationsRoot = TempDir();
         vm.TemplatePath = FakeTemplate(TempDir());
@@ -261,7 +261,7 @@ internal static class SetupTests
         var root = TempDir();
         var template = FakeTemplate(TempDir());
         var tool = FakeTool(TempDir());
-        var vm = NewViewModel(TempSettings());
+        var vm = NewViewModel(TempSettings().Service);
 
         vm.CurrentStepIndex = 1;
         vm.TenantId = AllZeroTenant;
@@ -370,7 +370,7 @@ internal static class SetupTests
     private static void InputsAreNamed()
     {
         var settings = TempSettings();
-        var vm = NewViewModel(settings);
+        var vm = NewViewModel(settings.Service);
         var window = new OnboardingWindow(vm);
         window.Show();
         try
@@ -400,8 +400,8 @@ internal static class SetupTests
     // Helpers: view models, settings, package fixtures
 
     // The sign-in is the test session, so a test never needs a certificate or a prompt.
-    private static OnboardingViewModel NewViewModel(TempSettingsFile settings)
-        => new(settings.Service, AppServices.Auth)
+    private static OnboardingViewModel NewViewModel(SettingsService settings)
+        => new(settings, AppServices.Auth)
         {
             SignIn = (_, _, _) =>
             {
