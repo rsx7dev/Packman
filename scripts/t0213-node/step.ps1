@@ -38,7 +38,18 @@ switch ($step) {
     "settings restored; authentication hash after: $(Auth-Hash $settings)"
  }
  'tree' {
-    Get-ChildItem "$work\share" -Recurse -Force | ForEach-Object { $_.FullName.Substring($work.Length + 7) + $(if ($_.PSIsContainer) { '\' } else { '' }) } | Select-Object -First 80
+    $root = "$work\share"
+    Get-ChildItem $root -Directory | ForEach-Object { Get-ChildItem $_.FullName -Directory | ForEach-Object {
+        $pkg = $_.FullName
+        "package $($pkg.Substring($root.Length + 1))"
+        Get-ChildItem $pkg -Force | ForEach-Object {
+            if ($_.PSIsContainer) {
+                $n = (Get-ChildItem $_.FullName -Recurse -Force -File | Measure-Object).Count
+                "  $($_.Name)\  ($n files)"
+                if ($_.Name -ne 'Application') { Get-ChildItem $_.FullName -Recurse -Force | ForEach-Object { "      " + $_.FullName.Substring($pkg.Length + 1) } }
+            } else { "  $($_.Name)" }
+        }
+    } }
  }
  'intunewin' {
     Add-Type -AssemblyName System.IO.Compression.FileSystem
