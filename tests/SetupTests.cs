@@ -14,6 +14,7 @@ using System.Text.Json.Nodes;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Threading;
 using Packman;
 using Packman.Helpers;
@@ -65,9 +66,13 @@ internal static class SetupTests
             ("Upgrade copies Icon and extra-folder contents from the previous version", UpgradeCopiesOptionalFolders),
             ("Connection Next is blocked until Test connection passes or Connect later is chosen", ConnectionGate),
             ("A passing Test connection unlocks Connection Next, and editing a field clears it", ConnectionPassAndEdit),
+            ("Test connection signs in with the chosen method and tenant, not an earlier session", ConnectionTestsChosenMethod),
+            ("A connection test finishing after an edit does not unlock Next", ConnectionEditDuringTest),
+            ("A path edited while the checks run is not advanced on the old result", PathEditDuringCheck),
             ("Going Back and then Next keeps every value entered on earlier steps", BackKeepsValues),
             ("An unedited rerun Finish leaves the settings file byte-identical", UneditedRerunIdentical),
             ("Finish with edits changes only AuthMode, Authentication, NetworkPaths and PackageLayout", FinishTouchesOwnedBlocks),
+            ("A layout saved in Settings applies to the next package and leaves the first untouched", SettingsLayoutAppliesToNewPackages),
             ("Every visible onboarding input has a non-empty AutomationProperties.Name", InputsAreNamed),
         };
 
@@ -163,9 +168,10 @@ internal static class SetupTests
     private static void ConnectionPassAndEdit()
     {
         var vm = NewViewModel(TempSettings());
-        vm.AuthMode = AuthMode.AppRegistration;
+        vm.IsInteractive = false;
         vm.TenantId = AllZeroTenant;
         vm.ClientId = FakeClientId;
+        vm.Thumbprint = FakeThumbprint;
         vm.CurrentStepIndex = 1;
         Wait(vm.TestConnectionAsync());
         IsTrue(vm.ConnectionOk, "test connection passes against the fake Graph");
@@ -174,6 +180,80 @@ internal static class SetupTests
         vm.TenantId = "00000000-0000-0000-0000-000000000002";
         IsFalse(vm.ConnectionOk, "editing the tenant clears the pass");
         IsFalse(vm.NextCommand.CanExecute(null), "Next blocked again after the edit");
+    }
+
+    private static void ConnectionTestsChosenMethod()
+    {
+        var vm = NewViewModel(TempSettings());
+        var calls = new List<(AuthMode Mode, string Tenant)>();
+        vm.SignIn = (mode, cfg, _) =>
+        {
+            calls.Add((mode, cfg.TenantId));
+            AppServices.Auth.UseTestSession(AllZeroTenant, FakeToken());
+            return Task.CompletedTask;
+        };
+        vm.CurrentStepIndex = 1;
+
+        vm.IsInteractive = false;
+        vm.TenantId = AllZeroTenant;
+        vm.ClientId = FakeClientId;
+        vm.Thumbprint = FakeThumbprint;
+        Wait(vm.TestConnectionAsync());
+        IsTrue(vm.ConnectionOk, "app registration test passes");
+
+        // A session from the app registration exists now; Interactive must still sign in itself.
+        vm.IsInteractive = true;
+        IsFalse(vm.ConnectionOk, "switching the method clears the pass");
+        Wait(vm.TestConnectionAsync());
+        Equal(2, calls.Count);
+        Equal(AuthMode.Interactive, calls[1].Mode);
+
+        // A new interactive tenant is signed in again with that tenant.
+        vm.TenantId = "00000000-0000-0000-0000-000000000002";
+        Wait(vm.TestConnectionAsync());
+        Equal(3, calls.Count);
+        Equal("00000000-0000-0000-0000-000000000002", calls[2].Tenant);
+    }
+
+    private static void ConnectionEditDuringTest()
+    {
+        var vm = NewViewModel(TempSettings());
+        vm.SignIn = (_, _, _) =>
+        {
+            AppServices.Auth.UseTestSession(AllZeroTenant, FakeToken());
+            vm.TenantId = "00000000-0000-0000-0000-000000000002";
+            return Task.CompletedTask;
+        };
+        vm.CurrentStepIndex = 1;
+        vm.IsInteractive = false;
+        vm.TenantId = AllZeroTenant;
+        vm.ClientId = FakeClientId;
+        vm.Thumbprint = FakeThumbprint;
+
+        Wait(vm.TestConnectionAsync());
+        IsFalse(vm.ConnectionOk, "the pass belongs to the old tenant");
+        IsFalse(vm.NextCommand.CanExecute(null), "Next stays blocked");
+        Equal(0, vm.ConnectionChecks.Count);
+    }
+
+    private static void PathEditDuringCheck()
+    {
+        var vm = NewViewModel(TempSettings());
+        vm.CurrentStepIndex = 2;
+        vm.ApplicationsRoot = TempDir();
+        vm.TemplatePath = FakeTemplate(TempDir());
+        vm.IntuneWinAppUtilPath = FakeTool(TempDir());
+
+        // Run inside a dispatcher operation so the check's continuation can only run after the edit.
+        Wait(Dispatcher.CurrentDispatcher.InvokeAsync(async () =>
+        {
+            var next = vm.NextAsync();
+            vm.TemplatePath = Path.Combine(TempDir(), "missing");
+            await next;
+        }).Task.Unwrap());
+
+        Equal(2, vm.CurrentStepIndex);
+        IsTrue(vm.TemplateCheck == null, "no stale result is shown for the edited path");
     }
 
     private static void BackKeepsValues()
@@ -263,6 +343,30 @@ internal static class SetupTests
         IsFalse(after["PackageLayout"]!["IconFolder"]!.GetValue<bool>(), "PackageLayout saved");
     }
 
+    private static void SettingsLayoutAppliesToNewPackages()
+    {
+        var root = TempDir();
+        var settings = TempSettings();
+        Seed(settings.Service, root, FakeTemplate(TempDir()), FakeTool(TempDir()));
+        var template = settings.Service.Settings.NetworkPaths.PSADTTemplate;
+
+        var first = Generate(root, settings.Service.Settings.PackageLayout, "First", template);
+        IsTrue(Directory.Exists(Path.Combine(first, "Docs")), "first package has Docs");
+
+        var vm = new SettingsViewModel(settings.Service, AppServices.Auth);
+        vm.Layout.ExtraFolders.Remove("Docs");
+        vm.Layout.NewFolderName = "Tools";
+        vm.Layout.AddFolderCommand.Execute(null);
+        vm.SaveCommand.Execute(null);
+
+        var saved = new SettingsService(settings.Path).Settings.PackageLayout;
+        var second = Generate(root, saved, "Second", template);
+        IsTrue(Directory.Exists(Path.Combine(second, "Tools")), "second package has Tools");
+        IsFalse(Directory.Exists(Path.Combine(second, "Docs")), "second package has no Docs");
+        IsTrue(Directory.Exists(Path.Combine(first, "Docs")), "first package keeps Docs");
+        IsFalse(Directory.Exists(Path.Combine(first, "Tools")), "first package gets no Tools");
+    }
+
     private static void InputsAreNamed()
     {
         var settings = TempSettings();
@@ -271,9 +375,9 @@ internal static class SetupTests
         window.Show();
         try
         {
-            foreach (var mode in new[] { AuthMode.Interactive, AuthMode.AppRegistration })
+            foreach (var interactive in new[] { true, false })
             {
-                vm.AuthMode = mode;
+                vm.IsInteractive = interactive;
                 for (var step = 0; step < vm.Steps.Count; step++)
                 {
                     vm.CurrentStepIndex = step;
@@ -282,7 +386,7 @@ internal static class SetupTests
                     {
                         var name = AutomationProperties.GetName(input);
                         IsFalse(string.IsNullOrWhiteSpace(name),
-                            $"{input.GetType().Name} on step {step} ({mode}) has no AutomationProperties.Name");
+                            $"{input.GetType().Name} on step {step} ({(interactive ? "Interactive" : "App registration")}) has no AutomationProperties.Name");
                     }
                 }
             }
@@ -295,8 +399,16 @@ internal static class SetupTests
 
     // Helpers: view models, settings, package fixtures
 
+    // The sign-in is the test session, so a test never needs a certificate or a prompt.
     private static OnboardingViewModel NewViewModel(TempSettingsFile settings)
-        => new(settings.Service, AppServices.Auth);
+        => new(settings.Service, AppServices.Auth)
+        {
+            SignIn = (_, _, _) =>
+            {
+                AppServices.Auth.UseTestSession(AllZeroTenant, FakeToken());
+                return Task.CompletedTask;
+            },
+        };
 
     private static TempSettingsFile TempSettings()
     {
@@ -331,34 +443,37 @@ internal static class SetupTests
         Wait(vm.NextAsync());
     }
 
-    private static string Generate(string root, AppSettings.PackageLayoutConfig layout)
+    private static string Generate(string root, AppSettings.PackageLayoutConfig layout, string name = "Reader", string? template = null)
     {
-        var info = NewApplicationInfo();
-        var template = FakeTemplate(TempDir());
+        var info = NewApplicationInfo(name);
+        template ??= FakeTemplate(TempDir());
         var generator = new PSADTGenerator(root, template, layout);
         Wait(generator.CreatePackageAsync(info));
-        return VersionFolder(root, info.Version);
+        return VersionFolder(root, info.Version, name);
     }
 
-    private static ApplicationInfo NewApplicationInfo()
+    private static ApplicationInfo NewApplicationInfo(string name)
     {
         var source = Path.Combine(TempDir(), "setup.exe");
         File.WriteAllText(source, "installer-v1");
         return new ApplicationInfo
         {
             Manufacturer = "Contoso",
-            Name = "Reader",
+            Name = name,
             Version = Version1,
             SourcesPath = source,
         };
     }
 
-    private static string VersionFolder(string root, string version)
-        => PackagePaths.VersionFolder(root, PackagePaths.AppFolderName("Contoso", "Reader"), version);
+    private static string VersionFolder(string root, string version, string name = "Reader")
+        => PackagePaths.VersionFolder(root, PackagePaths.AppFolderName("Contoso", name), version);
 
     private static string FakeTemplate(string dir)
     {
-        File.WriteAllText(Path.Combine(dir, "Invoke-AppDeployToolkit.ps1"), "# fake template");
+        // Just the $adtSession block the generator and the upgrade fill in.
+        File.WriteAllText(Path.Combine(dir, "Invoke-AppDeployToolkit.ps1"),
+            "$adtSession = @{\n    AppVendor = ''\n    AppName = ''\n    AppVersion = ''\n    AppArch = ''\n" +
+            "    AppScriptDate = ''\n    AppScriptAuthor = ''\n    RequireAdmin = $true\n}\n");
         Directory.CreateDirectory(Path.Combine(dir, "PSAppDeployToolkit"));
         return dir;
     }

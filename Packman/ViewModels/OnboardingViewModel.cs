@@ -28,6 +28,9 @@ public sealed class OnboardingViewModel : ObservableObject
     private readonly IntuneAuthService _auth;
     private CancellationTokenSource? _cts;
 
+    /// <summary>Signs in with the chosen method. Tests replace it so no prompt or certificate is needed.</summary>
+    internal Func<AuthMode, AppSettings.AuthConfig, nint, Task> SignIn { get; set; }
+
     public ObservableCollection<StepViewModel> Steps { get; }
 
     /// <summary>Raised after Finish has saved the settings.</summary>
@@ -41,7 +44,7 @@ public sealed class OnboardingViewModel : ObservableObject
     public int CurrentStepIndex
     {
         get => _currentStepIndex;
-        private set
+        internal set
         {
             if (!Set(ref _currentStepIndex, value)) return;
             for (var i = 0; i < Steps.Count; i++)
@@ -197,9 +200,13 @@ public sealed class OnboardingViewModel : ObservableObject
     public AsyncRelayCommand TestConnectionCommand { get; }
     public RelayCommand ConnectLaterCommand { get; }
 
+    // Bumped on every edit, so a test that finishes after one is recognised as stale.
+    private int _connectionEdits;
+
     /// <summary>A pass belongs to the values it was tested with; editing one clears it.</summary>
     private void ConnectionInputChanged()
     {
+        _connectionEdits++;
         if (!ConnectionOk && ConnectionChecks.Count == 0 && ConnectionKind == "neutral") return;
         ConnectionOk = false;
         ConnectionChecks.Clear();
@@ -231,6 +238,7 @@ public sealed class OnboardingViewModel : ObservableObject
         _cts = new CancellationTokenSource();
         BusyText = "Testing connection…";
         IsBusy = true;
+        var edits = _connectionEdits;
         try
         {
             var cfg = new AppSettings.AuthConfig
@@ -239,10 +247,11 @@ public sealed class OnboardingViewModel : ObservableObject
                 ClientId = ClientId.Trim(),
                 CertificateThumbprint = IsAppRegistration ? Thumbprint.Trim() : "",
             };
+            // Always sign in with the chosen method and tenant: an earlier session may belong to another.
             if (IsAppRegistration)
-                await _auth.SignInAsync(AuthMode.AppRegistration, cfg, nint.Zero);
-            else if (!_auth.IsSignedIn)
-                await _auth.SignInAsync(AuthMode.Interactive, cfg, WindowHandle);
+                await SignIn(AuthMode.AppRegistration, cfg, nint.Zero);
+            else
+                await SignIn(AuthMode.Interactive, cfg, WindowHandle);
 
             var groups = _svc.Settings.GroupAssignment;
             var result = await AppServices.Apps.TestConnectionAsync(
@@ -268,6 +277,14 @@ public sealed class OnboardingViewModel : ObservableObject
         finally
         {
             IsBusy = false;
+        }
+
+        // The fields changed while the test ran: its result belongs to the old values.
+        if (edits != _connectionEdits)
+        {
+            ConnectionOk = false;
+            ConnectionChecks.Clear();
+            SetConnection("neutral", NotTested);
         }
     }
 
@@ -360,6 +377,9 @@ public sealed class OnboardingViewModel : ObservableObject
             // WaitAsync lets Cancel free the page while a dead share is still timing out.
             var checks = await Task.Run(() => (SetupChecks.ApplicationsRoot(root), SetupChecks.Template(template), SetupChecks.IntuneWinAppUtil(tool)))
                 .WaitAsync(_cts.Token);
+            // A path edited while the checks ran makes them stale; the user presses Next again.
+            if (root != ApplicationsRoot.Trim() || template != TemplatePath.Trim() || tool != IntuneWinAppUtilPath.Trim())
+                return false;
             (ApplicationsRootCheck, TemplateCheck, IntuneWinAppUtilCheck) = checks;
             return new[] { checks.Item1, checks.Item2, checks.Item3 }.All(c => c.Kind != "bad");
         }
@@ -454,6 +474,7 @@ public sealed class OnboardingViewModel : ObservableObject
     {
         _svc = svc;
         _auth = auth;
+        SignIn = _auth.SignInAsync;
 
         Steps = new ObservableCollection<StepViewModel>
         {

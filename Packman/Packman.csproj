@@ -28,6 +28,7 @@
   <ItemGroup>
     <!-- The Windows link harness swaps in fake Graph/Azure handlers and a test sign-in. -->
     <InternalsVisibleTo Include="PackageLinkWpfTests" />
+    <InternalsVisibleTo Include="SetupTests" />
   </ItemGroup>
 
   <ItemGroup>
