@@ -11,6 +11,10 @@
     <ProjectReference Include="../../Packman/Packman.csproj" />
   </ItemGroup>
   <Target Name="RunWpfTests" AfterTargets="Build">
-    <Exec Command="&quot;$(TargetDir)PackageLinkWpfTests.exe&quot;" StandardOutputImportance="high" StandardErrorImportance="high" />
+    <Exec Command="&quot;$(TargetDir)PackageLinkWpfTests.exe&quot;" ConsoleToMSBuild="true" IgnoreExitCode="true">
+      <Output TaskParameter="ConsoleOutput" ItemName="TestOut" />
+      <Output TaskParameter="ExitCode" PropertyName="TestCode" />
+    </Exec>
+    <Error Text="WPFTESTS exit=$(TestCode): @(TestOut, ' || ')" />
   </Target>
 </Project>
