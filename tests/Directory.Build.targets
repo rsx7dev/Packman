@@ -21,7 +21,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Services/MsiInfoService.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/ArgumentLine.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/PsadtScript.cs" />
-    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/PowerShellLiteral.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)PowerShellLiteralStub.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/TextFileIO.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/PsadtLayout.cs" />
   </ItemGroup>

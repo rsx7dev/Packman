@@ -1,6 +1,5 @@
 #:property TargetFramework=net10.0
 #:property PublishAot=false
-#:package System.Management.Automation@7.5.10
 
 using System.Buffers.Binary;
 using System.Text;
@@ -480,7 +479,7 @@ internal static class InstallerInsightTests
         Equal(0, empty.Transforms.Count());
 
         var info = new MsiInfoService.MsiInfo { Properties = SampleTable() };
-        Equal("ProductName, Manufacturer, ProductCode, ALLUSERS, INSTALLFOLDER", string.Join(", ", info.KeyProperties));
+        Equal("ProductName, Manufacturer, ProductCode, ALLUSERS, INSTALLFOLDER", string.Join(", ", info.KeyProperties.Select(p => p.Name)));
     }
 
     private static void SearchExamples()
