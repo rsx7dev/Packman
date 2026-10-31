@@ -1,10 +1,14 @@
 #:property TargetFramework=net10.0
 #:property PublishAot=false
 
+using System.IO.Pipes;
+using Packman.Helpers;
 using Packman.Services;
 
 // What the publish console receives from UploadLogger: every level reaches it, metadata does
-// not, and no SAS query string, token, client secret or certificate thumbprint survives.
+// not, and no SAS query string, token, client secret or certificate thumbprint survives. Also
+// that a child's output is forwarded line by line while it runs, and kept when the run is cancelled.
+// The console's scrolling, Copy and the rail's states are in UploadConsoleWpfTests.cs.
 // Uses the production sources; the log file goes to the local app data folder as in production.
 //   dotnet run --file tests/UploadConsoleTests.cs -c Release
 // Exits non-zero when a check fails.
@@ -24,6 +28,8 @@ internal static class UploadConsoleTests
         ("A certificate thumbprint is masked", ThumbprintMasked),
         ("An error with an exception shows the message and no stack trace", ErrorShowsMessageOnly),
         ("Ordinary text is left alone", PlainTextUntouched),
+        ("Process output reaches the callback before the stream ends", OutputArrivesWhileStreamOpen),
+        ("Output already forwarded survives a cancel", OutputSurvivesCancel),
     ];
 
     private sealed class Capture : IUploadProgress
@@ -140,5 +146,54 @@ internal static class UploadConsoleTests
         const string text = "Assigned 'Packman-QA group' (Required) - block 3/12 (18 MB of 72 MB) at https://intune.microsoft.com/apps";
         var lines = Run(log => log.Info(text));
         Expect(lines[0].Text == text, lines[0].Text);
+    }
+
+    private static (AnonymousPipeServerStream Child, StreamWriter Writer, StreamReader Reader) Pipe()
+    {
+        var server = new AnonymousPipeServerStream(PipeDirection.Out);
+        var client = new AnonymousPipeClientStream(PipeDirection.In, server.ClientSafePipeHandle);
+        return (server, new StreamWriter(server) { AutoFlush = true }, new StreamReader(client));
+    }
+
+    private static void OutputArrivesWhileStreamOpen()
+    {
+        var (server, writer, reader) = Pipe();
+        using (server)
+        {
+            var first = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var seen = new List<string>();
+            var read = ProcessOutput.ReadLinesAsync(reader, line => { seen.Add(line); first.TrySetResult(line); }, CancellationToken.None);
+
+            writer.WriteLine("  Packaging files  ");
+            Expect(first.Task.Wait(TimeSpan.FromSeconds(5)), "no line arrived while the stream was still open");
+            Expect(!read.IsCompleted, "the read finished before the stream closed");
+            Expect(first.Task.Result == "Packaging files", $"line not trimmed: '{first.Task.Result}'");
+
+            writer.WriteLine("");
+            writer.WriteLine("Done");
+            writer.Dispose();
+            var all = read.GetAwaiter().GetResult();
+            Expect(seen.SequenceEqual(new[] { "Packaging files", "Done" }), $"blank lines must be skipped, got: {string.Join(" | ", seen)}");
+            Expect(all.Contains("Done") && all.Contains("Packaging files"), "the full text is returned for the error message");
+        }
+    }
+
+    private static void OutputSurvivesCancel()
+    {
+        var (server, writer, reader) = Pipe();
+        using (server)
+        using (var cts = new CancellationTokenSource())
+        {
+            var first = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var seen = new List<string>();
+            var read = ProcessOutput.ReadLinesAsync(reader, line => { seen.Add(line); first.TrySetResult(line); }, cts.Token);
+
+            writer.WriteLine("Building package");
+            Expect(first.Task.Wait(TimeSpan.FromSeconds(5)), "no line arrived");
+            cts.Cancel();
+            try { read.GetAwaiter().GetResult(); throw new Exception("the read did not observe the cancel"); }
+            catch (OperationCanceledException) { }
+            Expect(seen.SequenceEqual(new[] { "Building package" }), $"got: {string.Join(" | ", seen)}");
+        }
     }
 }

@@ -25,4 +25,4 @@ dotnet run --file tests/InstallerInsightTests.cs --no-build -c Release
 dotnet restore tests/UploadConsoleTests.cs
 dotnet build tests/UploadConsoleTests.cs --no-restore -c Release
 dotnet run --file tests/UploadConsoleTests.cs --no-build -c Release
-if [ "$check_target" = tests/DeviceStatusTests.cs ]; then dotnet run --file tests/PackageLinkWpfTests.cs -c Release; fi
+if [ "$check_target" = tests/DeviceStatusTests.cs ]; then dotnet run --file tests/PackageLinkWpfTests.cs -c Release; dotnet run --file tests/UploadConsoleWpfTests.cs -c Release; fi

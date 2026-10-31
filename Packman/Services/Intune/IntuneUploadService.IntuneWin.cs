@@ -82,8 +82,10 @@ public partial class IntuneUploadService
         {
             // Drain both pipes concurrently: in sequence this deadlocks as soon as the child
             // fills the buffer of the stream we are not reading yet.
-            var outputTask = process.StandardOutput.ReadToEndAsync(ct);
-            var errorTask = process.StandardError.ReadToEndAsync(ct);
+            // Each line goes to the console as the tool prints it.
+            void Forward(string line) => log.Info($"IntuneWinAppUtil: {line}");
+            var outputTask = ProcessOutput.ReadLinesAsync(process.StandardOutput, Forward, ct);
+            var errorTask = ProcessOutput.ReadLinesAsync(process.StandardError, Forward, ct);
             await Task.WhenAll(outputTask, errorTask);
             await process.WaitForExitAsync(ct);
             stdout = outputTask.Result;
@@ -96,9 +98,6 @@ public partial class IntuneUploadService
             try { process.Kill(entireProcessTree: true); } catch { }
             throw;
         }
-
-        foreach (var line in (stdout + Environment.NewLine + stderr).Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            log.Info($"IntuneWinAppUtil: {line}");
 
         if (process.ExitCode != 0)
         {
