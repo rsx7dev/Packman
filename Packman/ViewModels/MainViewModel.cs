@@ -416,6 +416,9 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task RunCreateAsync()
     {
+        // A file still being read would be built as the wrong package type.
+        await CreatePackage.InstallerRead;
+
         // Ask before replacing, rather than reporting the collision after the fact.
         var existing = CreatePackage.FindExistingPackage(_settingsService.Settings);
         var overwrite = false;

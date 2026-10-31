@@ -195,6 +195,23 @@
                                    Foreground="{DynamicResource MutedBrush}" Text="{Binding CreatePackage.InstallContextHelp}"/>
                     </DockPanel>
 
+                    <!-- Switches (EXE) or properties (MSI) for the generated install and uninstall lines.
+                         The Installer panel in the rail fills these; empty keeps the script's placeholder. -->
+                    <StackPanel Visibility="{Binding CreatePackage.HasSourceFile, Converter={StaticResource BoolToVis}}">
+                        <Border Style="{StaticResource SectionRule}"/>
+
+                        <controls:SectionHeader Title="Command arguments"
+                                                Caption="Add them from the Installer panel beside this form, or type your own. Leave empty to set them later in Edit script."/>
+                        <TextBlock Text="Install arguments" Style="{StaticResource FieldLabel}" Margin="0,16,0,6"/>
+                        <TextBox AutomationProperties.Name="Install arguments" Style="{StaticResource MonoField}"
+                                 local:PlaceholderText.Text="e.g. /S"
+                                 Text="{Binding CreatePackage.InstallArguments, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                        <TextBlock Text="Uninstall arguments" Style="{StaticResource FieldLabel}" Margin="0,16,0,6"/>
+                        <TextBox AutomationProperties.Name="Uninstall arguments" Style="{StaticResource MonoField}"
+                                 local:PlaceholderText.Text="e.g. /S"
+                                 Text="{Binding CreatePackage.UninstallArguments, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+
                     <Border Style="{StaticResource SectionRule}"/>
 
                     <!-- Output: where the package is written. The share is a setting, so it's shown, not edited here. -->

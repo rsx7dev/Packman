@@ -40,7 +40,16 @@ internal static class UiPreviews
         vm.CreatePackage.SourcesPath = @"C:\Sources\ContosoReader-4.2.0-x64.msi";
         vm.CreatePackage.CurrentMsiInfo = new MsiInfoService.MsiInfo
         {
-            ProductCode = "{3FA85F64-5717-4562-B3FC-2C963F66AFA6}", ProductVersion = "4.2.0"
+            ProductCode = "{3FA85F64-5717-4562-B3FC-2C963F66AFA6}", ProductVersion = "4.2.0",
+            Properties =
+            [
+                new("ProductName", "Contoso Reader"), new("ProductVersion", "4.2.0"), new("Manufacturer", "Contoso"),
+                new("ProductCode", "{3FA85F64-5717-4562-B3FC-2C963F66AFA6}"),
+                new("UpgradeCode", "{8B1E4D2A-6C3F-4E5B-9A7D-1F2E3C4B5A69}"),
+                new("ALLUSERS", "1"), new("REBOOT", "ReallySuppress"), new("INSTALLFOLDER", @"C:\Program Files\Contoso\Reader"),
+                new("ARPNOREPAIR", "1"), new("SecureCustomProperties", "WIX_UPGRADE_DETECTED"),
+            ],
+            Transforms = ["Contoso.mst"],
         };
 
         var detail = new ApplicationDetailViewModel(new IntuneApplication

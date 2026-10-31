@@ -32,9 +32,11 @@ versus an EXE, and where the package lands on disk.
 
 ## 3. Fix the script (EXE packages only)
 
-An MSI package usually runs as generated. An **EXE** package is written with `<silent flags>` and
-`<uninstall flags>` placeholders — open **Edit script** and replace them with the installer's real
-switches, then Ctrl+S.
+An MSI package usually runs as generated. For an **EXE**, the Installer panel in the right rail
+names the installer type and lists its silent switches; **Add** them to **Install arguments** and
+**Uninstall arguments** before generating. Anything left empty is written as the `<silent flags>` /
+`<uninstall flags>` placeholders — open **Edit script**, replace them with the real switches, then
+Ctrl+S.
 
 → [Editing the deploy script](README.md#editing-the-deploy-script)
 

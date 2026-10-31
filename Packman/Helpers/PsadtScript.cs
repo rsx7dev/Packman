@@ -233,13 +233,23 @@ public sealed class PsadtScript
         return -1;
     }
 
-    public static string InstallCommand(bool msi, string sourceFileName) => msi
-        ? $"Start-ADTMsiProcess -Action 'Install' -FilePath \"$($adtSession.DirFiles)\\{PowerShellLiteral.DoubleQuoted(sourceFileName)}\""
-        : $"Start-ADTProcess -FilePath \"$($adtSession.DirFiles)\\{PowerShellLiteral.DoubleQuoted(sourceFileName)}\" -ArgumentList '<silent flags>'";
+    /// <summary>
+    /// Blank <paramref name="arguments"/> keeps the placeholder the packager must replace (EXE)
+    /// or the plain line (MSI).
+    /// </summary>
+    public static string InstallCommand(bool msi, string sourceFileName, string arguments = "") => msi
+        ? $"Start-ADTMsiProcess -Action 'Install' -FilePath \"$($adtSession.DirFiles)\\{PowerShellLiteral.DoubleQuoted(sourceFileName)}\"{MsiArguments(arguments)}"
+        : $"Start-ADTProcess -FilePath \"$($adtSession.DirFiles)\\{PowerShellLiteral.DoubleQuoted(sourceFileName)}\" -ArgumentList '{ExeArguments(arguments, "<silent flags>")}'";
 
-    public static string UninstallCommand(bool msi, string sourceFileName, string? productCode) => msi
-        ? $"Start-ADTMsiProcess -Action 'Uninstall' -FilePath '{PowerShellLiteral.SingleQuoted(string.IsNullOrWhiteSpace(productCode) ? ProductCodePlaceholder : productCode)}'"
-        : $"Start-ADTProcess -FilePath \"$($adtSession.DirFiles)\\{PowerShellLiteral.DoubleQuoted(sourceFileName)}\" -ArgumentList '<uninstall flags>'";
+    public static string UninstallCommand(bool msi, string sourceFileName, string? productCode, string arguments = "") => msi
+        ? $"Start-ADTMsiProcess -Action 'Uninstall' -FilePath '{PowerShellLiteral.SingleQuoted(string.IsNullOrWhiteSpace(productCode) ? ProductCodePlaceholder : productCode)}'{MsiArguments(arguments)}"
+        : $"Start-ADTProcess -FilePath \"$($adtSession.DirFiles)\\{PowerShellLiteral.DoubleQuoted(sourceFileName)}\" -ArgumentList '{ExeArguments(arguments, "<uninstall flags>")}'";
+
+    private static string ExeArguments(string arguments, string placeholder) =>
+        string.IsNullOrWhiteSpace(arguments) ? placeholder : PowerShellLiteral.SingleQuoted(arguments.Trim());
+
+    private static string MsiArguments(string arguments) =>
+        string.IsNullOrWhiteSpace(arguments) ? "" : $" -AdditionalArgumentList '{PowerShellLiteral.SingleQuoted(arguments.Trim())}'";
 
     // ── Source file and product code ──────────────────────────────────────────
 
