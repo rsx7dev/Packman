@@ -112,6 +112,7 @@ public sealed class EditorSessionViewModel : ObservableObject
         }
 
         TreeRefreshRequested?.Invoke();
+        PostPsadtVersion();
 
         if (isNewPackage)
         {
@@ -120,11 +121,16 @@ public sealed class EditorSessionViewModel : ObservableObject
         }
     }
 
+    /// <summary>Tells the page which PSADT the package bundles, so completion hides functions it lacks.</summary>
+    private void PostPsadtVersion() =>
+        _host?.Post(new { type = "psadtVersion", version = PsadtManifest.ReadModuleVersion(ApplicationFolder) });
+
     // ── Editor callbacks (from the host) ───────────────────────────────
 
     /// <summary>Monaco is up: replay what was waiting on it.</summary>
     public void OnEditorReady()
     {
+        if (_loadedPackagePath != null) PostPsadtVersion();
         if (_reopenAfterCrash != null)
         {
             var files = _reopenAfterCrash;
