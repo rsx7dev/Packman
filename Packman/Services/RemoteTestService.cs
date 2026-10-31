@@ -1,17 +1,21 @@
 using Packman.Helpers;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Management.Automation;
 using System.Management.Automation.Runspaces;
 using System.Net.NetworkInformation;
+using System.Security.Principal;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Packman.Services;
 
 /// <summary>
-/// Deploys a PSADT v4 package to a test machine over WinRM.
+/// Deploys a PSADT v4 package to a test machine over WinRM, or to this PC without it.
 ///
-/// WinRM is the transport only; the install runs from a one-shot scheduled task. A
+/// WinRM is the transport only (this PC needs none: the same task script runs in an
+/// elevated local PowerShell instead); the install runs from a one-shot scheduled task. A
 /// remote session runs as the connecting admin, not as SYSTEM, and the two differ in
 /// %TEMP%, HKCU and network identity, so it would not match what Intune does.
 ///
@@ -48,11 +52,13 @@ public class RemoteTestService
     /// only labels the run.
     /// <paramref name="runAsUser"/>: false runs as SYSTEM (what Intune does), true runs in
     /// the logged-on user's session. <paramref name="copyProgress"/> reports 0-100, then null.
+    /// <paramref name="local"/> runs on this PC instead of over WinRM and asks for elevation
+    /// (UAC) when Packman is not elevated; <paramref name="computerName"/> is then only a label.
     /// Throws PSRemotingTransportException when WinRM is unreachable.
     /// </summary>
     public int Deploy(string computerName, string sourcePath, string deploymentType, string commandLine,
         bool cleanupAfterDeploy, bool runAsUser, Action<string> output,
-        Action<int?>? copyProgress = null)
+        Action<int?>? copyProgress = null, bool local = false)
     {
         if (!IsValidComputerName(computerName))
             throw new ArgumentException($"'{computerName}' is not a valid computer name", nameof(computerName));
@@ -66,7 +72,7 @@ public class RemoteTestService
             throw new ArgumentException("The command line must be a single non-empty line", nameof(commandLine));
 
         output("========================================");
-        output("Packman Remote Test (WinRM)");
+        output(local ? "Packman Remote Test (this PC)" : "Packman Remote Test (WinRM)");
         output("========================================");
         output($"Target: {computerName}");
         output($"Source: {sourcePath}");
@@ -101,6 +107,172 @@ public class RemoteTestService
             throw new FileNotFoundException(
                 $"{PsadtLayout.SetupFileName} is missing from the package. The PSADT template needs the full v4 runtime, not just the script.");
 
+        using var runspace = local ? null : OpenRemoteSession(computerName, runAsUser, output);
+
+        // Layout is ...\Manufacturer_AppName\Version; combine both so packages don't mix
+        // and a re-run only copies what differs.
+        var sourceDir = new DirectoryInfo(sourcePath);
+        string packageName = SanitiseFolderName(sourceDir.Parent?.Parent != null
+            ? $"{sourceDir.Parent.Name}_{sourceDir.Name}"
+            : sourceDir.Name);
+        string remotePackagePath = $@"{RemoteBasePath}\{packageName}";
+        string stagedPath = local ? remotePackagePath : $@"\\{computerName}\C$\Temp\Packman\{packageName}";
+
+        output($"Copying files to {stagedPath}...");
+        var copyTimer = Stopwatch.StartNew();
+        CopyWithRobocopy(sourcePath, stagedPath, copyProgress);
+        copyTimer.Stop();
+        copyProgress?.Invoke(null);
+
+        var copiedFiles = Directory.GetFiles(stagedPath, "*", SearchOption.AllDirectories);
+        double sizeMb = copiedFiles.Sum(f => new FileInfo(f).Length) / 1048576.0;
+        output($"Package size: {Math.Round(sizeMb, 2)} MB");
+        output($"[OK] {copiedFiles.Length} files in sync after {Math.Round(copyTimer.Elapsed.TotalSeconds, 1)} seconds");
+
+        // Intune runs the command line from the content folder, so the task does too.
+        string workingDirectory = relativeApplicationPath.Length == 0 ? remotePackagePath : $@"{remotePackagePath}\{relativeApplicationPath}";
+        string configPath = $@"{workingDirectory}\Config\config.psd1";
+        string consoleLog = $@"{remotePackagePath}\Packman_Console.log";
+
+        output("");
+        output($"Registering scheduled task '{TaskName}' on {(local ? "this PC" : "target")}...");
+        output($"Working directory: {workingDirectory}");
+        output("");
+
+        int exitCode = -1;
+        void Emit(string chunk)
+        {
+            foreach (string rawLine in chunk.Split('\n'))
+            {
+                string line = rawLine.TrimEnd('\r');
+                if (line.Length == 0) continue;
+                if (line.StartsWith(ExitCodeSentinel))
+                    int.TryParse(line.AsSpan(ExitCodeSentinel.Length), out exitCode);
+                else
+                    output(line);
+            }
+        }
+
+        string taskScript = BuildTaskScript(runAsUser, commandLine, workingDirectory, consoleLog, configPath);
+        if (local)
+        {
+            RunElevated(taskScript, output, Emit);
+        }
+        else
+        {
+            using var ps = PowerShell.Create();
+            ps.Runspace = runspace;
+            ps.AddScript(taskScript);
+
+            var stdout = new PSDataCollection<PSObject>();
+            stdout.DataAdded += (s, e) =>
+            {
+                string? chunk = stdout[e.Index]?.ToString();
+                if (!string.IsNullOrEmpty(chunk)) Emit(chunk);
+            };
+            ps.Streams.Error.DataAdded += (s, e) => output($"ERROR: {ps.Streams.Error[e.Index]}");
+
+            ps.Invoke<object, PSObject>(null, stdout, null);
+        }
+
+        output("");
+        output($"Exit code: {exitCode}");
+        if (InstallErrorText.Describe(exitCode) is { } meaning)
+            output($"Meaning: {meaning}");
+        if (exitCode == -1)
+            output("WARNING: The remote monitor returned no exit code; check the PSADT log on the target.");
+
+        if (cleanupAfterDeploy)
+        {
+            output("");
+            output("Cleaning up...");
+            try
+            {
+                Directory.Delete(stagedPath, true);
+                output("[OK] Cleanup completed");
+            }
+            catch (Exception ex)
+            {
+                output($"WARNING: Cleanup failed: {ex.Message}");
+            }
+        }
+
+        return exitCode;
+    }
+
+    /// <summary>
+    /// Runs the task script in an elevated Windows PowerShell on this PC, prompting for UAC
+    /// when Packman is not elevated. An elevated process cannot be redirected, so the script
+    /// appends its output to a file, which is tailed here until the process ends.
+    /// </summary>
+    private static void RunElevated(string taskScript, Action<string> output, Action<string> emit)
+    {
+        string outputFile = Path.Combine(Path.GetTempPath(), $"Packman_Local_{Guid.NewGuid():N}.log");
+        File.WriteAllText(outputFile, "");
+
+        // A terminating error ends the pipeline before it reaches the file, so catch it inside.
+        string wrapped = """
+            & {
+                try {
+            __SCRIPT__
+                } catch { "ERROR: $($_.Exception.Message)" }
+            } *>&1 | ForEach-Object {
+                $line = if ($_ -is [Management.Automation.ErrorRecord]) { "ERROR: $_" } else { "$_" }
+                [IO.File]::AppendAllText('__OUTPUT__', $line + "`n")
+            }
+            """
+            .Replace("__OUTPUT__", EscapeSingleQuoted(outputFile))
+            .Replace("__SCRIPT__", taskScript);
+
+        var psi = new ProcessStartInfo
+        {
+            FileName = Path.Combine(Environment.SystemDirectory, @"WindowsPowerShell\v1.0\powershell.exe"),
+            Arguments = "-NoProfile -NonInteractive -EncodedCommand " + Convert.ToBase64String(Encoding.Unicode.GetBytes(wrapped)),
+            UseShellExecute = true,
+            WindowStyle = ProcessWindowStyle.Hidden
+        };
+        if (!new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator))
+        {
+            psi.Verb = "runas";
+            output("Registering a SYSTEM task needs administrator rights; asking for elevation (UAC)...");
+        }
+
+        try
+        {
+            using var process = Process.Start(psi)
+                ?? throw new InvalidOperationException("Failed to start Windows PowerShell");
+
+            long offset = 0;
+            while (!process.WaitForExit(500))
+                emit(ReadNewLines(outputFile, ref offset, final: false));
+            emit(ReadNewLines(outputFile, ref offset, final: true));
+        }
+        catch (Win32Exception ex) when (ex.NativeErrorCode == 1223)
+        {
+            throw new InvalidOperationException("Elevation was declined; running on this PC needs administrator rights.");
+        }
+        finally
+        {
+            File.Delete(outputFile);
+        }
+    }
+
+    /// <summary>Text appended since <paramref name="offset"/>; until <paramref name="final"/>, only whole lines.</summary>
+    private static string ReadNewLines(string path, ref long offset, bool final)
+    {
+        using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        stream.Seek(offset, SeekOrigin.Begin);
+        var bytes = new byte[stream.Length - offset];
+        int count = stream.Read(bytes, 0, bytes.Length);
+        if (!final)
+            count = bytes.AsSpan(0, count).LastIndexOf((byte)'\n') + 1;
+        offset += count;
+        return Encoding.UTF8.GetString(bytes, 0, count);
+    }
+
+    /// <summary>Pings the target, opens the WinRM runspace and, for a user-context run, checks someone is logged on.</summary>
+    private static Runspace OpenRemoteSession(string computerName, bool runAsUser, Action<string> output)
+    {
         // ICMP is a hint only: plenty of fleets block it while WinRM is open.
         output($"Checking connectivity to {computerName}...");
         using (var ping = new Ping())
@@ -121,99 +293,31 @@ public class RemoteTestService
         // Connect before the copy so a target without WinRM fails fast.
         output($"Connecting to {computerName} via WinRM...");
         var connectionInfo = new WSManConnectionInfo { ComputerName = computerName };
-        using var runspace = RunspaceFactory.CreateRunspace(connectionInfo);
-        runspace.Open();
-        output("[OK] WinRM session established");
-
-        // For user-context installs, fail before the copy if nobody is logged on.
-        if (runAsUser)
+        var runspace = RunspaceFactory.CreateRunspace(connectionInfo);
+        try
         {
-            using var check = PowerShell.Create();
-            check.Runspace = runspace;
-            check.AddScript("(Get-CimInstance Win32_ComputerSystem).UserName");
-            string? loggedOnUser = check.Invoke().FirstOrDefault()?.ToString();
-            if (string.IsNullOrEmpty(loggedOnUser))
-                throw new InvalidOperationException($"No user is logged on to {computerName} — a user-context install requires a logged-on user");
-            output($"[OK] Logged-on user: {loggedOnUser}");
-        }
+            runspace.Open();
+            output("[OK] WinRM session established");
 
-        // Layout is ...\Manufacturer_AppName\Version; combine both so packages don't mix
-        // and a re-run only copies what differs.
-        var sourceDir = new DirectoryInfo(sourcePath);
-        string packageName = SanitiseFolderName(sourceDir.Parent?.Parent != null
-            ? $"{sourceDir.Parent.Name}_{sourceDir.Name}"
-            : sourceDir.Name);
-        string remotePackagePath = $@"{RemoteBasePath}\{packageName}";
-        string targetUnc = $@"\\{computerName}\C$\Temp\Packman\{packageName}";
-
-        output($"Copying files to {targetUnc}...");
-        var copyTimer = Stopwatch.StartNew();
-        CopyWithRobocopy(sourcePath, targetUnc, copyProgress);
-        copyTimer.Stop();
-        copyProgress?.Invoke(null);
-
-        var copiedFiles = Directory.GetFiles(targetUnc, "*", SearchOption.AllDirectories);
-        double sizeMb = copiedFiles.Sum(f => new FileInfo(f).Length) / 1048576.0;
-        output($"Package size: {Math.Round(sizeMb, 2)} MB");
-        output($"[OK] {copiedFiles.Length} files in sync after {Math.Round(copyTimer.Elapsed.TotalSeconds, 1)} seconds");
-
-        // Intune runs the command line from the content folder, so the task does too.
-        string workingDirectory = relativeApplicationPath.Length == 0 ? remotePackagePath : $@"{remotePackagePath}\{relativeApplicationPath}";
-        string configPath = $@"{workingDirectory}\Config\config.psd1";
-        string consoleLog = $@"{remotePackagePath}\Packman_Console.log";
-
-        output("");
-        output($"Registering scheduled task '{TaskName}' on target...");
-        output($"Working directory: {workingDirectory}");
-        output("");
-
-        int exitCode = -1;
-        using (var ps = PowerShell.Create())
-        {
-            ps.Runspace = runspace;
-            ps.AddScript(BuildTaskScript(runAsUser, commandLine, workingDirectory, consoleLog, configPath));
-
-            var stdout = new PSDataCollection<PSObject>();
-            stdout.DataAdded += (s, e) =>
+            // For user-context installs, fail before the copy if nobody is logged on.
+            if (runAsUser)
             {
-                string? chunk = stdout[e.Index]?.ToString();
-                if (string.IsNullOrEmpty(chunk)) return;
-                foreach (string rawLine in chunk.Split('\n'))
-                {
-                    string line = rawLine.TrimEnd('\r');
-                    if (line.Length == 0) continue;
-                    if (line.StartsWith(ExitCodeSentinel))
-                        int.TryParse(line.AsSpan(ExitCodeSentinel.Length), out exitCode);
-                    else
-                        output(line);
-                }
-            };
-            ps.Streams.Error.DataAdded += (s, e) => output($"ERROR: {ps.Streams.Error[e.Index]}");
-
-            ps.Invoke<object, PSObject>(null, stdout, null);
-        }
-
-        output("");
-        output($"Exit code: {exitCode}");
-        if (exitCode == -1)
-            output("WARNING: The remote monitor returned no exit code; check the PSADT log on the target.");
-
-        if (cleanupAfterDeploy)
-        {
-            output("");
-            output("Cleaning up...");
-            try
-            {
-                Directory.Delete(targetUnc, true);
-                output("[OK] Cleanup completed");
-            }
-            catch (Exception ex)
-            {
-                output($"WARNING: Cleanup failed: {ex.Message}");
+                using var check = PowerShell.Create();
+                check.Runspace = runspace;
+                check.AddScript("(Get-CimInstance Win32_ComputerSystem).UserName");
+                string? loggedOnUser = check.Invoke().FirstOrDefault()?.ToString();
+                if (string.IsNullOrEmpty(loggedOnUser))
+                    throw new InvalidOperationException($"No user is logged on to {computerName} — a user-context install requires a logged-on user");
+                output($"[OK] Logged-on user: {loggedOnUser}");
             }
         }
+        catch
+        {
+            runspace.Dispose();
+            throw;
+        }
 
-        return exitCode;
+        return runspace;
     }
 
     /// <summary>

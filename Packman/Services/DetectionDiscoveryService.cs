@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 namespace Packman.Services;
 
 /// <summary>
-/// Finds a file-based detection rule by searching a test machine over C$ for the
+/// Finds a file-based detection rule by searching a test machine (over C$, or this PC directly) for the
 /// executable the package just installed. Mainly for EXE packages, which carry no
 /// product code to detect on.
 /// </summary>
@@ -152,7 +152,10 @@ public class DetectionDiscoveryService
     // Machine-wide locations plus AppData\Local for user-context installs.
     private static List<string> GetSearchRoots(string computerName)
     {
-        string cShare = $@"\\{computerName}\C$";
+        // This PC is read directly; its admin share may be disabled.
+        string cShare = computerName.Equals(Environment.MachineName, StringComparison.OrdinalIgnoreCase)
+            ? @"C:\"
+            : $@"\\{computerName}\C$";
         var roots = new List<string>
         {
             Path.Combine(cShare, "Program Files"),

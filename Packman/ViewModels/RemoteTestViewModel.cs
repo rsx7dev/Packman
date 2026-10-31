@@ -19,8 +19,8 @@ public sealed class RemoteTestLine
 }
 
 /// <summary>
-/// The Remote Test tool: stages a package on a test machine over WinRM, runs PSADT as
-/// SYSTEM or as the logged-on user, then discovers the detection rule the install
+/// The Remote Test tool: stages a package on a test machine over WinRM (or on this PC,
+/// with no WinRM), runs PSADT as SYSTEM or as the logged-on user, then discovers the detection rule the install
 /// produced and offers it to the publish step.
 /// </summary>
 public sealed class RemoteTestViewModel : ObservableObject
@@ -43,6 +43,8 @@ public sealed class RemoteTestViewModel : ObservableObject
     private string _packageSourcePath = "";
     private bool _isGeneratedPackage;
     private string _targetComputer = "";
+    private bool _runOnThisPc;
+    private bool _localInstallConfirmed;
     private bool _runAsUser;
     private string _selectedDeployMode = PsadtLayout.DeployModeDefault;
     private bool _isRunning;
@@ -58,13 +60,16 @@ public sealed class RemoteTestViewModel : ObservableObject
     private sealed record DetectionContext(int Revision, string Computer, string AppName, string Version, string SourcePath);
 
     private DetectionContext CaptureDetectionContext() =>
-        new(_contextVersion, _targetComputer, _packageAppName, _packageVersion, _packageSourcePath);
+        new(_contextVersion, _runOnThisPc ? Environment.MachineName : _targetComputer, _packageAppName, _packageVersion, _packageSourcePath);
 
     public ObservableCollection<RemoteTestLine> Lines { get; } = new();
     public ObservableCollection<string> RecentComputers { get; } = new();
 
     /// <summary>Picks a computer from the recent list in the rail.</summary>
     public RelayCommand<string> UseComputerCommand { get; }
+
+    /// <summary>Targets this PC: no WinRM, the task is registered from an elevated local PowerShell.</summary>
+    public RelayCommand RunOnThisPcCommand { get; }
 
     public AsyncRelayCommand InstallCommand { get; }
     public AsyncRelayCommand UninstallCommand { get; }
@@ -92,10 +97,11 @@ public sealed class RemoteTestViewModel : ObservableObject
         InstallCommand        = new AsyncRelayCommand(() => RunAsync("Install"), CanRun);
         UninstallCommand      = new AsyncRelayCommand(() => RunAsync("Uninstall"), CanRun);
         DetectCommand         = new AsyncRelayCommand(DiscoverAsync, () => !_isRunning && IsValidTarget);
-        CheckOnlineCommand    = new AsyncRelayCommand(CheckOnlineAsync, () => !_isRunning && IsValidTarget);
+        CheckOnlineCommand    = new AsyncRelayCommand(CheckOnlineAsync, () => !_isRunning && IsValidTarget && !_runOnThisPc);
         ApplyDetectionCommand = new RelayCommand(ApplyDetection, () => !_isRunning && _discoveredRule != null && _isGeneratedPackage);
         ClearLogCommand       = new RelayCommand(() => { Lines.Clear(); lock (_pending) _pending.Clear(); });
         UseComputerCommand = new RelayCommand<string>(c => { if (!string.IsNullOrWhiteSpace(c)) TargetComputer = c; });
+        RunOnThisPcCommand = new RelayCommand(UseThisPc, () => !_isRunning);
 
         // Nothing to follow on the standalone page.
         if (_create == null) return;
@@ -199,11 +205,26 @@ public sealed class RemoteTestViewModel : ObservableObject
         set
         {
             if (!Set(ref _targetComputer, value)) return;
+            // Typing or picking a machine leaves "this PC" mode.
+            _runOnThisPc = false;
+            OnPropertyChanged(nameof(RunOnThisPc));
             InvalidateDetection();
             IsOnline = false;
             StatusText = IsValidTarget ? "not checked" : "enter a computer name";
             RaiseCommandStates();
         }
+    }
+
+    /// <summary>The target is this PC; the computer box holds its name, for display only.</summary>
+    public bool RunOnThisPc => _runOnThisPc;
+
+    private void UseThisPc()
+    {
+        TargetComputer = Environment.MachineName;
+        _runOnThisPc = true;
+        OnPropertyChanged(nameof(RunOnThisPc));
+        StatusText = "this PC";
+        RaiseCommandStates();
     }
 
     public bool IsValidTarget => RemoteTestService.IsValidComputerName(_targetComputer);
@@ -300,6 +321,7 @@ public sealed class RemoteTestViewModel : ObservableObject
         UninstallCommand.RaiseCanExecuteChanged();
         DetectCommand.RaiseCanExecuteChanged();
         CheckOnlineCommand.RaiseCanExecuteChanged();
+        RunOnThisPcCommand.RaiseCanExecuteChanged();
         ApplyDetectionCommand.RaiseCanExecuteChanged();
         OnPropertyChanged(nameof(IsValidTarget));
     }
@@ -329,6 +351,15 @@ public sealed class RemoteTestViewModel : ObservableObject
     {
         if (!CanRun()) return;
 
+        if (_runOnThisPc && deploymentType == "Install" && !_localInstallConfirmed)
+        {
+            if (!AppServices.Dialogs.Confirm(
+                    $"This installs {(_packageLabel.Length > 0 ? _packageLabel : "the package")} on this PC ({Environment.MachineName}), not on a test machine. Continue?",
+                    "Install on this PC", "Install"))
+                return;
+            _localInstallConfirmed = true;
+        }
+
         Lines.Clear();
         lock (_pending) _pending.Clear();
         _discoveredRule = null;
@@ -346,16 +377,17 @@ public sealed class RemoteTestViewModel : ObservableObject
         string commandLine = CommandLine(deploymentType);
         bool runAsUser = _runAsUser;
         bool cleanup = CleanupAfterRun;
+        bool local = _runOnThisPc;
 
         int exitCode = -1;
         try
         {
-            RememberComputer(context.Computer);
+            if (!local) RememberComputer(context.Computer);
             try
             {
                 exitCode = await Task.Run(() => new RemoteTestService().Deploy(
                     context.Computer, packagePath, deploymentType, commandLine, cleanup, runAsUser,
-                    Append, percent => CopyPercent = percent));
+                    Append, percent => CopyPercent = percent, local));
             }
             catch (PSRemotingTransportException ex)
             {
