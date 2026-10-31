@@ -219,7 +219,7 @@
                 <Grid x:Name="CreatePackagePage">
                     <!-- The wizard. Each step scrolls on its own so switching steps
                          doesn't inherit the previous step's scroll position. -->
-                    <controls:PageFrame Title="Create package"
+                    <controls:PageFrame x:Name="CreateFrame" Title="Create package"
                                         Subtitle="Prepare, test and publish a PSADT application to Microsoft Intune"
                                         IsBodyScrollable="False"
                                         Visibility="{Binding IsWizard, Converter={StaticResource BoolToVis}}">
@@ -303,17 +303,11 @@
 
                         <controls:PageFrame.Footer>
                             <StackPanel>
-                                <!-- The running job's status lives here instead of in the page body. -->
+                                <!-- The running job's status lives here instead of in the page body; a publish shows in the rail. -->
                                 <controls:ActivityDock Margin="0,0,0,12" JobName="Generating package" IsIndeterminate="True"
                                                        IsActive="{Binding CreatePackage.IsGenerating}"
                                                        Phase="{Binding CreatePackage.StatusText}"
                                                        CancelCommand="{Binding CreatePackage.CancelCommand}"/>
-                                <controls:ActivityDock Margin="0,0,0,12"
-                                                       IsActive="{Binding Upload.Publish.IsRunning}"
-                                                       JobName="{Binding Upload.Publish.Title}"
-                                                       Phase="{Binding Upload.Publish.StatusText}"
-                                                       Progress="{Binding Upload.Publish.ProgressValue}"
-                                                       CancelCommand="{Binding Upload.Publish.CancelCommand}"/>
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>

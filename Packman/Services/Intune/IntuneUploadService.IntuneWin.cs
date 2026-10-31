@@ -21,6 +21,7 @@ public partial class IntuneUploadService
         }
 
         progress?.UpdateProgress(10, "Signing the deployment script...");
+        log.Info("Signing the deployment script...");
         try
         {
             var scriptPath = await PackageSigningService.SignAsync(packagePath, _signer, ct);
@@ -37,7 +38,7 @@ public partial class IntuneUploadService
     }
 
     /// <summary>Runs IntuneWinAppUtil and returns the .intunewin it produced.</summary>
-    private async Task<string> CreateIntuneWinFileAsync(string packagePath, CancellationToken ct)
+    private async Task<string> CreateIntuneWinFileAsync(string packagePath, UploadLogger log, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(_converterPath) || !File.Exists(_converterPath))
             throw new FileNotFoundException($"IntuneWinAppUtil.exe not found at: '{_converterPath}'. Set the IntuneWinAppUtil path on the Settings page.");
@@ -72,6 +73,7 @@ public partial class IntuneUploadService
         startInfo.ArgumentList.Add("-o"); startInfo.ArgumentList.Add(outputFolder);
         startInfo.ArgumentList.Add("-q");
 
+        log.Info("Running IntuneWinAppUtil...");
         using var process = new Process { StartInfo = startInfo };
         process.Start();
 
@@ -94,6 +96,9 @@ public partial class IntuneUploadService
             try { process.Kill(entireProcessTree: true); } catch { }
             throw;
         }
+
+        foreach (var line in (stdout + Environment.NewLine + stderr).Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            log.Info($"IntuneWinAppUtil: {line}");
 
         if (process.ExitCode != 0)
         {

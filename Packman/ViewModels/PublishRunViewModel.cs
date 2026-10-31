@@ -27,6 +27,11 @@ public sealed class PublishRunViewModel : ObservableObject
 
     public ObservableCollection<PublishStepViewModel> Steps { get; }
 
+    /// <summary>What the upload service reported, line by line, for the console.</summary>
+    public ObservableCollection<PublishLogLine> Log { get; } = [];
+
+    public string LogText => string.Join(Environment.NewLine, Log.Select(line => line.Display));
+
     /// <summary>Stops the run; the service removes the half-built app.</summary>
     public RelayCommand CancelCommand { get; }
 
@@ -123,6 +128,7 @@ public sealed class PublishRunViewModel : ObservableObject
         foreach (var s in Steps) s.State = "pending";
         Steps[0].State = "working";
 
+        Log.Clear();
         Title = title;
         ResultText = "";
         StatusText = "Starting upload…";
@@ -211,13 +217,21 @@ public sealed class PublishRunViewModel : ObservableObject
         private readonly PublishRunViewModel _vm;
         public DispatchedProgress(PublishRunViewModel vm) => _vm = vm;
 
-        public void UpdateProgress(int percentage, string message)
+        public void UpdateProgress(int percentage, string message) => OnUiThread(() => _vm.OnProgress(percentage, message));
+
+        public void Log(UploadLogLevel level, string message)
+        {
+            var line = new PublishLogLine(DateTime.Now, level, message);
+            OnUiThread(() => _vm.Log.Add(line));
+        }
+
+        private static void OnUiThread(Action action)
         {
             var dispatcher = Application.Current?.Dispatcher;
             if (dispatcher == null || dispatcher.CheckAccess())
-                _vm.OnProgress(percentage, message);
+                action();
             else
-                dispatcher.InvokeAsync(() => _vm.OnProgress(percentage, message));
+                dispatcher.InvokeAsync(action);
         }
     }
 }

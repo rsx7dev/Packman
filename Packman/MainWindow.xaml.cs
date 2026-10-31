@@ -33,6 +33,14 @@ public partial class MainWindow : FluentWindow
                 main.IsUploadPageRunning = UploadIntunePage.ViewModel.Publish.IsRunning;
         };
 
+        // The publish progress is in the wizard's rail, which a narrow window folds away.
+        if (DataContext is MainViewModel wizard)
+            wizard.Upload.Publish.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(PublishRunViewModel.IsPublishing) && wizard.Upload.Publish.IsPublishing && CreateFrame.IsCompact)
+                    CreateFrame.IsRailOpen = true;
+            };
+
         AppDetailPage.BackRequested += () => ShowOnly(ApplicationsPage, "Applications");
         AppDetailPage.Deleted += () =>
         {

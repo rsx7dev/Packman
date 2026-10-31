@@ -24,7 +24,7 @@ public partial class IntuneUploadService
         if (!Directory.Exists(packagePath))
             throw new DirectoryNotFoundException($"Package folder not found: {packagePath}");
 
-        using var log = new UploadLogger(string.IsNullOrWhiteSpace(appName) ? appId : appName, "Update");
+        using var log = new UploadLogger(string.IsNullOrWhiteSpace(appName) ? appId : appName, "Update", progress);
         LinkWarning = null;
 
         try

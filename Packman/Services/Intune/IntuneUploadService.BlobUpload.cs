@@ -103,6 +103,7 @@ public partial class IntuneUploadService
             throw new Exception($"Package is too large to upload: it would need {totalChunks:N0} blocks and Azure allows {MaxBlocks:N0}.");
 
         progress?.UpdateProgress(60, $"Uploading package to Azure ({ByteSize.Format(totalSize)})...");
+        log.Info($"Uploading {totalChunks:N0} block(s), {ByteSize.Format(totalSize)} in total");
 
         using var archive = ZipFile.OpenRead(intuneWin.IntuneWinPath);
         var entry = archive.GetEntry(intuneWin.ContentEntryName)
@@ -126,6 +127,7 @@ public partial class IntuneUploadService
 
         // One buffer for the run: a fresh 6 MB array per chunk goes straight to the LOH.
         var buffer = new byte[chunkSize];
+        var reportEvery = Math.Max(1, totalChunks / 20);
 
         for (int chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++)
         {
@@ -147,16 +149,19 @@ public partial class IntuneUploadService
             var band = 60 + (int)((chunkIndex + 1.0) / totalChunks * 22);
             progress?.UpdateProgress(band, $"Uploading chunk {chunkIndex + 1}/{totalChunks} ({percent}%)");
 
-            await PutBlockAsync(GetSasUriAsync, blockId, buffer, read, chunkIndex, totalChunks, ct);
+            await PutBlockAsync(GetSasUriAsync, blockId, buffer, read, chunkIndex, totalChunks, log, ct);
+            if ((chunkIndex + 1) % reportEvery == 0 || chunkIndex + 1 == totalChunks)
+                log.Info($"Uploaded block {chunkIndex + 1:N0}/{totalChunks:N0} ({ByteSize.Format((long)chunkIndex * chunkSize + read)} of {ByteSize.Format(totalSize)})");
         }
 
         progress?.UpdateProgress(83, "Finalizing Azure upload...");
-        await PutBlockListAsync(GetSasUriAsync, blockIds, ct);
+        log.Info("Committing the block list...");
+        await PutBlockListAsync(GetSasUriAsync, blockIds, log, ct);
         progress?.UpdateProgress(84, "Package uploaded to Azure");
     }
 
     private static async Task PutBlockAsync(Func<bool, CancellationToken, Task<string>> getSasUriAsync, string blockId,
-        byte[] buffer, int length, int chunkIndex, int totalChunks, CancellationToken ct)
+        byte[] buffer, int length, int chunkIndex, int totalChunks, UploadLogger log, CancellationToken ct)
     {
         var forceRenewal = false;
         var renewedAfterAuthFailure = false;
@@ -190,7 +195,7 @@ public partial class IntuneUploadService
             catch (OperationCanceledException) { failure = "timed out"; }
             catch (HttpRequestException ex) { failure = $"network error ({ex.HttpRequestError})"; }
 
-            Debug.WriteLine($"Block {chunkIndex + 1}/{totalChunks} attempt {attempt}/{MaxBlockAttempts} failed: {failure}");
+            log.Warning($"Block {chunkIndex + 1}/{totalChunks} attempt {attempt}/{MaxBlockAttempts} failed: {failure}");
 
             // Expired SAS tokens can reject a request after a long attempt. Refresh once
             // for an authentication failure, preserving this block's ID and exact bytes.
@@ -208,7 +213,7 @@ public partial class IntuneUploadService
     }
 
     private static async Task PutBlockListAsync(Func<bool, CancellationToken, Task<string>> getSasUriAsync,
-        List<string> blockIds, CancellationToken ct)
+        List<string> blockIds, UploadLogger log, CancellationToken ct)
     {
         var xml = new StringBuilder("<?xml version=\"1.0\" encoding=\"utf-8\"?><BlockList>");
         foreach (var blockId in blockIds)
@@ -244,7 +249,7 @@ public partial class IntuneUploadService
             catch (OperationCanceledException) { failure = "timed out"; }
             catch (HttpRequestException ex) { failure = $"network error ({ex.HttpRequestError})"; }
 
-            Debug.WriteLine($"Block list commit attempt {attempt}/{MaxBlockAttempts} failed: {failure}");
+            log.Warning($"Block list commit attempt {attempt}/{MaxBlockAttempts} failed: {failure}");
             forceRenewal = (status is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden) && !renewedAfterAuthFailure;
             if (forceRenewal) renewedAfterAuthFailure = true;
             if (!forceRenewal && IsPermanentAzureFailure(status))

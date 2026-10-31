@@ -4,11 +4,6 @@ using System.IO;
 
 namespace Packman.Services;
 
-public interface IUploadProgress
-{
-    void UpdateProgress(int percentage, string message);
-}
-
 /// <summary>Intune reported a terminal upload state. Never retried.</summary>
 public sealed class UploadStateException : Exception
 {
@@ -66,7 +61,7 @@ public partial class IntuneUploadService
         int? maxRunTimeMinutes = null,
         CancellationToken ct = default)
     {
-        using var log = new UploadLogger(appInfo.Name);
+        using var log = new UploadLogger(appInfo.Name, console: progress);
         string? createdAppId = null;
         string? committedAppId = null;
         RollbackSucceeded = null;
@@ -115,6 +110,7 @@ public partial class IntuneUploadService
             WriteLink(packagePath, appId, appInfo.DisplayName, appInfo.Version, intuneWin, log);
             Report(progress, log, 97, "Waiting for Intune to finish publishing...");
             await WaitForApplicationPublishedAsync(appId, ct);
+            log.Success("Intune reports the app as published");
 
             if (!string.IsNullOrEmpty(predecessorAppId))
                 await WriteSupersedenceAsync(appId, predecessorAppId, log, ct);
@@ -182,6 +178,7 @@ public partial class IntuneUploadService
     /// <summary>Links the package folder to the app through Intune\packman.id. A failed write never fails the upload.</summary>
     private void WriteLink(string packagePath, string appId, string displayName, string displayVersion, IntuneWinInfo intuneWin, UploadLogger log)
     {
+        log.Info(@"Writing Intune\packman.id...");
         LinkWarning = PackageMarker.Save(packagePath, new PackageMarker.Link
         {
             AppId = appId,
@@ -193,7 +190,7 @@ public partial class IntuneUploadService
             UnencryptedSize = intuneWin.UnencryptedContentSize,
         });
         if (LinkWarning == null)
-            log.Success($"Linked the package folder to app {appId} ({PackageMarker.PathFor(packagePath)})");
+            log.Success($@"Wrote Intune\packman.id: the package folder is linked to app {appId}");
         else
             log.Warning(LinkWarning);
     }
@@ -219,7 +216,7 @@ public partial class IntuneUploadService
         await SignApplicationFilesAsync(packagePath, progress, log, ct);
 
         Report(progress, log, 20, "Packaging application files...");
-        var intuneWinFile = await CreateIntuneWinFileAsync(packagePath, ct);
+        var intuneWinFile = await CreateIntuneWinFileAsync(packagePath, log, ct);
         log.Success($"Package created: {Path.GetFileName(intuneWinFile)}");
 
         Report(progress, log, 30, "Reading package metadata...");
@@ -249,7 +246,7 @@ public partial class IntuneUploadService
         var sasUri = storage.GetSafeString("azureStorageUri");
         if (string.IsNullOrEmpty(sasUri))
             throw new UploadStateException("the Azure Storage URI", "azureStorageUriRequestSuccess without a URI");
-        log.Success("Azure Storage URI obtained");
+        log.Success($"Azure Storage upload URL obtained: {new Uri(sasUri).GetLeftPart(UriPartial.Path)}");
 
         await UploadToAzureStorageAsync(sasUri, fileUrl, intuneWin, progress, log, ct);
         log.Success("Package uploaded to Azure Storage successfully");
@@ -296,6 +293,7 @@ public partial class IntuneUploadService
 
     private async Task WriteSupersedenceAsync(string newAppId, string predecessorAppId, UploadLogger log, CancellationToken ct)
     {
+        log.Info($"Writing supersedence: this app replaces {predecessorAppId}");
         var payload = new
         {
             relationships = new object[]

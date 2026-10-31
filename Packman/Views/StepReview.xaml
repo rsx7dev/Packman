@@ -15,13 +15,14 @@
     </UserControl.Resources>
 
     <!-- Step 3 of the wizard: everything that will be sent, with routes back to change it.
-         The rail beside it (WizardRail) shows publish readiness and the tenant. -->
+         The rail beside it (WizardRail) shows publish readiness and the tenant, then the publish
+         progress and console while it runs. The review stays on screen, read-only. -->
     <StackPanel MaxWidth="860" HorizontalAlignment="Left">
-        <Border Style="{StaticResource SectionPanel}"
-                Visibility="{Binding Upload.Publish.IsNotPublishing, Converter={StaticResource BoolToVis}}">
+        <Border Style="{StaticResource SectionPanel}">
             <StackPanel>
                 <DockPanel>
-                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top">
+                    <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Top"
+                                IsEnabled="{Binding Upload.Publish.IsNotPublishing}">
                         <Button Style="{StaticResource LinkButton}" Command="{Binding GoToStepCommand}" CommandParameter="0">
                             <StackPanel Orientation="Horizontal">
                                 <controls:LineIcon Data="{DynamicResource IconPencil}" Width="14" Height="14"/>
@@ -165,14 +166,14 @@
                     </ItemsControl>
                 </Expander>
 
-                <!-- Why the last publish attempt stopped, if it did. -->
-                <Border Style="{StaticResource CalloutWarn}" Margin="0,18,0,0"
-                        Visibility="{Binding Upload.StatusText, Converter={StaticResource NonEmptyToVis}}">
-                    <TextBlock Text="{Binding Upload.StatusText}" TextWrapping="Wrap" FontSize="13" AutomationProperties.LiveSetting="Polite"/>
-                </Border>
+                <!-- Why the last publish attempt stopped, if it did. While one runs, the rail carries its status. -->
+                <StackPanel Visibility="{Binding Upload.Publish.IsNotPublishing, Converter={StaticResource BoolToVis}}">
+                    <Border Style="{StaticResource CalloutWarn}" Margin="0,18,0,0"
+                            Visibility="{Binding Upload.StatusText, Converter={StaticResource NonEmptyToVis}}">
+                        <TextBlock Text="{Binding Upload.StatusText}" TextWrapping="Wrap" FontSize="13" AutomationProperties.LiveSetting="Polite"/>
+                    </Border>
+                </StackPanel>
             </StackPanel>
         </Border>
-
-        <controls:PublishStatusControl DataContext="{Binding Upload.Publish}" Visibility="{Binding IsPublishing, Converter={StaticResource BoolToVis}}"/>
     </StackPanel>
 </UserControl>
