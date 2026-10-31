@@ -6,8 +6,9 @@
          DataContext is a PublishRunViewModel; the review stays in the main column. -->
     <StackPanel>
         <TextBlock Text="{Binding Title}" Style="{StaticResource RailTitle}"/>
+        <!-- Once the run ends, the result below says it. -->
         <TextBlock Text="{Binding StatusText}" Style="{StaticResource SubText}" FontSize="12.5" TextWrapping="Wrap" Margin="0,6,0,0"
-                   AutomationProperties.LiveSetting="Polite"/>
+                   AutomationProperties.LiveSetting="Polite" Visibility="{Binding IsRunning, Converter={StaticResource BoolToVis}}"/>
         <ProgressBar Height="6" Margin="0,12,0,0" Minimum="0" Maximum="100" Value="{Binding ProgressValue, Mode=OneWay}"
                      AutomationProperties.Name="Publish progress"/>
         <controls:PublishStepList Margin="0,8,0,0"/>
