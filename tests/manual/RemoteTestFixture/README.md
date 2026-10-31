@@ -9,10 +9,13 @@ launch fails immediately without changing the PC.
 Build and run on the Windows node, in an existing elevated administrator or SYSTEM context:
 
 ```powershell
-dotnet build tests/manual/RemoteTestFixture/RemoteTestFixture.csproj -c Release
-& tests/manual/RemoteTestFixture/bin/Release/net10.0-windows/RemoteTestFixture.exe
+dotnet test tests/manual/RemoteTestFixture/RemoteTestFixture.csproj -c Release
 if ($LASTEXITCODE -ne 0) { throw "Local verification failed: $LASTEXITCODE" }
 ```
+
+`dotnet test` builds and executes this console fixture through an explicit MSBuild
+target. A failed prerequisite or assertion returns a failing test command; it is
+never reported as skipped. Normal builds do not execute the integration check.
 
 The fixture checks that its paths and `Packman_RemoteTest` task are absent before
 starting. It snapshots WinRM, stops and disables it, and creates staging with

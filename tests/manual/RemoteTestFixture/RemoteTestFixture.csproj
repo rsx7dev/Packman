@@ -10,4 +10,7 @@
     <ProjectReference Include="../../../Packman/Packman.csproj" />
     <EmbeddedResource Include="Invoke-AppDeployToolkit.ps1" />
   </ItemGroup>
+  <Target Name="RunLocalVerification" AfterTargets="VSTest" DependsOnTargets="Build">
+    <Exec Command="dotnet &quot;$(TargetPath)&quot;" />
+  </Target>
 </Project>
