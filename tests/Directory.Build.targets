@@ -25,4 +25,11 @@
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/TextFileIO.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/PsadtLayout.cs" />
   </ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'SettingsTemplateTests.cs'">
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Services/SettingsService.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Models/AppSettings.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Models/RequirementInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Models/ReturnCodeInfo.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/TextFileIO.cs" />
+  </ItemGroup>
 </Project>

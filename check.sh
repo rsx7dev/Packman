@@ -22,4 +22,7 @@ dotnet run --file tests/PackageLinkTests.cs --no-build -c Release
 dotnet restore tests/InstallerInsightTests.cs
 dotnet build tests/InstallerInsightTests.cs --no-restore -c Release
 dotnet run --file tests/InstallerInsightTests.cs --no-build -c Release
+dotnet restore tests/SettingsTemplateTests.cs
+dotnet build tests/SettingsTemplateTests.cs --no-restore -c Release
+dotnet run --file tests/SettingsTemplateTests.cs --no-build -c Release
 if [ "$check_target" = tests/DeviceStatusTests.cs ]; then dotnet run --file tests/PackageLinkWpfTests.cs -c Release; fi
