@@ -465,7 +465,7 @@
         p.description ? ' ' + p.description : ''))));
     }
     const docs = element('a', { href: fn.docs_url, textContent: 'Docs', target: '_blank', rel: 'noopener' });
-    const insert = element('button', { type: 'button', textContent: 'Insert' });
+    const insert = element('button', { type: 'button', textContent: 'Insert', disabled: availability(fn) !== 'available' });
     insert.addEventListener('click', () => insertFunction(fn));
     ui.detail.append(element('p', {}, insert, docs));
   }
@@ -486,8 +486,9 @@
   }
 
   function insertFunction(fn) {
+    if (!fn || availability(fn) !== 'available') return;
     closePicker();
-    if (!fn || editor.getOption(monaco.editor.EditorOption.readOnly)) return;
+    if ( editor.getOption(monaco.editor.EditorOption.readOnly)) return;
     const snippet = editor.getContribution('snippetController2');
     if (snippet) snippet.insert(snippetFor(fn));
     else editor.executeEdits('packman.psadt', [{ range: editor.getSelection(), text: plainText(snippetFor(fn)), forceMoveMarkers: true }]);

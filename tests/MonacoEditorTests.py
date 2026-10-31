@@ -442,6 +442,19 @@ def check_picker_search_keyboard_and_insert(browser, base):
         ed.check_no_page_errors()
 
 
+def check_picker_refuses_unavailable_function(browser, base):
+    for version, name in (("4.1.7", "Add-ADTFont"), ("4.2.0", "Get-ADTEnvironment")):
+        with editor(browser, base, version=version) as ed:
+            ed.open_picker()
+            ed.page.fill("#psadt-search", name)
+            ed.picker_row(name).click()
+            assert ed.page.is_disabled("#psadt-detail button"), f"Insert enabled for {name} on {version}"
+            ed.page.keyboard.press("Enter")
+            assert ed.text() == "", f"{name} inserted on {version}: {ed.text()!r}"
+            assert ed.page.is_visible("#psadt-picker"), "picker closed without inserting"
+            ed.check_no_page_errors()
+
+
 def check_picker_escape_returns_focus(browser, base):
     with editor(browser, base) as ed:
         ed.page.evaluate("() => __ed().focus()")
@@ -537,6 +550,7 @@ CHECKS = [
     ("Picker and hover badges: 4.2 only and removed in 4.2", check_version_badges),
     ("Picker groups by verb and lists every function", check_picker_groups_and_rows),
     ("Picker search, arrow keys, Enter inserts at the cursor", check_picker_search_keyboard_and_insert),
+    ("Picker refuses to insert functions not in the package's PSADT version", check_picker_refuses_unavailable_function),
     ("Picker Escape returns focus to the editor without inserting", check_picker_escape_returns_focus),
     ("Picker empty search shows a message and stays usable", check_picker_empty_state),
     ("pickFunction message opens the picker", check_picker_opens_from_message),
