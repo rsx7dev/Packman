@@ -22,7 +22,8 @@ internal static class SettingsTemplateTests
     [
         ("A saved bundled template path is empty after load", LoadClearsBundled),
         ("A path inside the bundled folder, or with a trailing separator, is cleared", LoadClearsInsideBundled),
-        ("A stale bundled path outside the executable's folder is cleared on load, save and reopen", StaleCheckoutPathCleared),
+        ("A stale bundled path outside the executable's folder is cleared on load, save and reopen", () => StaleCheckoutPathCleared(StaleCheckoutTemplate)),
+        ("A forward-slash stale bundled path is cleared on load, save and reopen", () => StaleCheckoutPathCleared(StaleCheckoutTemplate.Replace('\\', '/'))),
         ("Saving a bundled template path writes it empty and a reopen reads it empty", SaveAndReopenStayEmpty),
         ("Another template path, even one named PSADT, survives load, save and reopen", OtherPathKept),
         ("An empty template path stays empty", EmptyStaysEmpty),
@@ -66,14 +67,16 @@ internal static class SettingsTemplateTests
         }
     }
 
-    private static void StaleCheckoutPathCleared()
+    private static void StaleCheckoutPathCleared(string template)
     {
-        using var file = new SettingsFile(StaleCheckoutTemplate);
+        using var file = new SettingsFile(template);
         var service = file.Open();
         Equal("", service.Settings.NetworkPaths.PSADTTemplate);
 
-        service.Settings.NetworkPaths.PSADTTemplate = StaleCheckoutTemplate;
+        service.Settings.NetworkPaths.PSADTTemplate = template;
         service.Save();
+        using var saved = System.Text.Json.JsonDocument.Parse(File.ReadAllText(file.Path));
+        Equal("", saved.RootElement.GetProperty("NetworkPaths").GetProperty("PSADTTemplate").GetString()!);
         Equal("", file.Open().Settings.NetworkPaths.PSADTTemplate);
     }
 
