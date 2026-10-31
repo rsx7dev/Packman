@@ -22,4 +22,17 @@ dotnet run --file tests/PackageLinkTests.cs --no-build -c Release
 dotnet restore tests/InstallerInsightTests.cs
 dotnet build tests/InstallerInsightTests.cs --no-restore -c Release
 dotnet run --file tests/InstallerInsightTests.cs --no-build -c Release
+dotnet restore tests/ScriptEditorTests.cs
+dotnet build tests/ScriptEditorTests.cs --no-restore -c Release
+dotnet run --file tests/ScriptEditorTests.cs --no-build -c Release
+if command -v python3 >/dev/null; then
+    python3 tests/PsadtCatalogTests.py
+    if python3 -c "import playwright" 2>/dev/null; then
+        python3 tests/MonacoEditorTests.py
+    else
+        echo "check.sh: skipping tests/MonacoEditorTests.py (install with: pip install playwright && playwright install chromium)"
+    fi
+else
+    echo "check.sh: skipping PSADT catalog and Monaco tests (python3 not found)"
+fi
 if [ "$check_target" = tests/DeviceStatusTests.cs ]; then dotnet run --file tests/PackageLinkWpfTests.cs -c Release; fi
