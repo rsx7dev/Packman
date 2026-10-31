@@ -51,6 +51,14 @@ switch ($step) {
         }
     } }
  }
+ 'seed' {
+    $pkg = (Get-ChildItem "$work\share" -Directory | Select-Object -First 1 | ForEach-Object { Get-ChildItem $_.FullName -Directory } | Select-Object -First 1).FullName
+    Set-Content "$pkg\Docs\note.txt" 'carry me forward'
+    Set-Content "$pkg\Icon\keep.png" 'not really a png'
+    $tool = (Get-Content $settings -Raw | ConvertFrom-Json).NetworkPaths.IntuneWinAppUtil
+    & $tool -c "$pkg\Application" -s Invoke-AppDeployToolkit.exe -o "$pkg\Intune" -q | Out-Null
+    "seeded; build exit code $LASTEXITCODE"
+ }
  'intunewin' {
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     Get-ChildItem "$work\share" -Recurse -Filter *.intunewin | ForEach-Object {
