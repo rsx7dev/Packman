@@ -609,7 +609,7 @@ public sealed class ApplicationDetailViewModel : ObservableObject
     }
 
     private static string? FindScript(string packagePath) =>
-        FolderBrowserHelper.GetPSADTScriptPath(Path.Combine(packagePath, "Application"))
+        FolderBrowserHelper.GetPSADTScriptPath(PsadtLayout.ApplicationFolder(packagePath))
         ?? FolderBrowserHelper.GetPSADTScriptPath(packagePath);
 
     private static List<SourceCheck> BuildChecks(string packagePath, long intuneSize, string intuneSizeText)
@@ -621,7 +621,7 @@ public sealed class ApplicationDetailViewModel : ObservableObject
             ? new SourceCheck(Path.GetFileName(script), "deployment script present", ok: true)
             : new SourceCheck("Invoke-AppDeployToolkit.ps1", "deployment script not found", ok: false));
 
-        var intuneDir = Path.Combine(packagePath, "Intune");
+        var intuneDir = PsadtLayout.IntuneFolder(packagePath);
         var intunewin = Directory.Exists(intuneDir) ? Directory.GetFiles(intuneDir, "*.intunewin").FirstOrDefault() : null;
         if (intunewin == null)
         {
@@ -641,10 +641,14 @@ public sealed class ApplicationDetailViewModel : ObservableObject
             ? new SourceCheck("detection.xml", "detection definition present", ok: true)
             : new SourceCheck("detection.xml", "not found", ok: false));
 
-        var iconDir = Path.Combine(packagePath, "Icon");
-        var hasIcon = Directory.Exists(iconDir) && Directory.EnumerateFiles(iconDir).Any();
-        checks.Add(new SourceCheck(hasIcon ? @"Icon\" + Path.GetFileName(Directory.EnumerateFiles(iconDir).First()) : @"Icon\",
-            hasIcon ? "icon present" : "no icon file", ok: hasIcon));
+        // Packages made with the Icon folder off have none, which is not a defect.
+        var iconDir = PsadtLayout.IconFolder(packagePath);
+        if (Directory.Exists(iconDir))
+        {
+            var hasIcon = Directory.EnumerateFiles(iconDir).Any();
+            checks.Add(new SourceCheck(hasIcon ? @"Icon\" + Path.GetFileName(Directory.EnumerateFiles(iconDir).First()) : @"Icon\",
+                hasIcon ? "icon present" : "no icon file", ok: hasIcon));
+        }
 
         return checks;
     }

@@ -2,6 +2,8 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:local="clr-namespace:Packman"
                     xmlns:controls="clr-namespace:Packman.Views.Controls"
+                    xmlns:vm="clr-namespace:Packman.ViewModels"
+                    xmlns:helpers="clr-namespace:Packman.Helpers"
                     xmlns:sys="clr-namespace:System;assembly=System.Runtime">
 
     <!-- ═══════════════ Type ═══════════════ -->
@@ -1346,5 +1348,162 @@
             </Setter.Value>
         </Setter>
     </Style>
+
+
+    <!-- ═══════════════ Stepper and method cards ═══════════════ -->
+    <!-- Numbered discs joined by a rule that fills as steps complete: Create package and setup. -->
+    <DataTemplate x:Key="StepperItem" DataType="{x:Type vm:StepViewModel}">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <!-- CommandParameter comes first so the first CanExecute sees the step index. -->
+            <Button FocusVisualStyle="{StaticResource FocusVisual}" Cursor="Hand"
+                    AutomationProperties.Name="{Binding Title}"
+                    AutomationProperties.HelpText="{Binding LockReason}"
+                    ToolTip="{Binding LockReason}" ToolTipService.ShowOnDisabled="True"
+                    CommandParameter="{Binding Index}"
+                    Command="{Binding DataContext.GoToStepCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bd" Background="Transparent">
+                            <ContentPresenter/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="bd" Property="Opacity" Value="0.55"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
+                <StackPanel Orientation="Horizontal">
+                    <Grid Width="30" Height="30">
+                        <Ellipse x:Name="disc" Fill="{DynamicResource ControlBrush}"
+                                 Stroke="{DynamicResource ControlStrokeBrush}" StrokeThickness="1"/>
+                        <TextBlock x:Name="num" Text="{Binding Number}" FontSize="13" FontWeight="SemiBold"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"
+                                   Foreground="{DynamicResource Muted2Brush}"/>
+                        <Path x:Name="tick" Data="M9.5 15.2l3.6 3.6 7.4-7.6" StrokeThickness="2"
+                              Stroke="{DynamicResource PrimaryFgBrush}" Visibility="Collapsed"
+                              StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
+                    </Grid>
+                    <TextBlock x:Name="title" Text="{Binding Title}" Margin="12,0,0,0" FontSize="14"
+                               VerticalAlignment="Center" Foreground="{DynamicResource Muted2Brush}"/>
+                </StackPanel>
+            </Button>
+            <Border x:Name="line" Grid.Column="1" Height="2" CornerRadius="1" Margin="18,0"
+                    VerticalAlignment="Center" Background="{DynamicResource EdgeBrush}"/>
+        </Grid>
+        <DataTemplate.Triggers>
+            <DataTrigger Binding="{Binding IsDone}" Value="True">
+                <Setter TargetName="disc" Property="Fill" Value="{DynamicResource PrimaryBrush}"/>
+                <Setter TargetName="disc" Property="Stroke" Value="{DynamicResource PrimaryBrush}"/>
+                <Setter TargetName="num" Property="Visibility" Value="Collapsed"/>
+                <Setter TargetName="tick" Property="Visibility" Value="Visible"/>
+                <Setter TargetName="line" Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+                <Setter TargetName="title" Property="Foreground" Value="{DynamicResource Text2Brush}"/>
+            </DataTrigger>
+            <DataTrigger Binding="{Binding IsCurrent}" Value="True">
+                <Setter TargetName="disc" Property="Fill" Value="{DynamicResource PrimaryBrush}"/>
+                <Setter TargetName="disc" Property="Stroke" Value="{DynamicResource PrimaryBrush}"/>
+                <Setter TargetName="num" Property="Foreground" Value="{DynamicResource PrimaryFgBrush}"/>
+                <Setter TargetName="title" Property="Foreground" Value="{DynamicResource InkBrush}"/>
+                <Setter TargetName="title" Property="FontWeight" Value="SemiBold"/>
+            </DataTrigger>
+            <!-- The last step has nothing to join. -->
+            <DataTrigger Binding="{Binding IsLast}" Value="True">
+                <Setter TargetName="line" Property="Visibility" Value="Collapsed"/>
+            </DataTrigger>
+        </DataTemplate.Triggers>
+    </DataTemplate>
+
+    <!-- Connection method: a radio button drawn as a selectable card. -->
+    <Style x:Key="MethodCard" TargetType="{x:Type RadioButton}">
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusVisual}"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type RadioButton}">
+                    <Border x:Name="bd" Background="{DynamicResource ControlBrush}" BorderBrush="{DynamicResource EdgeBrush}"
+                            BorderThickness="1" CornerRadius="8" Padding="16,14">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid Width="18" Height="18" VerticalAlignment="Top" Margin="0,1,14,0">
+                                <Ellipse x:Name="ring" Stroke="{DynamicResource Muted2Brush}" StrokeThickness="1.5" Fill="Transparent"/>
+                                <Ellipse x:Name="dot" Width="8" Height="8" Fill="{DynamicResource PrimaryBrush}" Visibility="Collapsed"/>
+                            </Grid>
+                            <ContentPresenter Grid.Column="1" VerticalAlignment="Top"/>
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource Edge2Brush}"/>
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentTextBrush}"/>
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource PrimaryFaintBrush}"/>
+                            <Setter TargetName="ring" Property="Stroke" Value="{DynamicResource PrimaryBrush}"/>
+                            <Setter TargetName="dot" Property="Visibility" Value="Visible"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+
+    <!-- A check result as a callout: icon plus text, never colour alone. Kind is ok, warn, bad or neutral. -->
+    <DataTemplate x:Key="SetupCheckCallout" DataType="{x:Type helpers:SetupCheck}">
+        <Border Padding="14,10">
+            <Border.Style>
+                <Style TargetType="Border" BasedOn="{StaticResource CalloutNeutral}">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding Kind}" Value="ok">
+                            <Setter Property="Background" Value="{DynamicResource OkSoftBrush}"/>
+                            <Setter Property="BorderBrush" Value="{DynamicResource OkLineBrush}"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Kind}" Value="warn">
+                            <Setter Property="Background" Value="{DynamicResource WarnSoftBrush}"/>
+                            <Setter Property="BorderBrush" Value="{DynamicResource WarnLineBrush}"/>
+                        </DataTrigger>
+                        <DataTrigger Binding="{Binding Kind}" Value="bad">
+                            <Setter Property="Background" Value="{DynamicResource BadSoftBrush}"/>
+                            <Setter Property="BorderBrush" Value="{DynamicResource BadLineBrush}"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <DockPanel>
+                <controls:LineIcon DockPanel.Dock="Left" Width="16" Height="16" VerticalAlignment="Top" Margin="0,1,10,0">
+                    <controls:LineIcon.Style>
+                        <Style TargetType="controls:LineIcon" BasedOn="{StaticResource {x:Type controls:LineIcon}}">
+                            <Setter Property="Data" Value="{DynamicResource IconInfo}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource Muted2Brush}"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Kind}" Value="ok">
+                                    <Setter Property="Data" Value="{DynamicResource IconCheck}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource OkBrush}"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Kind}" Value="warn">
+                                    <Setter Property="Data" Value="{DynamicResource IconAlert}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource WarnBrush}"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Kind}" Value="bad">
+                                    <Setter Property="Data" Value="{DynamicResource IconAlert}"/>
+                                    <Setter Property="Foreground" Value="{DynamicResource BadBrush}"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </controls:LineIcon.Style>
+                </controls:LineIcon>
+                <TextBlock Text="{Binding Message}" FontSize="13" Foreground="{DynamicResource TextBrush}" TextWrapping="Wrap"
+                           AutomationProperties.LiveSetting="Polite"/>
+            </DockPanel>
+        </Border>
+    </DataTemplate>
 
 </ResourceDictionary>

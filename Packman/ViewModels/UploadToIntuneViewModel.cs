@@ -166,7 +166,7 @@ public sealed class UploadToIntuneViewModel : ObservableObject
             _architecture = script.AppArch;
             PackageMeta = string.Join(" · ", new[] { Version, _architecture, InstallContext }.Where(v => !string.IsNullOrWhiteSpace(v)));
 
-            var iconDir = Path.Combine(root, "Icon");
+            var iconDir = PsadtLayout.IconFolder(root);
             PackageIconPath = Directory.Exists(iconDir) ? Directory.EnumerateFiles(iconDir).FirstOrDefault() ?? "" : "";
 
             // A different package starts from the saved defaults, as the wizard does.
@@ -219,7 +219,7 @@ public sealed class UploadToIntuneViewModel : ObservableObject
         _msiProductCode = "";
         try
         {
-            var filesFolder = Path.Combine(root, "Application", "Files");
+            var filesFolder = PsadtLayout.FilesFolder(root);
             var msiFile = Directory.Exists(filesFolder)
                 ? Directory.GetFiles(filesFolder, "*.msi", SearchOption.TopDirectoryOnly).FirstOrDefault()
                 : null;

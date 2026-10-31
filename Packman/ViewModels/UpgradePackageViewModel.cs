@@ -83,7 +83,7 @@ public class UpgradePackageViewModel : ObservableObject
         ExistingPackagePath = packagePath;
         HasLoadedPackage = false;
 
-        var applicationFolder = Path.Combine(packagePath, "Application");
+        var applicationFolder = PsadtLayout.ApplicationFolder(packagePath);
         var scriptPath = FolderBrowserHelper.GetPSADTScriptPath(applicationFolder)
             ?? FolderBrowserHelper.GetPSADTScriptPath(packagePath);
 
@@ -179,7 +179,7 @@ public class UpgradePackageViewModel : ObservableObject
 
         try
         {
-            var service = new PackageUpgradeService(outputPath);
+            var service = new PackageUpgradeService(outputPath, settings.PackageLayout);
             var result = await service.UpgradePackageAsync(ExistingPackagePath, NewVersion.Trim(), NewSourcePath.Trim());
 
             StatusText = result.Warnings.Count == 0

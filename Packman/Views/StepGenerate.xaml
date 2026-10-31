@@ -212,18 +212,21 @@
                         <Button Grid.Column="2" Style="{StaticResource LinkButton}" Content="Change in Settings" Margin="12,0,0,0"
                                 Click="OpenSettings_Click"/>
                     </Grid>
-                    <WrapPanel Margin="0,12,0,0">
-                        <Border Style="{StaticResource Chip}">
-                            <StackPanel Orientation="Horizontal"><controls:LineIcon Data="{DynamicResource IconFolder}" Width="13" Height="13"/><TextBlock Text="Application\" Margin="6,0,0,0"/></StackPanel>
-                        </Border>
-                        <Border Style="{StaticResource Chip}">
-                            <StackPanel Orientation="Horizontal"><controls:LineIcon Data="{DynamicResource IconFolder}" Width="13" Height="13"/><TextBlock Text="Intune\" Margin="6,0,0,0"/></StackPanel>
-                        </Border>
-                        <Border Style="{StaticResource Chip}">
-                            <StackPanel Orientation="Horizontal"><controls:LineIcon Data="{DynamicResource IconFolder}" Width="13" Height="13"/><TextBlock Text="Icon\" Margin="6,0,0,0"/></StackPanel>
-                        </Border>
-                        <TextBlock Text="are created inside the package folder." Style="{StaticResource SubText}" FontSize="12.5" VerticalAlignment="Center"/>
-                    </WrapPanel>
+                    <ItemsControl ItemsSource="{Binding PackageFolders}" Margin="0,12,0,0" Focusable="False">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource Chip}">
+                                    <StackPanel Orientation="Horizontal"><controls:LineIcon Data="{DynamicResource IconFolder}" Width="13" Height="13"/><TextBlock Text="{Binding}" Margin="6,0,0,0"/></StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="are created inside each new package folder, as set in Settings &gt; Package layout." Style="{StaticResource SubText}" FontSize="12.5" Margin="0,4,0,0" TextWrapping="Wrap"/>
                 </StackPanel>
 
                 <!-- ═══ UPGRADE EXISTING ═══ -->

@@ -225,79 +225,12 @@
                                         Visibility="{Binding IsWizard, Converter={StaticResource BoolToVis}}">
                         <controls:PageFrame.HeaderBottom>
                             <!-- Stepper: numbered discs joined by a rule that fills as steps complete. -->
-                            <ItemsControl ItemsSource="{Binding Steps}" Margin="0,14" Focusable="False">
+                            <ItemsControl ItemsSource="{Binding Steps}" ItemTemplate="{StaticResource StepperItem}" Margin="0,14" Focusable="False">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <UniformGrid Rows="1"/>
                                     </ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate DataType="{x:Type vm:StepViewModel}">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <!-- CommandParameter comes first so the first CanExecute sees the step index. -->
-                                            <Button FocusVisualStyle="{StaticResource FocusVisual}" Cursor="Hand"
-                                                    AutomationProperties.Name="{Binding Title}"
-                                                    AutomationProperties.HelpText="{Binding LockReason}"
-                                                    ToolTip="{Binding LockReason}" ToolTipService.ShowOnDisabled="True"
-                                                    CommandParameter="{Binding Index}"
-                                                    Command="{Binding DataContext.GoToStepCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}">
-                                                <Button.Template>
-                                                    <ControlTemplate TargetType="Button">
-                                                        <Border x:Name="bd" Background="Transparent">
-                                                            <ContentPresenter/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsEnabled" Value="False">
-                                                                <Setter TargetName="bd" Property="Opacity" Value="0.55"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Button.Template>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <Grid Width="30" Height="30">
-                                                        <Ellipse x:Name="disc" Fill="{DynamicResource ControlBrush}"
-                                                                 Stroke="{DynamicResource ControlStrokeBrush}" StrokeThickness="1"/>
-                                                        <TextBlock x:Name="num" Text="{Binding Number}" FontSize="13" FontWeight="SemiBold"
-                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                   Foreground="{DynamicResource Muted2Brush}"/>
-                                                        <Path x:Name="tick" Data="M9.5 15.2l3.6 3.6 7.4-7.6" StrokeThickness="2"
-                                                              Stroke="{DynamicResource PrimaryFgBrush}" Visibility="Collapsed"
-                                                              StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
-                                                    </Grid>
-                                                    <TextBlock x:Name="title" Text="{Binding Title}" Margin="12,0,0,0" FontSize="14"
-                                                               VerticalAlignment="Center" Foreground="{DynamicResource Muted2Brush}"/>
-                                                </StackPanel>
-                                            </Button>
-                                            <Border x:Name="line" Grid.Column="1" Height="2" CornerRadius="1" Margin="18,0"
-                                                    VerticalAlignment="Center" Background="{DynamicResource EdgeBrush}"/>
-                                        </Grid>
-                                        <DataTemplate.Triggers>
-                                            <DataTrigger Binding="{Binding IsDone}" Value="True">
-                                                <Setter TargetName="disc" Property="Fill" Value="{DynamicResource PrimaryBrush}"/>
-                                                <Setter TargetName="disc" Property="Stroke" Value="{DynamicResource PrimaryBrush}"/>
-                                                <Setter TargetName="num" Property="Visibility" Value="Collapsed"/>
-                                                <Setter TargetName="tick" Property="Visibility" Value="Visible"/>
-                                                <Setter TargetName="line" Property="Background" Value="{DynamicResource PrimaryBrush}"/>
-                                                <Setter TargetName="title" Property="Foreground" Value="{DynamicResource Text2Brush}"/>
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding IsCurrent}" Value="True">
-                                                <Setter TargetName="disc" Property="Fill" Value="{DynamicResource PrimaryBrush}"/>
-                                                <Setter TargetName="disc" Property="Stroke" Value="{DynamicResource PrimaryBrush}"/>
-                                                <Setter TargetName="num" Property="Foreground" Value="{DynamicResource PrimaryFgBrush}"/>
-                                                <Setter TargetName="title" Property="Foreground" Value="{DynamicResource InkBrush}"/>
-                                                <Setter TargetName="title" Property="FontWeight" Value="SemiBold"/>
-                                            </DataTrigger>
-                                            <!-- The last step has nothing to join. -->
-                                            <DataTrigger Binding="{Binding IsLast}" Value="True">
-                                                <Setter TargetName="line" Property="Visibility" Value="Collapsed"/>
-                                            </DataTrigger>
-                                        </DataTemplate.Triggers>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </controls:PageFrame.HeaderBottom>
 

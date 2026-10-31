@@ -461,7 +461,7 @@ public class UploadStepViewModel : ObservableObject
 
         try
         {
-            var filesFolder = Path.Combine(_create.CurrentPackagePath, "Application", "Files");
+            var filesFolder = PsadtLayout.FilesFolder(_create.CurrentPackagePath);
             if (!Directory.Exists(filesFolder)) return "";
             var msi = Directory.GetFiles(filesFolder, "*.msi", SearchOption.TopDirectoryOnly).FirstOrDefault();
             return msi == null ? "" : MsiInfoService.ExtractMsiInfo(msi).ProductCode;
@@ -471,7 +471,7 @@ public class UploadStepViewModel : ObservableObject
 
     private static long GetSourceSizeBytes(string packagePath)
     {
-        try { return DirectoryCopy.TotalSize(Path.Combine(packagePath, "Application", "Files")); }
+        try { return DirectoryCopy.TotalSize(PsadtLayout.FilesFolder(packagePath)); }
         catch { return 0; }
     }
 
