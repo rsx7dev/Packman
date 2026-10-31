@@ -253,9 +253,19 @@ public sealed class OnboardingViewModel : ObservableObject
             else
                 await SignIn(AuthMode.Interactive, cfg, WindowHandle);
 
+            // The test verifies publishing, so it asks for the scopes a publish would.
             var groups = _svc.Settings.GroupAssignment;
-            var result = await AppServices.Apps.TestConnectionAsync(
-                groups.CreateGroupPerPackage || groups.CreateUninstallGroupPerPackage, _cts.Token);
+            var createsGroups = groups.CreateGroupPerPackage || groups.CreateUninstallGroupPerPackage;
+            string[] scopes = createsGroups
+                ? [.. IntuneAuthService.PublishScopes, .. IntuneAuthService.GroupCreateScopes]
+                : IntuneAuthService.PublishScopes;
+            if (!await _auth.EnsureScopesAsync(scopes, WindowHandle))
+            {
+                SetConnection("warn", IntuneAuthService.ConsentDeclinedMessage(scopes));
+                return;
+            }
+
+            var result = await AppServices.Apps.TestConnectionAsync(createsGroups, _cts.Token);
             foreach (var c in result.Checks)
                 ConnectionChecks.Add(new ConnectionCheckRow { Name = c.Name, Ok = c.Ok, Detail = c.Detail });
             ConnectionOk = result.Success;

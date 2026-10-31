@@ -462,6 +462,11 @@ public sealed class UploadToIntuneViewModel : ObservableObject
                 return;
             }
         }
+        if (!await _auth.EnsureScopesAsync(IntuneAuthService.PublishScopes, IntuneAuthService.MainWindowHandle()))
+        {
+            ValidationError = IntuneAuthService.ConsentDeclinedMessage(IntuneAuthService.PublishScopes);
+            return;
+        }
         var appInfo = new ApplicationInfo
         {
             Name = AppName.Trim(),

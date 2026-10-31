@@ -113,7 +113,7 @@ public sealed class SettingsViewModel : ObservableObject
     public bool IsInteractive
     {
         get => _isInteractive;
-        set { if (Set(ref _isInteractive, value)) OnPropertyChanged(nameof(IsAppRegistration)); }
+        set { if (Set(ref _isInteractive, value)) RaiseAll(nameof(IsAppRegistration), nameof(UsesSharedClient)); }
     }
     public bool IsAppRegistration { get => !_isInteractive; set => IsInteractive = !value; }
 
@@ -147,7 +147,10 @@ public sealed class SettingsViewModel : ObservableObject
         : string.IsNullOrWhiteSpace(TenantId) ? "Not set" : TenantId.Trim();
 
     private string _clientId = "";
-    public string ClientId { get => _clientId; set => Set(ref _clientId, value); }
+    public string ClientId { get => _clientId; set => Set(ref _clientId, value, [nameof(UsesSharedClient)]); }
+
+    /// <summary>Interactive sign-in with no Client ID borrows Microsoft's shared Graph Command Line Tools client.</summary>
+    public bool UsesSharedClient => _isInteractive && string.IsNullOrWhiteSpace(_clientId);
 
     // Auth cert source
     private bool _authUseStoreCert = true;
@@ -587,6 +590,16 @@ public sealed class SettingsViewModel : ObservableObject
             else if (!_auth.IsSignedIn)
             {
                 ConnectionStatus = "Sign in first, then test the connection.";
+                return;
+            }
+
+            // The test verifies publishing, so it asks for the scopes a publish would.
+            string[] scopes = CreateGroupPerPackage || CreateUninstallGroupPerPackage
+                ? [.. IntuneAuthService.PublishScopes, .. IntuneAuthService.GroupCreateScopes]
+                : IntuneAuthService.PublishScopes;
+            if (!await _auth.EnsureScopesAsync(scopes, IntuneAuthService.MainWindowHandle()))
+            {
+                ConnectionStatus = IntuneAuthService.ConsentDeclinedMessage(scopes);
                 return;
             }
 

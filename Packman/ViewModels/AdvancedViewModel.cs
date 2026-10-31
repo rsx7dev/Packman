@@ -18,6 +18,7 @@ public sealed class AdvancedViewModel : ObservableObject
 
     public AsyncRelayCommand BulkAddCommand { get; }
     public RelayCommand ConnectCommand { get; }
+    public AsyncRelayCommand RequestDirectoryAccessCommand { get; }
 
     /// <summary>Raised on "connect"; the host switches to Settings.</summary>
     public event Action? ConnectRequested;
@@ -29,22 +30,46 @@ public sealed class AdvancedViewModel : ObservableObject
         _appGroupSearchBox = new IncrementalSearch<EntraGroup>(q => _apps.SearchGroupsAsync(q), () => OnPropertyChanged(nameof(HasAppGroupResults)));
         BulkAddCommand = new AsyncRelayCommand(RunBulkAddAsync, () => CanBulkAdd);
         ConnectCommand = new RelayCommand(() => ConnectRequested?.Invoke());
+        RequestDirectoryAccessCommand = new AsyncRelayCommand(RequestDirectoryAccessAsync);
     }
 
     public bool IsSignedIn => _auth.IsSignedIn;
     public bool ShowConnectPrompt => !_auth.IsSignedIn;
+
+    private bool _directoryAccessDenied;
+    /// <summary>The user declined the directory scopes; the tools stay hidden until they retry.</summary>
+    public bool DirectoryAccessDenied
+    {
+        get => _directoryAccessDenied;
+        private set => Set(ref _directoryAccessDenied, value, [nameof(ShowTools), nameof(ShowDirectoryAccessPrompt)]);
+    }
+
+    public bool ShowTools => _auth.IsSignedIn && !_directoryAccessDenied;
+    public bool ShowDirectoryAccessPrompt => _auth.IsSignedIn && _directoryAccessDenied;
 
     /// <summary>Tenant for the rail: the signed-in user's domain label, or the app registration's tenant ID.</summary>
     public string TenantLabel => !_auth.IsSignedIn ? "Not connected"
         : _auth.SignedInUser?.Contains('@') == true ? _auth.TenantName
         : AppServices.Settings.Settings.Authentication.TenantId;
 
-    /// <summary>Re-reads sign-in state. Called each time the screen is shown.</summary>
+    /// <summary>
+    /// Re-reads sign-in state and asks for the directory scopes sign-in leaves out.
+    /// Called each time the screen is shown.
+    /// </summary>
     public void Refresh()
     {
         OnPropertyChanged(nameof(IsSignedIn));
         OnPropertyChanged(nameof(ShowConnectPrompt));
         OnPropertyChanged(nameof(TenantLabel));
+        OnPropertyChanged(nameof(ShowTools));
+        OnPropertyChanged(nameof(ShowDirectoryAccessPrompt));
+        if (_auth.IsSignedIn) ErrorReporter.FireAndForget(RequestDirectoryAccessAsync);
+    }
+
+    private async Task RequestDirectoryAccessAsync()
+    {
+        if (!_auth.IsSignedIn) return;
+        DirectoryAccessDenied = !await _auth.EnsureScopesAsync(IntuneAuthService.DirectoryScopes, IntuneAuthService.MainWindowHandle());
     }
 
     // ══ 1. Bulk add PCs to a group ══════════════════════════════

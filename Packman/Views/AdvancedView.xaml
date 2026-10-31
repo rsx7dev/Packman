@@ -135,7 +135,19 @@
                 </StackPanel>
             </Border>
 
-            <StackPanel Visibility="{Binding IsSignedIn, Converter={StaticResource BoolToVis}}">
+            <!-- Directory consent declined -->
+            <Border Style="{StaticResource CalloutWarn}" Visibility="{Binding ShowDirectoryAccessPrompt, Converter={StaticResource BoolToVis}}">
+                <DockPanel>
+                    <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconAlert}" VerticalAlignment="Top"
+                                       Margin="0,2,10,0" Foreground="{DynamicResource WarnBrush}"/>
+                    <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Content="Grant access" Margin="12,0,0,0"
+                            VerticalAlignment="Center" Command="{Binding RequestDirectoryAccessCommand}"/>
+                    <TextBlock FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center"
+                               Text="These tools need permission to read devices and users and to change group membership (Group.ReadWrite.All, GroupMember.ReadWrite.All, Device.Read.All, User.ReadBasic.All). Sign-in leaves these out until you need them."/>
+                </DockPanel>
+            </Border>
+
+            <StackPanel Visibility="{Binding ShowTools, Converter={StaticResource BoolToVis}}">
 
                 <!-- ══ 1. Bulk add PCs to a group ══════════════════════ -->
                 <Border Style="{StaticResource SectionPanel}"

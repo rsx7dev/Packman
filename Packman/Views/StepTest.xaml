@@ -111,6 +111,7 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
@@ -120,7 +121,11 @@
                 <Button Grid.Column="1" Style="{StaticResource GhostButton}" Content="Uninstall" MinWidth="120" Margin="10,0,0,0"
                         Command="{Binding UninstallCommand}"
                         ToolTip="Stage the package on the target and run the uninstall command line."/>
-                <Button Grid.Column="3" Style="{StaticResource GhostButton}" Content="Discover detection" Margin="10,0,0,0"
+                <Button Grid.Column="2" Style="{StaticResource GhostButton}" Content="Cancel" Margin="10,0,0,0"
+                        Command="{Binding CancelCommand}"
+                        Visibility="{Binding IsRunning, Converter={StaticResource BoolToVis}}"
+                        ToolTip="Stop the copy or the deployment and remove the test task from the target."/>
+                <Button Grid.Column="4" Style="{StaticResource GhostButton}" Content="Discover detection" Margin="10,0,0,0"
                         Command="{Binding DetectCommand}"
                         ToolTip="Search the target for the installed executable and build a detection rule from it."/>
             </Grid>

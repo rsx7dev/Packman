@@ -179,6 +179,7 @@ public sealed class ApplicationDetailViewModel : ObservableObject
 
     public async Task<bool> DeleteAsync()
     {
+        if (!await ConsentAsync(IntuneAuthService.PublishScopes, m => StatusText = m)) return false;
         try
         {
             await _apps.DeleteApplicationAsync(Detail.Id);
@@ -189,6 +190,14 @@ public sealed class ApplicationDetailViewModel : ObservableObject
             StatusText = $"Could not retire app: {ex.Message}";
             return false;
         }
+    }
+
+    /// <summary>Asks for <paramref name="scopes"/> before a change; reports and returns false when declined.</summary>
+    private static async Task<bool> ConsentAsync(string[] scopes, Action<string> report)
+    {
+        if (await AppServices.Auth.EnsureScopesAsync(scopes, IntuneAuthService.MainWindowHandle())) return true;
+        report(IntuneAuthService.ConsentDeclinedMessage(scopes));
+        return false;
     }
 
     // ── Package content update (regenerate .intunewin, keep the app's metadata) ──
@@ -239,6 +248,8 @@ public sealed class ApplicationDetailViewModel : ObservableObject
             StatusText = "No linked package folder on the share — only apps uploaded through Packman can be updated here.";
             return false;
         }
+
+        if (!await ConsentAsync(IntuneAuthService.PublishScopes, m => StatusText = m)) return false;
 
         var settings = AppServices.Settings.Settings;
         NativeCodeSigner? signer = null;
@@ -373,6 +384,7 @@ public sealed class ApplicationDetailViewModel : ObservableObject
 
     public async Task<bool> SaveDetectionRulesAsync()
     {
+        if (!await ConsentAsync(IntuneAuthService.PublishScopes, m => StatusText = m)) return false;
         try
         {
             await _apps.UpdateDetectionRulesAsync(Detail.Id, Detail.DetectionRules);
@@ -441,6 +453,7 @@ public sealed class ApplicationDetailViewModel : ObservableObject
     public async Task AddAssignmentAsync()
     {
         if (_selectedGroup == null) return;
+        if (!await ConsentAsync(IntuneAuthService.PublishScopes, m => StatusText = m)) return;
         try
         {
             await _apps.AddAssignmentAsync(Detail.Id, _selectedGroup.Id, SelectedIntent.ToLowerInvariant());
@@ -464,6 +477,7 @@ public sealed class ApplicationDetailViewModel : ObservableObject
             StatusText = "This assignment has no id — refresh and try again.";
             return;
         }
+        if (!await ConsentAsync(IntuneAuthService.PublishScopes, m => StatusText = m)) return;
         try
         {
             await _apps.RemoveAssignmentAsync(Detail.Id, group.AssignmentId);
@@ -514,6 +528,10 @@ public sealed class ApplicationDetailViewModel : ObservableObject
             MembersStatus = "Built-in assignment target — membership is implicit.";
             return;
         }
+
+        // Member lookup, search and changes all need the directory scopes sign-in leaves out.
+        if (!await ConsentAsync(IntuneAuthService.DirectoryScopes, m => MembersStatus = m)) return;
+        if (!ReferenceEquals(_flyoutGroup, group)) return;
 
         MembersStatus = "Loading members…";
         try

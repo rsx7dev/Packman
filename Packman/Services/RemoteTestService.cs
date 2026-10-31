@@ -22,7 +22,8 @@ namespace Packman.Services;
 /// </summary>
 public class RemoteTestService
 {
-    private const string RemoteBasePath = @"C:\Temp\Packman";
+    // Literal, not %ProgramData%: the admin-share path below must name the same folder.
+    internal const string RemoteBasePath = @"C:\ProgramData\Packman";
     private const string TaskName = "Packman_RemoteTest";
     private const string ExitCodeSentinel = "PACKMAN_EXIT_CODE:";
 
@@ -48,11 +49,12 @@ public class RemoteTestService
     /// only labels the run.
     /// <paramref name="runAsUser"/>: false runs as SYSTEM (what Intune does), true runs in
     /// the logged-on user's session. <paramref name="copyProgress"/> reports 0-100, then null.
-    /// Throws PSRemotingTransportException when WinRM is unreachable.
+    /// Throws PSRemotingTransportException when WinRM is unreachable, and
+    /// OperationCanceledException when <paramref name="ct"/> stops the run.
     /// </summary>
-    public int Deploy(string computerName, string sourcePath, string deploymentType, string commandLine,
+    public async Task<int> DeployAsync(string computerName, string sourcePath, string deploymentType, string commandLine,
         bool cleanupAfterDeploy, bool runAsUser, Action<string> output,
-        Action<int?>? copyProgress = null)
+        Action<int?>? copyProgress = null, CancellationToken ct = default)
     {
         if (!IsValidComputerName(computerName))
             throw new ArgumentException($"'{computerName}' is not a valid computer name", nameof(computerName));
@@ -119,6 +121,7 @@ public class RemoteTestService
         }
 
         // Connect before the copy so a target without WinRM fails fast.
+        ct.ThrowIfCancellationRequested();
         output($"Connecting to {computerName} via WinRM...");
         var connectionInfo = new WSManConnectionInfo { ComputerName = computerName };
         using var runspace = RunspaceFactory.CreateRunspace(connectionInfo);
@@ -144,11 +147,24 @@ public class RemoteTestService
             ? $"{sourceDir.Parent.Name}_{sourceDir.Name}"
             : sourceDir.Name);
         string remotePackagePath = $@"{RemoteBasePath}\{packageName}";
-        string targetUnc = $@"\\{computerName}\C$\Temp\Packman\{packageName}";
+        string targetUnc = $@"\\{computerName}\C$\ProgramData\Packman\{packageName}";
+
+        // The package runs as SYSTEM, so only SYSTEM and Administrators may write where it is staged.
+        ct.ThrowIfCancellationRequested();
+        output($"Securing {RemoteBasePath} on target...");
+        using (var secure = PowerShell.Create())
+        {
+            secure.Runspace = runspace;
+            secure.AddScript(BuildSecureStagingScript(RemoteBasePath));
+            foreach (var line in secure.Invoke())
+                output(line.ToString());
+            if (secure.HadErrors)
+                throw new InvalidOperationException($"Could not secure {RemoteBasePath} on {computerName}: {secure.Streams.Error.FirstOrDefault()}");
+        }
 
         output($"Copying files to {targetUnc}...");
         var copyTimer = Stopwatch.StartNew();
-        CopyWithRobocopy(sourcePath, targetUnc, copyProgress);
+        await CopyWithRobocopyAsync(sourcePath, targetUnc, copyProgress, ct);
         copyTimer.Stop();
         copyProgress?.Invoke(null);
 
@@ -167,6 +183,7 @@ public class RemoteTestService
         output($"Working directory: {workingDirectory}");
         output("");
 
+        ct.ThrowIfCancellationRequested();
         int exitCode = -1;
         using (var ps = PowerShell.Create())
         {
@@ -190,7 +207,25 @@ public class RemoteTestService
             };
             ps.Streams.Error.DataAdded += (s, e) => output($"ERROR: {ps.Streams.Error[e.Index]}");
 
-            ps.Invoke<object, PSObject>(null, stdout, null);
+            using (ct.Register(() => ps.BeginStop(null, null)))
+            {
+                try
+                {
+                    ps.Invoke<object, PSObject>(null, stdout, null);
+                }
+                catch (PipelineStoppedException) when (ct.IsCancellationRequested) { }
+            }
+        }
+
+        // Stopping the monitor leaves the task running on the target; stop and remove it too.
+        if (ct.IsCancellationRequested)
+        {
+            using var stop = PowerShell.Create();
+            stop.Runspace = runspace;
+            stop.AddScript($"Stop-ScheduledTask -TaskName '{TaskName}' -ErrorAction SilentlyContinue; Unregister-ScheduledTask -TaskName '{TaskName}' -Confirm:$false -ErrorAction SilentlyContinue");
+            stop.Invoke();
+            output($"Stopped and removed the scheduled task '{TaskName}' on target");
+            ct.ThrowIfCancellationRequested();
         }
 
         output("");
@@ -391,6 +426,61 @@ public class RemoteTestService
             .Replace("__SENTINEL__", ExitCodeSentinel);
     }
 
+    /// <summary>
+    /// Makes <paramref name="basePath"/> a folder only SYSTEM and Administrators can change.
+    /// Any user can create folders under C:\ProgramData, so an existing one is trusted only
+    /// when it is a real directory owned by one of them with a protected DACL naming no one
+    /// else. Packman never leaves the folder unsecured, so an untrusted one holds no package
+    /// of ours: it is renamed aside rather than reset, and a fresh one is created with the
+    /// ACL already in place, so nothing can be planted in between. Nothing is recursive.
+    /// </summary>
+    internal static string BuildSecureStagingScript(string basePath) =>
+        """
+        $ErrorActionPreference = 'Stop'
+        $base = '__BASE__'
+        $trusted = @('S-1-5-18', 'S-1-5-32-544')
+        $sidType = [System.Security.Principal.SecurityIdentifier]
+
+        function Test-TrustedBase {
+            $item = Get-Item -LiteralPath $base -Force
+            # A junction could be repointed after the check, so only a plain directory counts.
+            if (-not $item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint)) { return $false }
+            $acl = Get-Acl -LiteralPath $base
+            if ($trusted -notcontains $acl.GetOwner($sidType).Value) { return $false }
+            if (-not $acl.AreAccessRulesProtected) { return $false }
+            foreach ($rule in $acl.GetAccessRules($true, $true, $sidType)) {
+                if ($trusted -notcontains $rule.IdentityReference.Value) { return $false }
+            }
+            return $true
+        }
+
+        function New-SecureBase {
+            $acl = New-Object System.Security.AccessControl.DirectorySecurity
+            $acl.SetOwner((New-Object System.Security.Principal.SecurityIdentifier('S-1-5-32-544')))
+            $acl.SetAccessRuleProtection($true, $false)
+            foreach ($sid in $trusted) {
+                $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
+                    (New-Object System.Security.Principal.SecurityIdentifier($sid)), 'FullControl',
+                    'ContainerInherit, ObjectInherit', 'None', 'Allow')))
+            }
+            $null = [System.IO.Directory]::CreateDirectory($base, $acl)
+        }
+
+        if (-not (Test-Path -LiteralPath $base)) {
+            New-SecureBase
+        }
+        elseif (-not (Test-TrustedBase)) {
+            $moved = 'Packman.untrusted-' + (Get-Date -Format 'yyyyMMddHHmmss')
+            Rename-Item -LiteralPath $base -NewName $moved
+            "WARNING: $base was writable by other accounts; moved it to $moved"
+            New-SecureBase
+        }
+
+        if (-not (Test-TrustedBase)) { throw "$base is not limited to SYSTEM and Administrators" }
+        "[OK] $base is limited to SYSTEM and Administrators"
+        """
+        .Replace("__BASE__", PowerShellLiteral.SingleQuoted(basePath));
+
     /// <summary>All substituted values land inside single-quoted PowerShell strings.</summary>
     private static string EscapeSingleQuoted(string value) => PowerShellLiteral.SingleQuoted(value);
 
@@ -408,11 +498,12 @@ public class RemoteTestService
         return string.IsNullOrEmpty(cleaned) ? "Package" : cleaned;
     }
 
-    private static void CopyWithRobocopy(string source, string destination, Action<int?>? progress)
+    private static async Task CopyWithRobocopyAsync(string source, string destination, Action<int?>? progress, CancellationToken ct)
     {
         // /MIR mirrors, /MT:16 multithreaded, /J unbuffered, /NOOFFLOAD skips the ODX
         // attempt (unusable over SMB), /R:2 /W:5 replaces the 1M-retry defaults, and
         // /NP /NFL /NDL drops per-file output, which otherwise dominates the runtime.
+        // No /SEC or /COPYALL: copied files must inherit the staging folder's ACL.
         var psi = new ProcessStartInfo
         {
             FileName = "robocopy.exe",
@@ -425,23 +516,29 @@ public class RemoteTestService
             ?? throw new InvalidOperationException("Failed to start robocopy.exe");
         var outputTask = process.StandardOutput.ReadToEndAsync();
 
-        // Per-file output is off, so poll destination size against source size instead.
-        if (progress != null)
+        string result;
+        try
         {
-            long totalBytes = GetDirectorySize(source);
-            while (!process.WaitForExit(5000))
+            // Per-file output is off, so poll destination size against source size instead.
+            long totalBytes = progress != null ? GetDirectorySize(source) : 0;
+            var exited = process.WaitForExitAsync(ct);
+            while (!exited.IsCompleted)
             {
-                if (totalBytes > 0)
-                {
-                    long copied = GetDirectorySize(destination);
-                    progress((int)Math.Min(100, copied * 100 / totalBytes));
-                }
+                await Task.WhenAny(exited, Task.Delay(5000, ct));
+                ct.ThrowIfCancellationRequested();
+                if (progress != null && totalBytes > 0 && !exited.IsCompleted)
+                    progress((int)Math.Min(100, GetDirectorySize(destination) * 100 / totalBytes));
             }
-            progress(100);
+            await exited;
+            result = await outputTask;
         }
-
-        process.WaitForExit();
-        string result = outputTask.GetAwaiter().GetResult();
+        catch (OperationCanceledException)
+        {
+            // Disposing the Process object does not stop robocopy or its worker threads' copies.
+            try { process.Kill(entireProcessTree: true); } catch { }
+            throw;
+        }
+        progress?.Invoke(100);
 
         // Robocopy exit codes are a bitfield: 0-7 succeeded, 8+ failed.
         if (process.ExitCode >= 8)

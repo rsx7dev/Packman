@@ -515,6 +515,15 @@ public class UploadStepViewModel : ObservableObject
             return;
         }
 
+        string[] scopes = settings.GroupAssignment.CreateGroupPerPackage || settings.GroupAssignment.CreateUninstallGroupPerPackage
+            ? [.. IntuneAuthService.PublishScopes, .. IntuneAuthService.GroupCreateScopes]
+            : IntuneAuthService.PublishScopes;
+        if (!await _auth.EnsureScopesAsync(scopes, IntuneAuthService.MainWindowHandle()))
+        {
+            StatusText = IntuneAuthService.ConsentDeclinedMessage(scopes);
+            return;
+        }
+
         var detectionProblem = DescribeDetectionProblem();
         if (detectionProblem != null)
         {
