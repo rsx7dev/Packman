@@ -551,7 +551,7 @@ public class UploadStepViewModel : ObservableObject
         var installCommand = InstallCommandPreview;
         var uninstallCommand = UninstallCommandPreview;
         var iconPath = string.IsNullOrEmpty(_create.ExtractedIconPath) ? null : _create.ExtractedIconPath;
-        var supersedence = Supersedence.Selected.Select(s => new SupersedenceLink(s.Id, s.Type)).ToList();
+        var supersedence = Supersedence.Links;
 
         NativeCodeSigner? signer = settings.CodeSigning.Enabled
             ? new NativeCodeSigner(settings.CodeSigning.CertificateThumbprint, settings.CodeSigning.TimestampServer)

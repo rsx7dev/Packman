@@ -45,8 +45,6 @@ public sealed class SupersedencePickerViewModel : ObservableObject
     public const string UpdateHelp = "Update: the new app replaces the previous one in place; the previous app isn't uninstalled first.";
     public const string ReplaceHelp = "Replace: the previous app is uninstalled first, then the new app is installed.";
 
-    private const int MaxResults = 20;
-
     private readonly IntuneAuthService _auth = AppServices.Auth;
     private readonly IntuneService _apps = AppServices.Apps;
     private readonly Func<string> _ownAppId;
@@ -90,6 +88,9 @@ public sealed class SupersedencePickerViewModel : ObservableObject
     public bool IsEnabled => _auth.IsSignedIn;
     public bool IsDisabled => !_auth.IsSignedIn;
     public bool HasSelection => Selected.Count > 0;
+
+    /// <summary>The chosen apps as the upload writes them.</summary>
+    public List<SupersedenceLink> Links => Selected.Select(s => new SupersedenceLink(s.Id, s.Type)).ToList();
 
     public string Query
     {
@@ -136,7 +137,7 @@ public sealed class SupersedencePickerViewModel : ObservableObject
         }
     }
 
-    private async Task SearchAsync()
+    public async Task SearchAsync()
     {
         var seq = ++_searchSeq;
         var query = Query.Trim();
@@ -163,7 +164,7 @@ public sealed class SupersedencePickerViewModel : ObservableObject
 
         if (seq != _searchSeq) return; // a newer query owns the list
         Results.Clear();
-        foreach (var app in apps.Where(a => a.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase)).Take(MaxResults))
+        foreach (var app in apps.Where(a => a.DisplayName.Contains(query, StringComparison.OrdinalIgnoreCase)))
             Results.Add(app);
         Hint = Results.Count == 0 ? "No Win32 apps match that name." : "";
     }

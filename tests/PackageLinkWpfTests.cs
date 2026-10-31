@@ -61,6 +61,9 @@ internal static class PackageLinkWpfTests
             Run("A content update overwrites packman.id with that app", UpdateOverwritesLink);
             Run("An upload writes every chosen supersedence in one updateRelationships call", UploadWritesSupersedence);
             Run("Rejected supersedence keeps the app and shows Intune's message as a warning", RejectedSupersedenceWarns);
+            Run("The Supersedes search lists every matching app, not just the first 20", SearchListsEveryMatch);
+            Run("An Upgrade's previous version is only offered; nothing is written until it is added", SuggestionIsOptIn);
+            Run("Changing a type or removing an app reaches the review text and the upload payload", TypeAndRemovalPropagate);
             Run("The Supersedes field starts empty, defaults to Update and blocks itself and duplicates", SupersedenceFieldRules);
             Run("A read-only packman.id leaves the upload successful and logs a warning", ReadOnlyLinkStillSucceeds);
 
@@ -189,6 +192,78 @@ internal static class PackageLinkWpfTests
         Equal(1, field.Selected.Count);
         Equal(SupersedenceType.Update, field.Selected[0].Type);
         True(field.Hint.Contains("already in the list"), $"duplicate hint: '{field.Hint}'");
+    }
+
+    private static void SearchListsEveryMatch()
+    {
+        Intune.ListedAppCount = 25;
+        try
+        {
+            var field = new SupersedencePickerViewModel(() => "");
+            field.Query = "Contoso Reader";
+            Task.Run(field.SearchAsync).GetAwaiter().GetResult();
+
+            Equal(25, field.Results.Count);
+            Equal(25, field.Results.Select(a => a.Id).Distinct().Count());
+        }
+        finally
+        {
+            Intune.ListedAppCount = 0;
+        }
+    }
+
+    private static void SuggestionIsOptIn()
+    {
+        Intune.RelationshipBodies.Clear();
+        var field = new SupersedencePickerViewModel(() => "");
+        Task.Run(() => field.SuggestAsync("pred-app")).GetAwaiter().GetResult();
+
+        True(field.HasSuggestion, "previous version offered");
+        True(field.SuggestionText.Contains("Contoso Reader pred-app") && field.SuggestionText.Contains("1.0"), $"suggestion text: '{field.SuggestionText}'");
+        Equal(0, field.Selected.Count);
+        Equal(0, field.Links.Count);
+
+        var (service, appInfo, package, rules) = SupersedenceUpload("Contoso_OptIn");
+        Task.Run(() => service.UploadWin32ApplicationAsync(appInfo, package, rules, "i", "u", "test", "system", supersedence: field.Links)).GetAwaiter().GetResult();
+        Equal(0, Intune.RelationshipBodies.Count);
+
+        field.AddSuggestionCommand.Execute(null);
+        Equal(1, field.Selected.Count);
+        Equal("pred-app", field.Selected[0].Id);
+        Equal(SupersedenceType.Update, field.Selected[0].Type);
+        True(!field.HasSuggestion, "offer gone once added");
+    }
+
+    private static void TypeAndRemovalPropagate()
+    {
+        Intune.RelationshipBodies.Clear();
+        var upload = new UploadStepViewModel(new CreatePackageViewModel(), AppServices.Settings, AppServices.Auth);
+        var changed = new List<string?>();
+        upload.PropertyChanged += (_, e) => changed.Add(e.PropertyName);
+        Task.Run(() => upload.Supersedence.SuggestAsync("pred-app")).GetAwaiter().GetResult();
+        Equal(false, upload.HasSupersedence);
+
+        upload.Supersedence.AddSuggestionCommand.Execute(null);
+        Equal(true, upload.HasSupersedence);
+        Equal("Contoso Reader pred-app (Update)", upload.SupersedenceRailText);
+
+        changed.Clear();
+        upload.Supersedence.Selected[0].Type = SupersedenceType.Replace;
+        True(changed.Contains(nameof(UploadStepViewModel.SupersedenceRailText)), "rail text change raised");
+        Equal("Contoso Reader pred-app (Replace)", upload.SupersedenceRailText);
+        Equal("Replace", upload.Supersedence.Selected[0].TypeLabel);
+
+        var (service, appInfo, package, rules) = SupersedenceUpload("Contoso_TypeChange");
+        Task.Run(() => service.UploadWin32ApplicationAsync(appInfo, package, rules, "i", "u", "test", "system", supersedence: upload.Supersedence.Links)).GetAwaiter().GetResult();
+        Equal(1, Intune.RelationshipBodies.Count);
+        var relationship = JsonDocument.Parse(Intune.RelationshipBodies[0]).RootElement.GetProperty("relationships")[0];
+        Equal("pred-app", relationship.GetProperty("targetId").GetString());
+        Equal("replace", relationship.GetProperty("supersedenceType").GetString());
+
+        upload.Supersedence.RemoveCommand.Execute(upload.Supersedence.Selected[0]);
+        Equal(false, upload.HasSupersedence);
+        Equal("", upload.SupersedenceRailText);
+        Equal(0, upload.Supersedence.Links.Count);
     }
 
     private static (IntuneUploadService Service, ApplicationInfo App, string Package, List<DetectionRule> Rules) SupersedenceUpload(string folder)
@@ -368,6 +443,9 @@ internal static class PackageLinkWpfTests
         /// <summary>Bodies of the updateRelationships calls, one per call.</summary>
         public List<string> RelationshipBodies { get; } = new();
 
+        /// <summary>How many same-named apps the app list query returns.</summary>
+        public int ListedAppCount { get; set; }
+
         /// <summary>Answers updateRelationships with Intune's too-large error.</summary>
         public bool RejectRelationships { get; set; }
 
@@ -413,6 +491,18 @@ internal static class PackageLinkWpfTests
                 return Json(HttpStatusCode.NoContent, "");
             if (method == "GET" && path.EndsWith("/assignments"))
                 return Json(HttpStatusCode.OK, "{\"value\":[]}");
+            if (method == "GET" && path.EndsWith("/mobileApps"))
+                return Json(HttpStatusCode.OK, JsonSerializer.Serialize(new
+                {
+                    value = Enumerable.Range(0, ListedAppCount).Select(i => new Dictionary<string, object>
+                    {
+                        ["id"] = $"listed-{i}",
+                        ["displayName"] = "Contoso Reader",
+                        ["displayVersion"] = $"1.{i}",
+                        ["publisher"] = "Contoso",
+                        ["publishingState"] = "published",
+                    }),
+                }));
             if (method == "GET" && path.Contains("/mobileApps/"))
             {
                 var id = path[(path.LastIndexOf('/') + 1)..];

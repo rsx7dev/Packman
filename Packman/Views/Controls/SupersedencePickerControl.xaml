@@ -28,7 +28,9 @@
                 Visibility="{Binding HasSuggestion, Converter={StaticResource BoolToVis}}"/>
 
         <!-- Search results: name, version and publisher tell similar apps apart. -->
-        <ItemsControl ItemsSource="{Binding Results}" Margin="0,8,0,0">
+        <!-- Every match is listed; a long list scrolls instead of being cut off. -->
+        <ScrollViewer MaxHeight="280" VerticalScrollBarVisibility="Auto" Margin="0,8,0,0" Focusable="False">
+        <ItemsControl ItemsSource="{Binding Results}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
                     <Button FocusVisualStyle="{StaticResource FocusVisual}" HorizontalContentAlignment="Stretch" Margin="0,0,0,6" Cursor="Hand"
@@ -55,6 +57,7 @@
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
+        </ScrollViewer>
 
         <!-- Each chosen app keeps its own type. -->
         <ItemsControl ItemsSource="{Binding Selected}" Margin="0,12,0,0">
