@@ -106,7 +106,7 @@ internal static class Program
         Directory.CreateDirectory(Path.GetDirectoryName(Settings)!);
         await File.WriteAllTextAsync(Settings, settings.ToJsonString());
         Log("READY: launch Packman, create manufacturer Orchestra / app PackmanLocalProbe / version 1.0.0, source folder " + Path.Combine(Root, "sources"));
-        Log("Template deliberately has no installer insertion markers: its tested install/uninstall actions are already defined.");
+        Log("Template deliberately has no installer insertion markers: its probe install/uninstall actions are already defined.");
         await Inspect();
     }
 
