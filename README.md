@@ -66,8 +66,9 @@ These are native Windows CI renders with sample data; they do not show a live te
 - A fixed package layout per version: `Application/`, `Intune/`, `Icon/`.
 - Replace-or-cancel prompt when the version folder already exists.
 - **Upgrade** an existing package to a new version — the old package is copied forward (keeping
-  your script edits), the new installer swapped in, metadata refreshed, and an Intune
-  **supersedence** relationship written on upload.
+  your script edits), the new installer swapped in and metadata refreshed.
+- **Supersedence** is opt-in: on Configure, search the connected tenant's Win32 apps and choose the
+  ones this app supersedes, each as **Update** or **Replace**. All are written in one call on upload.
 
 ### Script editing
 
@@ -581,8 +582,8 @@ reports cleanup success or failure. If no app ID was confirmed, check Intune bef
 
 On success the status reads **Uploaded to Intune · App ID …**, `Intune\packman.id` (app ID, tenant
 ID, upload time, display name and version, `.intunewin` file name and size) is written into the
-package folder, and — if the package came from the upgrade flow — a
-**supersedence** relationship is written marking the previous app as superseded by this one.
+package folder, and — if you chose apps in **Supersedence** on Configure — their
+**supersedence** relationships are written, each as **Update** or **Replace**, in one call.
 
 Packman waits for Intune to report the app as published before assigning groups. If final
 publication is uncertain, or later assignment or supersedence work fails or is cancelled,
@@ -606,8 +607,9 @@ The old package is copied forward — **keeping your script edits and everything
 (transforms, config and licence files stay put) — only the installer the script points at is
 replaced by the new one, the script metadata and MSI product code are refreshed, and the icon is
 carried over. If the script names no installer, the old one is left next to the new one and the
-status line says so. The wizard then continues exactly as for a new package; on upload the previous app
-(identified by `Intune\packman.id` in the old package folder) is marked as superseded.
+status line says so. The wizard then continues exactly as for a new package. Nothing is superseded
+automatically: if the old package was published from Packman, Configure offers a one-click
+**Supersede the previous version** suggestion (identified by `Intune\packman.id` in the old package folder).
 
 Unlike Create, an upgrade **fails** rather than prompting if the target version folder already
 exists — delete it or pick a different version.

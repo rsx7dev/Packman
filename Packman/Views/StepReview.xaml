@@ -146,11 +146,21 @@
                            Visibility="{Binding Upload.GroupPicker.HasGroups, Converter={StaticResource InverseBoolToVis}}"/>
                 <TextBlock Text="{Binding Upload.PerPackageGroupsSummary}" Style="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,8,0,0"/>
 
-                <!-- Supersedence (upgrades only) -->
+                <!-- Supersedence (only when apps were chosen) -->
                 <StackPanel Visibility="{Binding Upload.HasSupersedence, Converter={StaticResource BoolToVis}}">
                     <Border Style="{StaticResource SectionRule}"/>
                     <TextBlock Text="Supersedence" Style="{StaticResource H2}" Margin="0,0,0,12"/>
-                    <TextBlock Text="{Binding Upload.SupersedenceSummary}" Style="{StaticResource SubText}" TextWrapping="Wrap"/>
+                    <ItemsControl ItemsSource="{Binding Upload.Supersedence.Selected}" Focusable="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <TextBlock Style="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,0,0,4">
+                                    <Run Text="{Binding DisplayName, Mode=OneWay}" FontWeight="SemiBold"/>
+                                    <Run Text="{Binding Detail, Mode=OneWay, StringFormat=' {0}'}"/>
+                                    <Run Text="{Binding TypeLabel, Mode=OneWay, StringFormat=' · {0}'}"/>
+                                </TextBlock>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </StackPanel>
 
                 <Border Style="{StaticResource SectionRule}"/>

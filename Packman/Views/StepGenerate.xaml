@@ -289,11 +289,6 @@
                                      Text="{Binding Upgrade.NewVersion, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
                         </StackPanel>
                     </Grid>
-
-                    <Border Style="{StaticResource CalloutNeutral}" Margin="0,18,0,0">
-                        <TextBlock TextWrapping="Wrap" FontSize="12.5" LineHeight="18"
-                                   Text="If the existing package was published from Packman, the new version supersedes it in Intune. You can review this on Configure."/>
-                    </Border>
                 </StackPanel>
 
                 <!-- Generation / upgrade status -->

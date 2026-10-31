@@ -19,7 +19,6 @@ public class CreatePackageViewModel : ObservableObject
     private string _statusText = "";
     private bool _isGenerating = false;
     private string _extractedIconPath = "";
-    private string _predecessorAppId = "";
     private string _installArguments = "";
     private string _uninstallArguments = "";
     private InstallerDetection? _detection;
@@ -134,16 +133,6 @@ public class CreatePackageViewModel : ObservableObject
     {
         get => _extractedIconPath;
         set => Set(ref _extractedIconPath, value);
-    }
-
-    /// <summary>
-    /// App id this package supersedes, set when it came from Upgrade. The upload writes
-    /// the supersedence relationship from it.
-    /// </summary>
-    public string PredecessorAppId
-    {
-        get => _predecessorAppId;
-        set => Set(ref _predecessorAppId, value);
     }
 
     // ── Package preview (the rail beside the Package step) ──────────────
@@ -474,7 +463,6 @@ public class CreatePackageViewModel : ObservableObject
         CurrentMsiInfo = null;
         CurrentPackagePath = "";
         StatusText = "";
-        PredecessorAppId = "";
         InstallArguments = "";
         UninstallArguments = "";
     }
