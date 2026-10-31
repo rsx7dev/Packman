@@ -505,9 +505,20 @@ internal static class InstallerInsightTests
             }
             Equal("A.mst, b.mst", string.Join(", ", MsiInfoService.FindTransforms(Path.Combine(folder, "app.msi"))));
             Equal(0, MsiInfoService.FindTransforms(Path.Combine(folder, "missing", "app.msi")).Count());
+
+            // A folder that can't be listed gives no transforms instead of throwing.
+            if (!OperatingSystem.IsWindows())
+            {
+                File.SetUnixFileMode(folder, UnixFileMode.None);
+                Equal(0, MsiInfoService.FindTransforms(Path.Combine(folder, "app.msi")).Count());
+            }
         }
         finally
         {
+            if (!OperatingSystem.IsWindows())
+            {
+                File.SetUnixFileMode(folder, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            }
             Directory.Delete(folder, true);
         }
     }

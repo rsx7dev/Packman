@@ -68,9 +68,17 @@ public class MsiInfoService
         var folder = Path.GetDirectoryName(Path.GetFullPath(msiPath));
         if (folder == null || !Directory.Exists(folder)) return [];
 
-        var names = Directory.EnumerateFiles(folder, "*.mst").Select(f => Path.GetFileName(f)).ToList();
-        names.Sort(StringComparer.OrdinalIgnoreCase);
-        return names;
+        try
+        {
+            var names = Directory.EnumerateFiles(folder, "*.mst").Select(f => Path.GetFileName(f)).ToList();
+            names.Sort(StringComparer.OrdinalIgnoreCase);
+            return names;
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            // A folder that can't be listed must not hide the MSI's own properties.
+            return [];
+        }
     }
 
     /// <summary>
