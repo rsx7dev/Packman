@@ -84,7 +84,6 @@ internal static class Program
         await File.WriteAllBytesAsync(archive, await client.GetByteArrayAsync(url));
         var template = Path.Combine(Root, "template");
         ZipFile.ExtractToDirectory(archive, template);
-        template = Path.GetDirectoryName(Directory.GetFiles(template, "Invoke-AppDeployToolkit.exe", SearchOption.AllDirectories).Single())!;
         using var script = new StreamReader(Assembly.GetExecutingAssembly().GetManifestResourceStream("RemoteTestFixture.Invoke-AppDeployToolkit.ps1")!);
         await File.WriteAllTextAsync(Path.Combine(template, "Invoke-AppDeployToolkit.ps1"), await script.ReadToEndAsync(), new UTF8Encoding(true));
         var config = Path.Combine(template, "Config", "config.psd1");
