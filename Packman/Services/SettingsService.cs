@@ -113,7 +113,7 @@ public class SettingsService
 
     private static bool IsPackmanPsadtFolder(string path)
     {
-        var parts = path.Split('\\', '/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var parts = path.Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         for (var i = 0; i + 1 < parts.Length; i++)
             if (parts[i].Equals("Packman", StringComparison.OrdinalIgnoreCase) &&
                 parts[i + 1].Equals("PSADT", StringComparison.OrdinalIgnoreCase))
