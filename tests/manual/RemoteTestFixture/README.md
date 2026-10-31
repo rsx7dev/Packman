@@ -1,58 +1,47 @@
-# Attended local Remote Test verification
+# Local SYSTEM/Silent Remote Test verification
 
-This helper prepares and restores a small real PSADT 4.1.7 fixture. It does not
-run deployments or replace `RemoteTestService`. Install, detection and uninstall
-must be exercised in the normal Packman UI. This is a manual Windows check with
-network access and an attendant who can approve UAC; it is not a CI test.
+This explicit Windows integration fixture runs a small real PSADT 4.1.7 package
+through the production `RemoteTestViewModel` and `RemoteTestService`. It requires
+the Windows node executor's SYSTEM context and network access. It never asks for
+elevation, changes UAC settings, or requires an attendant. An ordinary user
+launch fails immediately without changing the PC.
 
-Build on Windows:
+Build and run on the Windows node, in SYSTEM context:
 
 ```powershell
 dotnet build tests/manual/RemoteTestFixture/RemoteTestFixture.csproj -c Release
+& tests/manual/RemoteTestFixture/bin/Release/net10.0-windows/RemoteTestFixture.exe
+if ($LASTEXITCODE -ne 0) { throw "Local verification failed: $LASTEXITCODE" }
 ```
 
-1. Close Packman. Launch `RemoteTestFixture.exe` from the build output and click
-   **Prepare fixture**. It backs up the existing settings, downloads the full
-   PSADT runtime, creates temporary source/template/output folders and configures
-   those paths. An existing IntuneWinAppUtil path is required. Authentication
-   settings are preserved; no Intune requests or uploads are part of this test.
-2. Coordinate the preparation prompt with the attendant, then click **Protect
-   staging (UAC)**. This snapshots WinRM state, stops/disables WinRM and creates
-   the fixture's staging directory with administrator/SYSTEM write access and
-   Users read access. **Inspect** must report an unelevated helper, disabled and
-   stopped WinRM, and a denied unelevated staging write.
-3. Launch the normal unelevated Packman build. Create a package with manufacturer
-   `Orchestra`, name `PackmanLocalProbe`, version `1.0.0`, and source folder
-   `%TEMP%\PackmanLocalVerificationT0218\sources`. The template already defines
-   its actions, so the missing installer insertion-marker warnings are expected.
-4. Open **Remote test** from the generated package card, not the standalone
-   navigation page. Select **Run on this PC**, **System**, and **Silent**. Leave
-   staged-package deletion off so the protected staging ACL remains testable.
-5. Click **Install**. Record the first-install confirmation before accepting it.
-   Alert the attendant before accepting, and count UAC prompts. The run must
-   prompt once, complete as SYSTEM, and stream real PSADT output into Packman.
-   The fixture copies Windows' `whoami.exe` to
-   `C:\Program Files\PackmanLocalProbe\PackmanLocalProbe.exe` and returns **3010**
-   without rebooting. Save the log showing the command, SYSTEM SID, Silent mode,
-   PSADT log path, exit code, restart meaning and success result.
-6. Click **Discover detection**, then **Apply detection**. Verify the discovered
-   local file rule reaches the wizard's publish fields; do not publish. Save the
-   log before starting uninstall, which clears it.
-7. Coordinate the uninstall UAC prompt, run **Uninstall**, and save its completed
-   log: exit **0**, success result, PSADT log path and SYSTEM/Silent probe entry.
-   **Inspect** must show no installed probe and no `Packman_RemoteTest` task.
-8. Close Packman. Coordinate **Restore PC (UAC)**. It restores the settings bytes
-   and original WinRM state, removes only fixture staging/logs and newly created
-   empty parents, and removes the temporary template/source/packages. It refuses
-   restoration if the probe application is still installed: uninstall first.
-   Record the final inspection and compare it with baseline. Settings restoration
-   is checked against the original bytes.
-9. Save the evidence externally, then click **Remove saved fixture evidence** to
-   delete the temporary recovery backups and prior restored fixture attempts.
+The fixture checks that its paths and `Packman_RemoteTest` task are absent before
+starting. It snapshots WinRM, stops and disables it, and creates staging with
+SYSTEM/Administrators write access and Users read access. It uses isolated
+settings; the owner's Packman settings are never written.
 
-The helper records its output and saves PSADT logs under
-`%TEMP%\PackmanLocalVerificationT0218`. Preserve these as test evidence before
-removing that folder; `settings.backup` is a local recovery copy and must not be
-committed or included in shared evidence. Screenshots belong under `.orch/shots/`.
-A completed build or fixture preparation is not evidence that the integration
-steps passed. Record each actual outcome and any unanswered UAC prompt.
+It selects **Run on this PC**, **System**, and **Silent**, then executes the real
+Install command. The fixture records and accepts the first-install confirmation
+through `IDialogService`; it does not test the rendered confirmation dialog.
+There is no replacement deployment service, synthetic exit code or task script:
+production code stages the package and runs its one-shot SYSTEM task.
+
+The package copies Windows' `whoami.exe` to
+`C:\Program Files\PackmanLocalProbe\PackmanLocalProbe.exe`. Checks require install
+exit **3010**, its `InstallErrorText` restart meaning, the success result line,
+the actual PSADT SYSTEM/Silent probe entry and PSADT log path. **Detect** searches
+for the real installed executable; **Apply detection** must populate the publish
+step's local path, filename and version. No publishing or Intune calls occur.
+Uninstall must return **0**, report success, remove the probe and scheduled task,
+and leave Detect without a matching executable.
+
+A `finally` block attempts production uninstall if needed, restores the original
+WinRM state, removes fixture staging/logs/source and newly created empty parents,
+and verifies absence of the probe and fixture paths. A failed restoration makes
+the fixture fail. Inspect `verification-evidence/verification.txt` beside the exe
+for the exact outcome; a build alone is not a passing integration result.
+
+The evidence directory also contains install, Detect/Apply, uninstall and
+post-uninstall detection logs, plus the original PSADT logs. Copy it to the task's
+`.orch/shots/` for review. These are test artifacts and must not be committed.
+This SYSTEM/Silent verification follows the owner's revised scope; it does not
+claim an unelevated UAC run or a remote WinRM deployment was exercised.
