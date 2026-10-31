@@ -32,4 +32,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Models/ReturnCodeInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/TextFileIO.cs" />
   </ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'ScriptEditorTests.cs'">
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/PsadtManifest.cs" />
+  </ItemGroup>
 </Project>
