@@ -15,4 +15,14 @@
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/PackageMarker.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/PackageSourceLocator.cs" />
   </ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'InstallerInsightTests.cs'">
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Services/InstallerCatalog.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Services/InstallerDetector.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Services/MsiInfoService.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/ArgumentLine.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/PsadtScript.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/PowerShellLiteral.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/TextFileIO.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/PsadtLayout.cs" />
+  </ItemGroup>
 </Project>
