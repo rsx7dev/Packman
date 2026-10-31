@@ -9,6 +9,7 @@ using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Documents;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Packman;
@@ -106,7 +107,7 @@ internal static class UploadConsoleWpfTests
         Settle(console, RailWidth, 400);
 
         Color ColorOf(UploadLogLevel level) =>
-            ((SolidColorBrush)Shown<TextBlock>(console).First(t => t.Text.EndsWith($"{level}-line")).Foreground).Color;
+            ((SolidColorBrush)Shown<TextBlock>(console).First(t => LineText(t).EndsWith($"{level}-line")).Foreground).Color;
 
         True(levels.Select(ColorOf).Distinct().Count() == levels.Length, "every level has a different colour");
         Equal(((SolidColorBrush)Application.Current.FindResource("WarnBrush")).Color, ColorOf(UploadLogLevel.Warning));
@@ -154,13 +155,15 @@ internal static class UploadConsoleWpfTests
         bool Has<T>(DependencyObject root, Func<T, bool> match) where T : FrameworkElement => Shown<T>(root).Any(match);
         bool Text(DependencyObject root, string text) => Has<TextBlock>(root, t => t.Text == text);
         bool Named(DependencyObject root, string name) => Has<Button>(root, b => AutomationProperties.GetName(b) == name);
-        bool EditLink(string text) => Shown<Button>(review).Where(b => Shown<TextBlock>(b).Any(t => t.Text == text)).All(b => b.IsEnabled);
+        bool EditLink(string text) => Shown<Button>(review).Where(b => Shown<TextBlock>(b).Any(t => t.Text == text)).Select(b => b.IsEnabled).DefaultIfEmpty(false).All(enabled => enabled);
+        // Run remote test also needs a package, so it is only checked while publishing.
+        bool Disabled(string text) => Shown<Button>(review).Where(b => Shown<TextBlock>(b).Any(t => t.Text == text)).Select(b => !b.IsEnabled).DefaultIfEmpty(false).All(off => off);
 
         Layout();
         True(Text(rail, "Publish readiness"), "readiness shows before publishing");
         True(!Text(rail, "Console"), "no console before publishing");
         True(Text(review, "Review & publish"), "review shows before publishing");
-        True(EditLink("Edit package") && EditLink("Edit configuration") && EditLink("Run remote test"), "edit links enabled before publishing");
+        True(EditLink("Edit package") && EditLink("Edit configuration"), "edit links enabled before publishing");
 
         var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         Task<string?>? running = null;
@@ -184,9 +187,9 @@ internal static class UploadConsoleWpfTests
         True(Text(rail, "Signing with Authenticode") && Text(rail, "Uploading to Contoso tenant"), "the step list");
         True(Named(rail, "Cancel publishing"), "Cancel while running");
         True(!Has<Button>(rail, b => b.Content as string == "Done"), "no Done while running");
-        True(Text(rail, "Console") && Has<TextBlock>(rail, t => t.Text.EndsWith(Reported) && t.Text.Length > Reported.Length), "the console shows the reported line with its timestamp");
+        True(Text(rail, "Console") && Has<TextBlock>(rail, t => LineText(t).EndsWith(Reported) && LineText(t).Length > Reported.Length), "the console shows the reported line with its timestamp");
         True(Text(review, "Review & publish") && Text(review, "Command lines"), "the review stays on screen");
-        True(!EditLink("Edit package") && !EditLink("Edit configuration") && !EditLink("Run remote test"), "edit links disabled while publishing");
+        True(Disabled("Edit package") && Disabled("Edit configuration") && Disabled("Run remote test"), "edit links disabled while publishing");
 
         gate.SetResult();
         Pump(() => publish.IsComplete);
@@ -219,6 +222,9 @@ internal static class UploadConsoleWpfTests
         for (var i = 0; i < count; i++)
             run.Log.Add(new PublishLogLine(DateTime.Now, UploadLogLevel.Info, $"Uploaded block {start + i + 1}/999"));
     }
+
+    /// <summary>A console line is built from runs, which TextBlock.Text does not report.</summary>
+    private static string LineText(TextBlock block) => string.Concat(block.Inlines.OfType<Run>().Select(run => run.Text));
 
     private static bool AtBottom(ScrollViewer scroller) => scroller.VerticalOffset >= scroller.ScrollableHeight - 1;
 
