@@ -198,14 +198,20 @@ The standalone preview utility uses sample data and does not deploy anything:
 dotnet run --file scripts/RenderUiPreviews.cs -c Release -- artifacts/ui-previews
 ```
 
-The solution contains only the desktop application; no separate test project is required.
+The solution holds the desktop application and its xunit project, `tests/Packman.Tests`.
 
 Run `./check.sh` with the .NET 10 SDK (Git Bash on Windows). On Linux and macOS it
-restores, builds and runs the tenant-free report parser and CSV unit checks against
-the production sources. On Windows it also builds Packman in Release and runs the
-ViewModel and WPF layout checks. Windows CI runs that complete harness with
-`dotnet run --file tests/DeviceStatusTests.cs -c Release`; portable checks alone do
-not verify the Windows application. All commands propagate failures.
+restores, builds and runs the tenant-free file-based checks (report parser, CSV,
+package links, setup, installer insight, settings template, script editor) and the
+Python catalog test. On Windows it also builds Packman in Release, runs the ViewModel,
+WPF and first-run checks, and runs `dotnet test tests/Packman.Tests/Packman.Tests.csproj`.
+Windows CI runs `./check.sh` through bash, so CI and a local run cover the same tests;
+portable checks alone do not verify the Windows application. All commands propagate failures.
+
+Pushing a `v<major>.<minor>.<patch>` tag (optionally `-suffix`) runs the release job: it
+publishes with that version, signs `Packman.exe` and `Packman.dll`, and attaches
+`Packman-<version>-win-x64.zip` and its `.sha256` to a GitHub Release. See
+[CONTRIBUTING.md](CONTRIBUTING.md#releases) and [CHANGELOG.md](CHANGELOG.md).
 
 ## Offline builds
 
@@ -282,6 +288,11 @@ what you typed, and nothing is saved until **Finish**.
   Packman downloads nothing.
 - **Package layout** — see [Package layout](#package-layout).
 
+Until you dismiss it, the **Create** page opens with a **Before your first package** card that
+checks the output share, PSADT template, `IntuneWinAppUtil.exe` and Intune sign-in, each with an
+**Open settings** link, and explains the EXE switches step. **Got it** hides the card for good
+(saved in settings); it comes back while the share, template or converter is missing or broken.
+
 **Run setup again** in Settings reopens it with your current values. The sections below describe
 the same options on the Settings page. **Authentication** and **Network Paths** are the two you
 must complete; the rest have working defaults. Press **Save** when done — except Appearance,
@@ -291,18 +302,32 @@ which applies and saves immediately.
 
 Two modes:
 
-- **Interactive** (default) — press **Sign in** and complete the Microsoft prompt. No app
-  registration needed: Packman uses the public *Microsoft Graph Command Line Tools* client, which
-  exists in virtually every tenant. Set a **Tenant ID** to pin sign-in to one tenant, or leave it
-  blank for `organizations`.
+- **Interactive** (default) — press **Sign in** and complete the Microsoft prompt. With no
+  **Application (Client) ID**, Packman uses the public *Microsoft Graph Command Line Tools* client,
+  which exists in virtually every tenant, so no setup is needed. That client is shared with every
+  Graph script in the tenant, so Settings recommends a dedicated registration while it is in use
+  (see [Dedicated app registration](#dedicated-app-registration)). Set a **Tenant ID** to pin
+  sign-in to one tenant, or leave it blank for `organizations`.
 - **App Registration** — enter **Tenant ID** and **Application (Client) ID**, then pick the
   authentication **certificate** from the `CurrentUser\My` store or paste its thumbprint. The
   registration needs application permissions and admin consent as listed below.
 
 Graph permissions for the available features:
 
-- **Interactive (delegated):** `User.Read`, `DeviceManagementApps.ReadWrite.All`,
-  `Group.ReadWrite.All`, `User.ReadBasic.All`, `Device.Read.All`, and `GroupMember.ReadWrite.All`.
+- **Interactive (delegated)**, requested when first needed rather than at sign-in:
+  - **Sign-in** asks for read access only: `User.Read`, `DeviceManagementApps.Read.All` and
+    `Group.Read.All` (browsing apps, searching groups).
+  - **Publishing**, and changing an app on its detail page (retire, republish, detection rules,
+    assignments), asks for `DeviceManagementApps.ReadWrite.All` the first time. **Test connection**
+    asks for it too, because it verifies publishing.
+  - **Create a group per package** adds `Group.ReadWrite.All` at publish.
+  - **Advanced** and the group members panel ask for `Group.ReadWrite.All`,
+    `GroupMember.ReadWrite.All`, `Device.Read.All` and `User.ReadBasic.All` when opened.
+
+  Each request is a normal consent prompt; nothing prompts again once granted. Declining it cancels
+  that action only, and nothing is sent. A tenant that already consented to the full set for the
+  shared client keeps that consent; to narrow it, remove the grant under **Enterprise applications ▸
+  Microsoft Graph Command Line Tools ▸ Permissions**, or move to a dedicated registration.
 - **App Registration (application):** `DeviceManagementApps.ReadWrite.All`,
   `Group.ReadWrite.All`, `User.ReadBasic.All`, and `GroupMember.ReadWrite.All`.
   Use `Device.ReadWrite.All` to add devices to groups; `Device.Read.All` suffices for device
@@ -314,8 +339,28 @@ Intune operations remain subject to tenant permissions. Microsoft's
 lists the different delegated and application permissions and supported roles.
 
 **Test connection** reads apps, groups, devices and users and reports each read check separately.
+The device and user checks run only once the sign-in holds `Device.Read.All` and
+`User.ReadBasic.All`; before that they read *Requested when Advanced opens*.
 Passing these checks does not verify write permissions or administrator roles for publishing and
-group changes. The footer status dot turns green and reads
+group changes.
+
+#### Dedicated app registration
+
+For interactive sign-in through your own registration instead of the shared client:
+
+1. In **Entra admin center ▸ App registrations ▸ New registration**, name it (e.g. *Packman*),
+   choose *Accounts in this organizational directory only* and register.
+2. Under **Authentication ▸ Add a platform ▸ Mobile and desktop applications**, add
+   `https://login.microsoftonline.com/common/oauth2/nativeclient` and the broker redirect URI
+   `ms-appx-web://microsoft.aad.brokerplugin/<application-client-id>`. Set
+   **Allow public client flows** to *Yes*.
+3. Under **API permissions ▸ Microsoft Graph ▸ Delegated**, add the scopes listed above. Granting
+   admin consent is optional: without it each user consents when a feature first needs a scope.
+4. In Packman, **Settings ▸ Authentication ▸ Interactive**, enter the **Application (Client) ID**
+   and the **Tenant ID**, then sign in.
+
+Assign it to the packaging team under **Enterprise applications ▸ Packman ▸ Properties ▸
+Assignment required** to limit who can sign in. The footer status dot turns green and reads
 *Connected to Microsoft Intune · you@tenant* once signed in.
 
 ### Code Signing (optional)
@@ -393,6 +438,10 @@ the primary button; **← Back** steps back.
 
 1. Leave the mode toggle on **Create new**.
 
+   **Generate package** stays disabled until the installer, application name, manufacturer and
+   version are filled in and the output share and PSADT template are set in Settings; its tooltip
+   names the first thing missing.
+
 2. **Pick the source installer.** Press **BROWSE**, or drag an MSI/EXE straight onto the Sources
    Path field. What happens next depends on the file type:
 
@@ -401,6 +450,9 @@ the primary button; **← Back** steps back.
    | **.msi** | The MSI property table (`ProductName`, `Manufacturer`, `ProductVersion`, `ProductCode`, `UpgradeCode`) | App Name, Manufacturer, Version — and it remembers the **product code**, which later becomes the default detection rule |
    | **.exe** | The file's version resource (product name, company, file version) | App Name, Manufacturer, Version — whatever the resource actually contains |
    | **either** | The embedded application icon | The icon shown on the card, archived into the package and uploaded to Intune with the app |
+
+   Picking another installer replaces the name, manufacturer and version the previous one filled in;
+   anything you typed into those fields yourself is kept.
 
    While the file is read the right rail shows **Reading installer…**; a file that cannot be read
    shows a warning there instead. Nothing is ever run: the read is static.
@@ -526,7 +578,13 @@ Management Extension does, so the launcher, PowerShell edition and module isolat
    publish with; the resulting install and uninstall commands are previewed underneath.
 5. Optionally tick **Delete the staged package from the target after the run** (off by default, so
    a re-run only copies what changed). The setting is remembered.
-6. **Run install** copies the package to `C:\Temp\Packman\...` over the admin share, registers the
+6. **Run install** first checks the package as Review does and lists anything wrong as a warning
+   (a leftover EXE placeholder, say); the run still goes ahead. It then makes sure
+   `C:\ProgramData\Packman` on the target is owned by Administrators, with inheritance off and
+   access for SYSTEM and Administrators only. A folder there that anyone else could change is
+   renamed to `Packman.untrusted-<timestamp>` and a fresh one is created; if the folder still
+   can't be secured, the run stops before anything is copied. It then copies the package there over
+   the admin share, registers the
    task with the install command line, and streams the **PSADT log** into the console as the toolkit
    writes it — the launcher itself prints nothing, so the log is the live view. Warnings and errors
    are colour-coded from the log entry's own severity. **Run uninstall** does the same with the
@@ -538,6 +596,9 @@ Management Extension does, so the launcher, PowerShell edition and module isolat
    version. **Discover detection rule** re-runs that search on its own.
 8. **Use for publishing** pushes that rule into the wizard's Configure step. This is only available for
    the wizard's own package — a package picked from the share has no publish step to feed.
+
+**Cancel** stops the copy (robocopy and its workers are ended) or the deployment; a cancelled
+deployment also stops and removes the scheduled task on the target.
 
 Exit codes `0`, `3010` and `1641` count as success (the latter two mean *reboot required*).
 
@@ -598,7 +659,7 @@ every field here is pre-filled from Settings and then editable for this one pack
 Everything you chose, read-only, in one place: destination tenant, package metadata, source size, deploy mode, command lines, detection, requirements, return codes and assignments. Per-package groups that will be created or reused are listed separately. **Edit package**, **Configure**, and **Open remote test** return directly to the relevant task. Check it, confirm you are signed in
 and that the IntuneWinAppUtil path is set, then press **Build & publish**.
 
-Before signing or building, Packman checks the staged `Application/` folder for the PSADT script, launcher and module manifest. It parses the script without executing it and blocks syntax errors and the generated EXE `<silent flags>` / `<uninstall flags>` placeholders. This is a preflight check, not proof that the installer works: test both installation and removal on a representative device.
+Packman checks the staged `Application/` folder for the PSADT script, launcher and module manifest whenever you enter Configure or Review, and again when you close Edit script there. It parses the script without executing it and flags syntax errors and the generated EXE `<silent flags>` / `<uninstall flags>` placeholders. The rail's **Package** row reads *Checking…*, *Ready* or *Needs attention* with the first issue, Review lists every issue, and **Publish** stays disabled until the package is clean. The same check runs again before signing or building. This is a preflight check, not proof that the installer works: test both installation and removal on a representative device.
 
 Use **Silent** for unattended Intune deployment. Microsoft's Win32 guidance requires installation without user interaction. PSADT Auto behavior also depends on toolkit version and configuration; see [Microsoft's Win32 app guidance](https://learn.microsoft.com/en-us/intune/app-management/deployment/add-win32) and [PSADT deployment modes](https://psappdeploytoolkit.com/docs/explanation/deployment-modes).
 
@@ -748,7 +809,10 @@ Excel treats them as text. The report needs `DeviceManagementApps.Read.All`, whi
 
 ## Advanced — directory tools
 
-Three lookups the Intune portal does not offer directly. All require being signed in.
+Three lookups the Intune portal does not offer directly. All require being signed in. Opening the
+screen asks for the directory scopes sign-in leaves out (`Group.ReadWrite.All`,
+`GroupMember.ReadWrite.All`, `Device.Read.All`, `User.ReadBasic.All`); if you decline, the tools stay
+hidden behind a **Grant access** button.
 
 1. **Bulk add PCs to a group** — pick a group (you must select it from the results, so the name is
    known to exist), paste PC names separated by newlines, commas, semicolons, tabs or spaces, and
@@ -774,7 +838,7 @@ Three lookups the Intune portal does not offer directly. All require being signe
 | Editor cache | `%LocalAppData%\Packman\WebView2\` |
 | Packages | `<Intune Applications Path>\<Vendor>_<AppName>\<Version>\` |
 | `packman.id` link file | `<package>\Intune\`, next to the `.intunewin`; written on a successful upload or republish |
-| Staged test copy | `C:\Temp\Packman\...` on the target machine |
+| Staged test copy | `C:\ProgramData\Packman\...` on the target machine (SYSTEM and Administrators only) |
 
 ---
 
@@ -914,4 +978,4 @@ packages/         vendored .nupkg files for offline restore
 
 The desktop UI uses a shared type scale, sentence-case actions, larger form controls and keyboard focus indicators. The installer appears before its editable metadata, with a live package summary beside it. Configuration and assignments use the available width; publishing feedback is shared by both entry points. Application Detail distinguishes **Republish content**, version upgrades and **Delete from Intune**.
 
-See [the UI design notes](docs/UI-DESIGN.md) for scope, component structure and verification, and [the September code review](docs/CODE-AUDIT-2026-09.md) for corrected behavior and validation limits. Windows CI runs on `main`, `codex/**` branches and pull requests, and publishes `ui-previews` artifacts from the standalone Windows preview utility.
+See [the UI design notes](docs/UI-DESIGN.md) for scope, component structure and verification, and [the September code review](docs/CODE-AUDIT-2026-09.md) for corrected behavior and validation limits. Windows CI runs `./check.sh` on `main`, `codex/**` branches and pull requests, publishes `ui-previews` artifacts from the standalone Windows preview utility, and turns a `v*` tag into a signed GitHub Release.

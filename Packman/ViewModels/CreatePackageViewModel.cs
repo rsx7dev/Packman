@@ -27,6 +27,10 @@ public class CreatePackageViewModel : ObservableObject
     private string _msiSearch = "";
     private int _readSequence;
 
+    // Fields the last installer filled in. The next installer replaces these; what the
+    // user typed (anything through the public setters) is kept.
+    private readonly HashSet<string> _autoFilled = new();
+
     public string SourcesPath
     {
         get => _sourcesPath;
@@ -50,19 +54,36 @@ public class CreatePackageViewModel : ObservableObject
     public string AppName
     {
         get => _appName;
-        set => Set(ref _appName, value, [nameof(PreviewTitle)]);
+        set { if (Set(ref _appName, value, [nameof(PreviewTitle)])) _autoFilled.Remove(nameof(AppName)); }
     }
 
     public string Manufacturer
     {
         get => _manufacturer;
-        set => Set(ref _manufacturer, value);
+        set { if (Set(ref _manufacturer, value)) _autoFilled.Remove(nameof(Manufacturer)); }
     }
 
     public string Version
     {
         get => _version;
-        set => Set(ref _version, value, [nameof(PreviewMeta)]);
+        set { if (Set(ref _version, value, [nameof(PreviewMeta)])) _autoFilled.Remove(nameof(Version)); }
+    }
+
+    /// <summary>Loader write: fills a blank field from the installer and remembers it was not typed.</summary>
+    private void Fill(ref string field, string? value, string name, params string[] dependents)
+    {
+        if (!string.IsNullOrWhiteSpace(field) || string.IsNullOrWhiteSpace(value)) return;
+        Set(ref field, value, dependents, name);
+        _autoFilled.Add(name);
+    }
+
+    /// <summary>Blanks what the previous installer filled in, so the new one can fill it again.</summary>
+    private void ClearAutoFilled()
+    {
+        if (_autoFilled.Contains(nameof(AppName))) Set(ref _appName, "", [nameof(PreviewTitle)], nameof(AppName));
+        if (_autoFilled.Contains(nameof(Manufacturer))) Set(ref _manufacturer, "", nameof(Manufacturer));
+        if (_autoFilled.Contains(nameof(Version))) Set(ref _version, "", [nameof(PreviewMeta)], nameof(Version));
+        _autoFilled.Clear();
     }
 
     public bool UserInstall
@@ -278,14 +299,15 @@ public class CreatePackageViewModel : ObservableObject
     public void LoadFromFile(string filePath)
     {
         SourcesPath = filePath;
+        ClearAutoFilled();
         var ext = Path.GetExtension(filePath).ToLowerInvariant();
 
         if (ext == ".exe")
         {
             var (name, company, ver) = MetadataExtractor.ExtractExeMetadata(filePath);
-            if (string.IsNullOrWhiteSpace(AppName) && !string.IsNullOrWhiteSpace(name)) AppName = name;
-            if (string.IsNullOrWhiteSpace(Manufacturer) && !string.IsNullOrWhiteSpace(company)) Manufacturer = company;
-            if (string.IsNullOrWhiteSpace(Version) && !string.IsNullOrWhiteSpace(ver)) Version = ver;
+            Fill(ref _appName, name, nameof(AppName), nameof(PreviewTitle));
+            Fill(ref _manufacturer, company, nameof(Manufacturer));
+            Fill(ref _version, ver, nameof(Version), nameof(PreviewMeta));
         }
 
         if (ext is ".msi" or ".exe")
@@ -293,8 +315,8 @@ public class CreatePackageViewModel : ObservableObject
         else
             InstallerRead = Task.CompletedTask;
 
-        if (ext != ".msi" && string.IsNullOrWhiteSpace(AppName))
-            AppName = MetadataExtractor.ExtractNameFromFilename(filePath);
+        if (ext != ".msi")
+            Fill(ref _appName, MetadataExtractor.ExtractNameFromFilename(filePath), nameof(AppName), nameof(PreviewTitle));
 
         ExtractedIconPath = IconExtractor.ExtractIconToTemp(filePath) ?? "";
     }
@@ -315,15 +337,15 @@ public class CreatePackageViewModel : ObservableObject
                 if (info.IsValid)
                 {
                     CurrentMsiInfo = info;
-                    if (string.IsNullOrWhiteSpace(AppName)) AppName = info.ProductName;
-                    if (string.IsNullOrWhiteSpace(Manufacturer)) Manufacturer = info.Manufacturer;
-                    if (string.IsNullOrWhiteSpace(Version)) Version = info.ProductVersion;
+                    Fill(ref _appName, info.ProductName, nameof(AppName), nameof(PreviewTitle));
+                    Fill(ref _manufacturer, info.Manufacturer, nameof(Manufacturer));
+                    Fill(ref _version, info.ProductVersion, nameof(Version), nameof(PreviewMeta));
                 }
                 else
                 {
                     InstallerError = "Couldn't read this MSI's Property table. It may be damaged or locked.";
                 }
-                if (string.IsNullOrWhiteSpace(AppName)) AppName = MetadataExtractor.ExtractNameFromFilename(path);
+                Fill(ref _appName, MetadataExtractor.ExtractNameFromFilename(path), nameof(AppName), nameof(PreviewTitle));
             }
             else
             {
@@ -465,5 +487,6 @@ public class CreatePackageViewModel : ObservableObject
         StatusText = "";
         InstallArguments = "";
         UninstallArguments = "";
+        _autoFilled.Clear();
     }
 }

@@ -17,6 +17,8 @@ public class AppSettings
     public AppTheme Theme { get; set; } = AppTheme.Dark;
     // The left navigation is shown by default; hiding it swaps in the bottom menu bar.
     public bool NavHidden { get; set; } = false;
+    // "Got it" on the Create page's welcome card; it still returns while a prerequisite is missing.
+    public bool WelcomeCardDismissed { get; set; } = false;
     public AuthMode AuthMode { get; set; } = AuthMode.Interactive;
     public AuthConfig Authentication { get; set; } = new();
     public CodeSigningConfig CodeSigning { get; set; } = new();

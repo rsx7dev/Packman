@@ -33,6 +33,18 @@
         <StackPanel Margin="0,20,0,0" Visibility="{Binding IsInteractive, Converter={StaticResource BoolToVis}}">
             <TextBlock Text="Tenant ID" Style="{StaticResource FieldLabel}"/>
             <TextBox AutomationProperties.Name="Tenant ID" Style="{StaticResource MonoField}" Text="{Binding TenantId, UpdateSourceTrigger=PropertyChanged}" local:PlaceholderText.Text="contoso.onmicrosoft.com or tenant GUID"/>
+            <TextBlock Text="Application (Client) ID" Style="{StaticResource FieldLabel}" Margin="0,18,0,7"/>
+            <TextBox AutomationProperties.Name="Application (Client) ID for interactive sign-in" Style="{StaticResource MonoField}"
+                     Text="{Binding ClientId, UpdateSourceTrigger=PropertyChanged}" local:PlaceholderText.Text="Optional: your own app registration"/>
+            <Border Style="{StaticResource CalloutNeutral}" Margin="0,14,0,0"
+                    Visibility="{Binding UsesSharedClient, Converter={StaticResource BoolToVis}}">
+                <DockPanel>
+                    <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconInfo}" Foreground="{DynamicResource Muted2Brush}"
+                                       VerticalAlignment="Top" Margin="0,1,10,0"/>
+                    <TextBlock FontSize="13" TextWrapping="Wrap"
+                               Text="With no Client ID, Packman signs in through Microsoft Graph Command Line Tools, a client shared with every Graph script in your tenant. Packman asks it for read access only and requests write permission when you first publish or change an app. For tighter control, create a dedicated app registration (see the README, Authentication) and enter its Client ID here."/>
+                </DockPanel>
+            </Border>
         </StackPanel>
 
         <!-- App registration: tenant, client and certificate -->

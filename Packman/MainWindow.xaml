@@ -272,7 +272,9 @@
                                             </Style>
                                         </TextBlock.Style>
                                     </TextBlock>
-                                    <Button Grid.Column="2" Command="{Binding PrimaryCommand}" MinWidth="180" Style="{StaticResource PrimaryButton}">
+                                    <Button Grid.Column="2" Command="{Binding PrimaryCommand}" MinWidth="180" Style="{StaticResource PrimaryButton}"
+                                            AutomationProperties.HelpText="{Binding PrimaryLockReason}"
+                                            ToolTip="{Binding PrimaryLockReason}" ToolTipService.ShowOnDisabled="True">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="{Binding PrimaryLabel}" VerticalAlignment="Center"/>
                                             <controls:LineIcon Data="{DynamicResource IconArrowR}" Width="15" Height="15" Margin="10,0,0,0"/>
