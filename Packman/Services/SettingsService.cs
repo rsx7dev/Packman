@@ -95,8 +95,9 @@ public class SettingsService
     }
 
     /// <summary>
-    /// Empties the template path when it points at the bundled PSADT folder (or inside it),
-    /// so an old saved path is not kept or shown. No replacement is chosen.
+    /// Empties the template path when it points at a bundled PSADT folder (or inside it): the one
+    /// next to this executable, or any Packman\PSADT folder such as a source checkout's, so an old
+    /// saved path is not kept or shown. No replacement is chosen.
     /// </summary>
     private static void ClearBundledTemplate(AppSettings settings)
     {
@@ -104,9 +105,20 @@ public class SettingsService
         if (string.IsNullOrWhiteSpace(template)) return;
 
         var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(template.Trim()));
-        if (full.Equals(BundledTemplatePath, StringComparison.OrdinalIgnoreCase) ||
-            full.StartsWith(BundledTemplatePath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        var insideRunningBundle = full.Equals(BundledTemplatePath, StringComparison.OrdinalIgnoreCase) ||
+            full.StartsWith(BundledTemplatePath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        if (insideRunningBundle || IsPackmanPsadtFolder(template))
             settings.NetworkPaths.PSADTTemplate = "";
+    }
+
+    private static bool IsPackmanPsadtFolder(string path)
+    {
+        var parts = path.Split('\\', '/', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        for (var i = 0; i + 1 < parts.Length; i++)
+            if (parts[i].Equals("Packman", StringComparison.OrdinalIgnoreCase) &&
+                parts[i + 1].Equals("PSADT", StringComparison.OrdinalIgnoreCase))
+                return true;
+        return false;
     }
 
     /// <summary>Where the settings live; shown on the Settings page.</summary>

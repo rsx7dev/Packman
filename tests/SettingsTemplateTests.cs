@@ -11,6 +11,8 @@ using Packman.Services;
 internal static class SettingsTemplateTests
 {
     private static readonly string Bundled = Path.Combine(AppContext.BaseDirectory, "PSADT");
+    // A source checkout's bundled template: outside this executable's folder.
+    private const string StaleCheckoutTemplate = @"C:\Users\someone\Desktop\src\Packman\Packman\PSADT\Application";
     private const string NetworkTemplate = @"\\server\share\PSADTTemplate";
 
     private static int _passed;
@@ -20,8 +22,9 @@ internal static class SettingsTemplateTests
     [
         ("A saved bundled template path is empty after load", LoadClearsBundled),
         ("A path inside the bundled folder, or with a trailing separator, is cleared", LoadClearsInsideBundled),
+        ("A stale bundled path outside the executable's folder is cleared on load, save and reopen", StaleCheckoutPathCleared),
         ("Saving a bundled template path writes it empty and a reopen reads it empty", SaveAndReopenStayEmpty),
-        ("Another template path survives load, save and reopen", OtherPathKept),
+        ("Another template path, even one named PSADT, survives load, save and reopen", OtherPathKept),
         ("An empty template path stays empty", EmptyStaysEmpty),
     ];
 
@@ -63,6 +66,17 @@ internal static class SettingsTemplateTests
         }
     }
 
+    private static void StaleCheckoutPathCleared()
+    {
+        using var file = new SettingsFile(StaleCheckoutTemplate);
+        var service = file.Open();
+        Equal("", service.Settings.NetworkPaths.PSADTTemplate);
+
+        service.Settings.NetworkPaths.PSADTTemplate = StaleCheckoutTemplate;
+        service.Save();
+        Equal("", file.Open().Settings.NetworkPaths.PSADTTemplate);
+    }
+
     private static void SaveAndReopenStayEmpty()
     {
         using var file = new SettingsFile(NetworkTemplate);
@@ -75,11 +89,14 @@ internal static class SettingsTemplateTests
 
     private static void OtherPathKept()
     {
-        using var file = new SettingsFile(NetworkTemplate);
-        var service = file.Open();
-        Equal(NetworkTemplate, service.Settings.NetworkPaths.PSADTTemplate);
-        service.Save();
-        Equal(NetworkTemplate, file.Open().Settings.NetworkPaths.PSADTTemplate);
+        foreach (var template in new[] { NetworkTemplate, @"\\server\share\PSADT", @"D:\Tools\PSADT\Application" })
+        {
+            using var file = new SettingsFile(template);
+            var service = file.Open();
+            Equal(template, service.Settings.NetworkPaths.PSADTTemplate);
+            service.Save();
+            Equal(template, file.Open().Settings.NetworkPaths.PSADTTemplate);
+        }
     }
 
     private static void EmptyStaysEmpty()
