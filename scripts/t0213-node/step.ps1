@@ -59,6 +59,38 @@ switch ($step) {
     & $tool -c "$pkg\Application" -s Invoke-AppDeployToolkit.exe -o "$pkg\Intune" -q | Out-Null
     "seeded; build exit code $LASTEXITCODE"
  }
+ 'final' {
+    $root = "$work\share"
+    $tool = (Get-Content $settings -Raw | ConvertFrom-Json).NetworkPaths.IntuneWinAppUtil
+    "layout now saved: " + ((Get-Content $settings -Raw | ConvertFrom-Json).PackageLayout | ConvertTo-Json -Compress)
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    Get-ChildItem $root -Directory | ForEach-Object { Get-ChildItem $_.FullName -Directory | ForEach-Object {
+        $pkg = $_.FullName
+        if ($pkg -like '*test_two*') {
+            & $tool -c "$pkg\Application" -s Invoke-AppDeployToolkit.exe -o "$pkg\Intune" -q | Out-Null
+            "built test_two, exit code $LASTEXITCODE"
+        }
+        $rel = $pkg.Substring($root.Length + 1)
+        "package " + $rel.Substring(0, [Math]::Min(60, $rel.Length))
+        Get-ChildItem $pkg -Force | ForEach-Object {
+            if ($_.PSIsContainer) {
+                $n = (Get-ChildItem $_.FullName -Recurse -Force -File | Measure-Object).Count
+                "  $($_.Name)\  ($n files)"
+                if ($_.Name -ne 'Application') { Get-ChildItem $_.FullName -Recurse -Force -File | ForEach-Object { "      " + $_.Name } }
+            } else { "  $($_.Name)" }
+        }
+        Get-ChildItem "$pkg\Intune" -Filter *.intunewin | ForEach-Object {
+            $z = [IO.Compression.ZipFile]::OpenRead($_.FullName)
+            "  intunewin $($_.Length) bytes, detection xml: " + (($z.Entries | Where-Object { $_.FullName -like '*Detection.xml' } | Measure-Object).Count -eq 1)
+            $z.Dispose()
+        }
+    } }
+    if (Test-Path $backup) {
+        Remove-Item $settings -Force
+        Move-Item $backup $settings -Force
+        "settings restored; authentication hash after: $(Auth-Hash $settings)"
+    } else { "NO BACKUP FOUND" }
+ }
  'intunewin' {
     Add-Type -AssemblyName System.IO.Compression.FileSystem
     Get-ChildItem "$work\share" -Recurse -Filter *.intunewin | ForEach-Object {
