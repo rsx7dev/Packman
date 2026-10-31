@@ -262,6 +262,7 @@ internal static class PackageLinkWpfTests
 
     private static (IntuneUploadService Service, ApplicationInfo App, string Package, List<DetectionRule> Rules) SupersedenceUpload(string folder)
     {
+        Intune.ForgetCommittedFiles();
         var service = new IntuneUploadService(() => Task.FromResult("test-token"), Tenant, null, FakeIntuneWinAppUtil());
         var appInfo = new ApplicationInfo { Manufacturer = "Contoso", Name = "Supersede", Version = "2.0", DisplayName = AppName };
         var rules = new List<DetectionRule> { new() { Type = DetectionRuleType.File, Path = @"C:\Program Files\Contoso", FileOrFolderName = "app.exe" } };
@@ -436,6 +437,12 @@ internal static class PackageLinkWpfTests
 
         /// <summary>Bodies of the updateRelationships calls, one per call.</summary>
         public List<string> RelationshipBodies { get; } = new();
+
+        /// <summary>A new upload starts with no file committed, as at a fresh Intune content version.</summary>
+        public void ForgetCommittedFiles()
+        {
+            lock (_committedFiles) _committedFiles.Clear();
+        }
 
         /// <summary>How many same-named apps the app list query returns.</summary>
         public int ListedAppCount { get; set; }
