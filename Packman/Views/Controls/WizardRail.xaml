@@ -116,7 +116,6 @@
                            Style="{StaticResource SubText}" FontSize="12" TextWrapping="Wrap" Margin="0,10,0,0"/>
             </StackPanel>
 
-            <TextBlock Text="Before publishing" Style="{StaticResource H3}" Margin="0,26,0,2"/>
             <controls:StatusRow Label="Installer"
                                 Kind="{Binding CreatePackage.HasSourceFile, Converter={StaticResource BoolToText}, ConverterParameter='ok|pending'}"
                                 Value="{Binding CreatePackage.HasSourceFile, Converter={StaticResource BoolToText}, ConverterParameter='Ready|Choose a file'}"
@@ -253,7 +252,6 @@
             <ContentControl Style="{StaticResource KvRow}" Tag="Supersedes" Content="{Binding Upload.SupersedenceRailText}"
                             Visibility="{Binding Upload.HasSupersedence, Converter={StaticResource BoolToVis}}"/>
 
-            <TextBlock Text="Before publishing" Style="{StaticResource H3}" Margin="0,26,0,2"/>
             <controls:StatusRow Label="Commands" Value="{Binding Upload.CommandsState}"
                                 Kind="{Binding Upload.CommandsReady, Converter={StaticResource BoolToText}, ConverterParameter='ok|warn'}"/>
             <controls:StatusRow Label="Detection" Value="{Binding Upload.DetectionState}" Detail="{Binding Upload.DetectionIssue}"
