@@ -12,14 +12,13 @@ public class IntuneAuthService
     // virtually every tenant, so it works when no Client ID is configured.
     private const string DefaultInteractiveClientId = "14d82eec-204b-4c2f-b7e8-296a70dab67e";
 
-    // Sign-in is read-only: browsing apps and searching groups. Anything that writes asks
-    // for its scopes when first used (EnsureScopesAsync), so the shared client never
-    // receives write consent the user did not need.
+    // Sign-in is read-only: browsing apps. Writes ask for their scopes when first used
+    // (EnsureScopesAsync), and group and device access is asked for only when the Advanced
+    // screen opens, so the shared client never receives consent the user did not need.
     public static readonly string[] InteractiveScopes =
     [
         "User.Read",
         "DeviceManagementApps.Read.All",
-        "Group.Read.All",
     ];
 
     /// <summary>Publishing and changing Win32 apps, their content and assignments.</summary>
@@ -28,7 +27,7 @@ public class IntuneAuthService
         "DeviceManagementApps.ReadWrite.All",
     ];
 
-    /// <summary>Advanced screen and group members: PC and user lookup, group membership.</summary>
+    /// <summary>Asked for when the Advanced screen opens: group search and membership, PC and user lookup.</summary>
     public static readonly string[] DirectoryScopes =
     [
         "Group.ReadWrite.All",
@@ -37,7 +36,7 @@ public class IntuneAuthService
         "User.ReadBasic.All",
     ];
 
-    /// <summary>"Create a group per package": POST /groups needs ReadWrite.</summary>
+    /// <summary>"Create a group per package": POST /groups needs ReadWrite, granted through Advanced.</summary>
     public static readonly string[] GroupCreateScopes =
     [
         "Group.ReadWrite.All",
@@ -299,6 +298,22 @@ public class IntuneAuthService
         }
         return true;
     }
+
+    /// <summary>
+    /// True when the session already holds <paramref name="scopes"/>, or when there is no
+    /// interactive session to widen. Group and device features outside Advanced check this
+    /// instead of prompting, so their consent is only ever asked for on that screen.
+    /// </summary>
+    public bool HasScopes(IReadOnlyList<string> scopes)
+    {
+        lock (_stateLock)
+            return _session?.PublicClient == null
+                || !scopes.Except(_session.Scopes, StringComparer.OrdinalIgnoreCase).Any();
+    }
+
+    /// <summary>Shown where a group or device feature needs <see cref="DirectoryScopes"/> not yet granted.</summary>
+    public const string DirectoryAccessHint =
+        "Group and device access is granted on the Advanced screen. Open Advanced once, allow access, then try again.";
 
     /// <summary>The message shown when <see cref="EnsureScopesAsync"/> returns false.</summary>
     public static string ConsentDeclinedMessage(IReadOnlyList<string> scopes) =>

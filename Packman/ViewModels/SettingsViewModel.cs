@@ -593,13 +593,11 @@ public sealed class SettingsViewModel : ObservableObject
                 return;
             }
 
-            // The test verifies publishing, so it asks for the scopes a publish would.
-            string[] scopes = CreateGroupPerPackage || CreateUninstallGroupPerPackage
-                ? [.. IntuneAuthService.PublishScopes, .. IntuneAuthService.GroupCreateScopes]
-                : IntuneAuthService.PublishScopes;
-            if (!await _auth.EnsureScopesAsync(scopes, IntuneAuthService.MainWindowHandle()))
+            // The test verifies publishing, so it asks for the scope a publish would. Group
+            // creation is granted on Advanced; the test reports whether it is there yet.
+            if (!await _auth.EnsureScopesAsync(IntuneAuthService.PublishScopes, IntuneAuthService.MainWindowHandle()))
             {
-                ConnectionStatus = IntuneAuthService.ConsentDeclinedMessage(scopes);
+                ConnectionStatus = IntuneAuthService.ConsentDeclinedMessage(IntuneAuthService.PublishScopes);
                 return;
             }
 

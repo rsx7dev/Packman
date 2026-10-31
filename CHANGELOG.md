@@ -12,10 +12,12 @@ All notable changes to Packman are recorded here. The format follows
 - Remote test stages packages in `C:\ProgramData\Packman` instead of `C:\Temp\Packman`. Before the
   copy the folder is made owner Administrators, inheritance off, SYSTEM and Administrators only; a
   folder there that other accounts could change is renamed aside, and the run stops if the folder
-  cannot be secured.
-- Interactive sign-in asks only for read scopes (`User.Read`, `DeviceManagementApps.Read.All`,
-  `Group.Read.All`). Write, directory and group-creation scopes are requested when first needed:
-  publishing and app changes, the Advanced screen and group members panel, and per-package groups.
+  cannot be secured. A logged-on-user run gets read access to its own package folder and write
+  access to its console log only.
+- Interactive sign-in asks only for read scopes (`User.Read`, `DeviceManagementApps.Read.All`).
+  The write scope is requested when first needed (publishing and app changes); group and device
+  scopes are requested only when the Advanced screen opens, and group features elsewhere point
+  there until they are granted.
 - Settings recommends a dedicated app registration while the shared Microsoft Graph Command Line
   Tools client is in use, and the README documents how to create one.
 

@@ -11,6 +11,7 @@ namespace Packman.Tests;
 public sealed class ContractTests : GraphStaticsFixture
 {
     private const string Tenant = "11111111-1111-1111-1111-111111111111";
+    private const string GroupsProbe = "Entra groups · read access";
     private const string DevicesProbe = "Entra devices · read access";
     private const string UsersProbe = "Entra users · read access";
 
@@ -27,8 +28,16 @@ public sealed class ContractTests : GraphStaticsFixture
     [Fact]
     public void SignInIsReadOnly()
     {
-        Assert.Equal(new[] { "User.Read", "DeviceManagementApps.Read.All", "Group.Read.All" }, IntuneAuthService.InteractiveScopes);
+        Assert.Equal(new[] { "User.Read", "DeviceManagementApps.Read.All" }, IntuneAuthService.InteractiveScopes);
         Assert.DoesNotContain(IntuneAuthService.InteractiveScopes, scope => scope.Contains("ReadWrite"));
+    }
+
+    [Fact]
+    public void SignInLeavesGroupAndDeviceScopesToAdvanced()
+    {
+        Assert.DoesNotContain(IntuneAuthService.InteractiveScopes, scope =>
+            scope.StartsWith("Group", StringComparison.OrdinalIgnoreCase) || scope.StartsWith("Device.", StringComparison.OrdinalIgnoreCase));
+        Assert.Subset(IntuneAuthService.DirectoryScopes.ToHashSet(), IntuneAuthService.GroupCreateScopes.ToHashSet());
     }
 
     [Fact]
@@ -53,15 +62,26 @@ public sealed class ContractTests : GraphStaticsFixture
     }
 
     [Fact]
+    public void HasScopesIsTrueWithoutAnInteractiveSessionToWiden()
+    {
+        var auth = new IntuneAuthService();
+        Assert.True(auth.HasScopes(IntuneAuthService.DirectoryScopes));
+
+        auth.UseTestSession(Tenant, "test-token");
+        Assert.True(auth.HasScopes(IntuneAuthService.DirectoryScopes));
+    }
+
+    [Fact]
     public async Task ConnectionTestSkipsDirectoryProbesTheSignInCannotMake()
     {
         var handler = AnswerProbes();
 
-        var result = await new IntuneService(() => Task.FromResult(Fakes.Token("DeviceManagementApps.ReadWrite.All Group.Read.All")))
+        var result = await new IntuneService(() => Task.FromResult(Fakes.Token("DeviceManagementApps.ReadWrite.All")))
             .TestConnectionAsync(false);
 
         Assert.DoesNotContain(handler.Requests, r => IsDirectoryProbe(r.Url));
-        foreach (var name in new[] { DevicesProbe, UsersProbe })
+        Assert.True(result.Success);
+        foreach (var name in new[] { GroupsProbe, DevicesProbe, UsersProbe })
         {
             var row = Assert.Single(result.Checks, c => c.Name == name);
             Assert.True(row.Ok);
@@ -75,9 +95,10 @@ public sealed class ContractTests : GraphStaticsFixture
         var handler = AnswerProbes();
 
         var result = await new IntuneService(() => Task.FromResult(
-                Fakes.Token("DeviceManagementApps.ReadWrite.All Group.Read.All Device.Read.All User.ReadBasic.All")))
+                Fakes.Token("DeviceManagementApps.ReadWrite.All Group.ReadWrite.All Device.Read.All User.ReadBasic.All")))
             .TestConnectionAsync(false);
 
+        Assert.Contains(handler.Requests, r => r.Url.StartsWith(GraphClient.Groups + "?"));
         Assert.Contains(handler.Requests, r => r.Url.StartsWith(GraphClient.Devices + "?"));
         Assert.Contains(handler.Requests, r => r.Url.StartsWith(GraphClient.Users + "?"));
         Assert.Equal("OK", Assert.Single(result.Checks, c => c.Name == DevicesProbe).Detail);
@@ -92,6 +113,7 @@ public sealed class ContractTests : GraphStaticsFixture
     }
 
     private static bool IsDirectoryProbe(string url) =>
+        url.StartsWith(GraphClient.Groups, StringComparison.OrdinalIgnoreCase) ||
         url.StartsWith(GraphClient.Devices, StringComparison.OrdinalIgnoreCase) ||
         url.StartsWith(GraphClient.Users, StringComparison.OrdinalIgnoreCase);
 

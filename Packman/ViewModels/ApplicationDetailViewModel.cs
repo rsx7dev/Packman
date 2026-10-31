@@ -431,6 +431,11 @@ public sealed class ApplicationDetailViewModel : ObservableObject
             if (!Set(ref _groupSearch, value)) return;
             _selectedGroup = null;
             OnPropertyChanged(nameof(CanAddAssignment));
+            if (!AppServices.Auth.HasScopes(IntuneAuthService.DirectoryScopes))
+            {
+                StatusText = IntuneAuthService.DirectoryAccessHint;
+                return;
+            }
             ErrorReporter.FireAndForget(() => _groupSearchBox.RunAsync(value));
         }
     }
@@ -529,9 +534,12 @@ public sealed class ApplicationDetailViewModel : ObservableObject
             return;
         }
 
-        // Member lookup, search and changes all need the directory scopes sign-in leaves out.
-        if (!await ConsentAsync(IntuneAuthService.DirectoryScopes, m => MembersStatus = m)) return;
-        if (!ReferenceEquals(_flyoutGroup, group)) return;
+        // Member lookup, search and changes need the directory scopes, granted on Advanced.
+        if (!AppServices.Auth.HasScopes(IntuneAuthService.DirectoryScopes))
+        {
+            MembersStatus = IntuneAuthService.DirectoryAccessHint;
+            return;
+        }
 
         MembersStatus = "Loading members…";
         try

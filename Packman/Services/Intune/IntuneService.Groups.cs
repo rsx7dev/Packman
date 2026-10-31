@@ -6,7 +6,7 @@ namespace Packman.Services;
 
 public partial class IntuneService
 {
-    /// <summary>Searches security groups by name prefix. Needs Group.Read.All or higher.</summary>
+    /// <summary>Searches security groups by name prefix. Needs Group.Read.All or higher, granted on the Advanced screen.</summary>
     public async Task<List<EntraGroup>> SearchGroupsAsync(string query, CancellationToken ct = default)
     {
         var results = new List<EntraGroup>();

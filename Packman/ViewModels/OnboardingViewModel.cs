@@ -253,15 +253,13 @@ public sealed class OnboardingViewModel : ObservableObject
             else
                 await SignIn(AuthMode.Interactive, cfg, WindowHandle);
 
-            // The test verifies publishing, so it asks for the scopes a publish would.
+            // The test verifies publishing, so it asks for the scope a publish would. Group
+            // creation is granted on Advanced; the test reports whether it is there yet.
             var groups = _svc.Settings.GroupAssignment;
             var createsGroups = groups.CreateGroupPerPackage || groups.CreateUninstallGroupPerPackage;
-            string[] scopes = createsGroups
-                ? [.. IntuneAuthService.PublishScopes, .. IntuneAuthService.GroupCreateScopes]
-                : IntuneAuthService.PublishScopes;
-            if (!await _auth.EnsureScopesAsync(scopes, WindowHandle))
+            if (!await _auth.EnsureScopesAsync(IntuneAuthService.PublishScopes, WindowHandle))
             {
-                SetConnection("warn", IntuneAuthService.ConsentDeclinedMessage(scopes));
+                SetConnection("warn", IntuneAuthService.ConsentDeclinedMessage(IntuneAuthService.PublishScopes));
                 return;
             }
 

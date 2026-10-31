@@ -315,14 +315,15 @@ Two modes:
 Graph permissions for the available features:
 
 - **Interactive (delegated)**, requested when first needed rather than at sign-in:
-  - **Sign-in** asks for read access only: `User.Read`, `DeviceManagementApps.Read.All` and
-    `Group.Read.All` (browsing apps, searching groups).
+  - **Sign-in** asks for read access only: `User.Read` and `DeviceManagementApps.Read.All`
+    (browsing apps).
   - **Publishing**, and changing an app on its detail page (retire, republish, detection rules,
     assignments), asks for `DeviceManagementApps.ReadWrite.All` the first time. **Test connection**
     asks for it too, because it verifies publishing.
-  - **Create a group per package** adds `Group.ReadWrite.All` at publish.
-  - **Advanced** and the group members panel ask for `Group.ReadWrite.All`,
-    `GroupMember.ReadWrite.All`, `Device.Read.All` and `User.ReadBasic.All` when opened.
+  - **Advanced** asks for `Group.ReadWrite.All`, `GroupMember.ReadWrite.All`, `Device.Read.All`
+    and `User.ReadBasic.All` when opened. Group and device access is asked for nowhere else:
+    group search on the Upload step and app pages, the group members panel and **Create a group
+    per package** point you to Advanced until it has been granted.
 
   Each request is a normal consent prompt; nothing prompts again once granted. Declining it cancels
   that action only, and nothing is sent. A tenant that already consented to the full set for the
@@ -584,7 +585,8 @@ Management Extension does, so the launcher, PowerShell edition and module isolat
    access for SYSTEM and Administrators only. A folder there that anyone else could change is
    renamed to `Packman.untrusted-<timestamp>` and a fresh one is created; if the folder still
    can't be secured, the run stops before anything is copied. It then copies the package there over
-   the admin share, registers the
+   the admin share (a **Logged-on user** run also gives that user read access to this package's
+   folder and write access to its console log, nothing more), registers the
    task with the install command line, and streams the **PSADT log** into the console as the toolkit
    writes it — the launcher itself prints nothing, so the log is the live view. Warnings and errors
    are colour-coded from the log entry's own severity. **Run uninstall** does the same with the

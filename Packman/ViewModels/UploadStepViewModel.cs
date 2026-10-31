@@ -515,12 +515,16 @@ public class UploadStepViewModel : ObservableObject
             return;
         }
 
-        string[] scopes = settings.GroupAssignment.CreateGroupPerPackage || settings.GroupAssignment.CreateUninstallGroupPerPackage
-            ? [.. IntuneAuthService.PublishScopes, .. IntuneAuthService.GroupCreateScopes]
-            : IntuneAuthService.PublishScopes;
-        if (!await _auth.EnsureScopesAsync(scopes, IntuneAuthService.MainWindowHandle()))
+        // Group creation is granted on the Advanced screen, never prompted for here.
+        if ((settings.GroupAssignment.CreateGroupPerPackage || settings.GroupAssignment.CreateUninstallGroupPerPackage)
+            && !_auth.HasScopes(IntuneAuthService.GroupCreateScopes))
         {
-            StatusText = IntuneAuthService.ConsentDeclinedMessage(scopes);
+            StatusText = IntuneAuthService.DirectoryAccessHint;
+            return;
+        }
+        if (!await _auth.EnsureScopesAsync(IntuneAuthService.PublishScopes, IntuneAuthService.MainWindowHandle()))
+        {
+            StatusText = IntuneAuthService.ConsentDeclinedMessage(IntuneAuthService.PublishScopes);
             return;
         }
 

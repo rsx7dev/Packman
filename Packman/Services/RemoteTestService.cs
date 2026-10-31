@@ -188,7 +188,7 @@ public class RemoteTestService
         using (var ps = PowerShell.Create())
         {
             ps.Runspace = runspace;
-            ps.AddScript(BuildTaskScript(runAsUser, commandLine, workingDirectory, consoleLog, configPath));
+            ps.AddScript(BuildTaskScript(runAsUser, commandLine, remotePackagePath, workingDirectory, consoleLog, configPath));
 
             var stdout = new PSDataCollection<PSObject>();
             stdout.DataAdded += (s, e) =>
@@ -256,17 +256,35 @@ public class RemoteTestService
     /// folder, starts it, and streams two things back through the pipeline until it ends:
     /// anything the command printed (rarely — the PSADT launcher swallows stdout) and the
     /// PSADT log entries written since the task started. The exit code arrives via the
-    /// sentinel. Only the principal differs by context.
+    /// sentinel. Only the principal differs by context, and a user run also gets read
+    /// access to its own package folder and write access to the console log alone.
     /// </summary>
-    private static string BuildTaskScript(bool runAsUser, string commandLine, string workingDirectory, string consoleLog, string configPath)
+    internal static string BuildTaskScript(bool runAsUser, string commandLine, string packagePath, string workingDirectory, string consoleLog, string configPath)
     {
         // S-1-5-18 rather than the account name: the SID is locale-independent.
+        // Staging is SYSTEM and Administrators only, so a user run is granted read on this
+        // package (traverse into the base needs no right) and write on a log created for it;
+        // it can still change nothing a later SYSTEM run executes.
         string principal = runAsUser
             ? """
               $user = (Get-CimInstance Win32_ComputerSystem).UserName
               if (-not $user) { throw 'No user is logged on to the target computer' }
               $principal = New-ScheduledTaskPrincipal -UserId $user -LogonType Interactive
               $contextLabel = $user
+              try {
+                  $userSid = (New-Object System.Security.Principal.NTAccount($user)).Translate([System.Security.Principal.SecurityIdentifier])
+                  $package = Get-Item -LiteralPath '__PACKAGE_DIR__'
+                  $acl = $package.GetAccessControl('Access')
+                  $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule(
+                      $userSid, 'ReadAndExecute', 'ContainerInherit, ObjectInherit', 'None', 'Allow')))
+                  $package.SetAccessControl($acl)
+                  [IO.File]::WriteAllText($consoleLog, '')
+                  $log = Get-Item -LiteralPath $consoleLog
+                  $acl = $log.GetAccessControl('Access')
+                  $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($userSid, 'Modify', 'Allow')))
+                  $log.SetAccessControl($acl)
+              }
+              catch { throw "Could not give $user access to the staged package: $($_.Exception.Message)" }
               """
             : """
               $principal = New-ScheduledTaskPrincipal -UserId 'S-1-5-18' -LogonType ServiceAccount -RunLevel Highest
@@ -417,6 +435,7 @@ public class RemoteTestService
             "__SENTINEL__$exitCode"
             """
             .Replace("__PRINCIPAL__", principal)
+            .Replace("__PACKAGE_DIR__", EscapeSingleQuoted(packagePath))
             .Replace("__COMMAND__", EscapeSingleQuoted(commandLine))
             .Replace("__WORK_DIR__", EscapeSingleQuoted(workingDirectory))
             .Replace("__CONSOLE_LOG__", EscapeSingleQuoted(consoleLog))
@@ -498,7 +517,7 @@ public class RemoteTestService
         return string.IsNullOrEmpty(cleaned) ? "Package" : cleaned;
     }
 
-    private static async Task CopyWithRobocopyAsync(string source, string destination, Action<int?>? progress, CancellationToken ct)
+    internal static async Task CopyWithRobocopyAsync(string source, string destination, Action<int?>? progress, CancellationToken ct)
     {
         // /MIR mirrors, /MT:16 multithreaded, /J unbuffered, /NOOFFLOAD skips the ODX
         // attempt (unusable over SMB), /R:2 /W:5 replaces the 1M-retry defaults, and

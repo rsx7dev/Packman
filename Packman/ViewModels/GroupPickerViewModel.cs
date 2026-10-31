@@ -61,6 +61,11 @@ public sealed class GroupPickerViewModel : ObservableObject
             GroupSearchHint = "Sign in to Intune on the Settings page first.";
             return;
         }
+        if (!_auth.HasScopes(IntuneAuthService.DirectoryScopes))
+        {
+            GroupSearchHint = IntuneAuthService.DirectoryAccessHint;
+            return;
+        }
 
         IsSearchingGroups = true;
         try
@@ -109,6 +114,11 @@ public sealed class GroupPickerViewModel : ObservableObject
         if (!_auth.IsSignedIn)
         {
             GroupSearchHint = "Sign in to load the default groups from Settings.";
+            return false;
+        }
+        if (!_auth.HasScopes(IntuneAuthService.DirectoryScopes))
+        {
+            GroupSearchHint = IntuneAuthService.DirectoryAccessHint;
             return false;
         }
 

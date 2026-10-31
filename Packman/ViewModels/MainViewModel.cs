@@ -11,8 +11,8 @@ public enum PackageTool { None, EditScript, RemoteTest }
 
 public sealed class MainViewModel : ObservableObject
 {
-    private readonly SettingsService _settingsService = AppServices.Settings;
-    private readonly IntuneAuthService _auth = AppServices.Auth;
+    private readonly SettingsService _settingsService;
+    private readonly IntuneAuthService _auth;
 
     public SettingsService SettingsService => _settingsService;
 
@@ -384,8 +384,13 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    public MainViewModel()
+    public MainViewModel() : this(AppServices.Settings, AppServices.Auth) { }
+
+    /// <summary>Tests: a settings file and sign-in of their own instead of the app's.</summary>
+    internal MainViewModel(SettingsService settingsService, IntuneAuthService auth)
     {
+        _settingsService = settingsService;
+        _auth = auth;
         Upload = new UploadStepViewModel(CreatePackage, _settingsService, _auth);
         RemoteTest = new RemoteTestViewModel(_settingsService, CreatePackage, hasPublishStep: true);
         Editor = new EditorSessionViewModel(CreatePackage, _dialogs);

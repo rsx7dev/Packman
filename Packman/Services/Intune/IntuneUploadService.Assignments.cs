@@ -86,7 +86,7 @@ public partial class IntuneUploadService
         var response = await _graph.PostAsync(GraphClient.Groups, payload, "Create group", ct, throwOnError: false);
         if (!response.IsSuccess)
         {
-            var hint = response.StatusCode == 403 ? " (needs Group.ReadWrite.All; sign out and in again to consent)" : "";
+            var hint = response.StatusCode == 403 ? " (needs Group.ReadWrite.All; grant it on the Advanced screen)" : "";
             RecordFollowUpWarning($"Could not create group '{displayName}' (HTTP {response.StatusCode}){hint}: {GraphException.ExtractMessage(response.Body)}", log);
             return null;
         }
