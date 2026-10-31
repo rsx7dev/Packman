@@ -2,11 +2,11 @@
 
 This explicit Windows integration fixture runs a small real PSADT 4.1.7 package
 through the production `RemoteTestViewModel` and `RemoteTestService`. It requires
-the Windows node executor's SYSTEM context and network access. It never asks for
+an already elevated Windows node process and network access. It never asks for
 elevation, changes UAC settings, or requires an attendant. An ordinary user
 launch fails immediately without changing the PC.
 
-Build and run on the Windows node, in SYSTEM context:
+Build and run on the Windows node, in an existing elevated administrator or SYSTEM context:
 
 ```powershell
 dotnet build tests/manual/RemoteTestFixture/RemoteTestFixture.csproj -c Release

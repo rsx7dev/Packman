@@ -21,10 +21,13 @@ internal static class Program
     [STAThread]
     public static int Main()
     {
-        // The node executor supplies SYSTEM; this fixture never requests elevation or changes UAC.
-        if (!WindowsIdentity.GetCurrent().IsSystem)
+        // An already elevated node process registers the SYSTEM task without requesting UAC.
+        using var identity = WindowsIdentity.GetCurrent();
+        bool elevated = new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
+        Console.WriteLine($"Fixture identity: {identity.User}; elevated: {elevated}; SYSTEM: {identity.IsSystem}");
+        if (!elevated)
         {
-            Console.Error.WriteLine("FAIL: Run this integration fixture as SYSTEM on the Windows node.");
+            Console.Error.WriteLine("FAIL: The node launcher is unelevated. An already elevated node process is required to register the SYSTEM task without UAC.");
             return 1;
         }
         Directory.CreateDirectory(Evidence);
