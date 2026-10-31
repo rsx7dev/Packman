@@ -1,0 +1,11 @@
+psadt-functions.json: PSAppDeployToolkit function help
+
+The function names, synopses, descriptions, parameter descriptions, examples and documentation
+links in psadt-functions.json were extracted from the comment-based help of the PSAppDeployToolkit
+public functions (github.com/PSAppDeployToolkit/PSAppDeployToolkit, release 4.1.8 and the main
+branch, 4.2 development). PSAppDeployToolkit is licensed under the GNU Lesser General Public
+License v3.0 (LGPL-3.0); the license texts are in Packman/PSADT/COPYING.Lesser and
+Packman/PSADT/COPYING.GPL. This file is the derived data only; it is not changed by Packman except
+for the added in_release / in_dev availability flags.
+
+Packman/Tools/extract-psadt-functions.py regenerates the file from two PSAppDeployToolkit checkouts.

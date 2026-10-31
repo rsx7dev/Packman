@@ -8,17 +8,20 @@
 </head>
 <body>
 <div id="editor"></div>
+<script src="psadt-intellisense.js"></script>
 <script src="vs/loader.js"></script>
 <script>
   // Hosted by StepEdit via WebView2. One model per open file, so switching tabs
   // keeps unsaved edits, undo history and scroll position.
   //
   // Messages from C#:
-  //   { type: 'init', catalog: [...], background, dark }
+  //   { type: 'init', background, dark }
   //   { type: 'open', path, content, language, readOnly, eol, activate }
   //   { type: 'activate', path } | { type: 'close', path }
   //   { type: 'markSaved', path, versionId } | { type: 'reveal', line }
   //   { type: 'theme', background, dark } | { type: 'markers', path, markers: [...] }
+  //   { type: 'psadtVersion', version } (ModuleVersion of the package's PSAppDeployToolkit, or null)
+  //   { type: 'pickFunction' } (opens the PSADT Functions picker)
   // Messages to C#:
   //   { type: 'ready' } | { type: 'dirty', path, dirty } | { type: 'save' }
   //   { type: 'cursor', line, column, selected }
@@ -26,13 +29,14 @@
   // C# reads buffers through packmanContent(path) / packmanDirty(), and applies
   // watcher reloads conditionally through packmanReload(message).
   let editor = null;
-  let catalog = [];
-  let byName = new Map();
   let activePath = null;
   const files = new Map(); // path -> { model, savedVersionId, viewState, dirty }
   const validateTimers = new Map(); // path -> pending debounce timer
 
   const post = msg => window.chrome.webview.postMessage(msg);
+
+  // The function catalog is a static file next to this page; loaded once, never refetched.
+  PsadtIntellisense.load('psadt-functions.json');
 
   require.config({ paths: { vs: 'vs' } });
   require(['vs/editor/editor.main'], function () {
@@ -59,7 +63,7 @@
     editor.onDidChangeCursorPosition(reportCursor);
     editor.onDidChangeCursorSelection(reportCursor);
 
-    registerPsadtProviders();
+    PsadtIntellisense.register(editor);
     post({ type: 'ready' });
   });
 
@@ -155,154 +159,21 @@
   };
   window.packmanDirty = () => [...files.entries()].filter(([, f]) => f.dirty).map(([p]) => p);
 
-  // <PLACEHOLDER> tokens from the catalog become snippet tab-stops.
-  function toSnippet(call) {
-    let i = 0;
-    return call.replace(/<([A-Z_]+)>/g, (_, name) => '${' + (++i) + ':' + name + '}');
-  }
-
-  function signatureLabel(fn) {
-    return fn.name + ' ' + fn.params.map(p => {
-      const part = '-' + p.name + (p.isSwitch ? '' : ' <' + p.type + '>');
-      return p.mandatory ? part : '[' + part + ']';
-    }).join(' ');
-  }
-
-  function docFor(fn) {
-    return { value: '**' + fn.name + '**  \n_' + fn.category + '_\n\n' + fn.synopsis };
-  }
-
-  /// Walks the text before the cursor to see whether we sit in a comment or string,
-  /// where completions would only get in the way.
-  function inCommentOrString(model, position) {
-    const before = model.getValueInRange({
-      startLineNumber: 1, startColumn: 1,
-      endLineNumber: position.lineNumber, endColumn: position.column
-    });
-    const openBlock = before.lastIndexOf('<#');
-    if (openBlock >= 0 && before.lastIndexOf('#>') < openBlock) return true;
-
-    const line = model.getLineContent(position.lineNumber).slice(0, position.column - 1);
-    let quote = null;
-    for (const ch of line) {
-      if (quote) { if (ch === quote) quote = null; }
-      else if (ch === "'" || ch === '"') quote = ch;
-      else if (ch === '#') return true;
-    }
-    return quote !== null;
-  }
-
-  /// The catalog function whose call the cursor sits in, plus the text typed after it.
-  /// Takes the LAST match on the line so piped and nested calls resolve correctly.
-  function callAt(model, position) {
-    const line = model.getLineContent(position.lineNumber).slice(0, position.column - 1);
-    const re = /([A-Za-z][A-Za-z0-9]*-[A-Za-z0-9]+)/g;
-    let m, fn = null, end = -1;
-    while ((m = re.exec(line)) !== null) {
-      const hit = byName.get(m[1].toLowerCase());
-      if (hit) { fn = hit; end = m.index + m[0].length; }
-    }
-    return fn ? { fn, tail: line.slice(end) } : null;
-  }
-
-  /// Index of the parameter currently being typed, for signature help highlighting.
-  function activeParameter(fn, tail) {
-    const typed = [...tail.matchAll(/-([A-Za-z0-9]+)/g)];
-    if (typed.length === 0) return 0;
-    const last = typed[typed.length - 1][1].toLowerCase();
-    const i = fn.params.findIndex(p => p.name.toLowerCase() === last);
-    return i >= 0 ? i : 0;
-  }
-
-  function registerPsadtProviders() {
-    // ADT functions and their parameters come from the catalog; Monaco's own
-    // word-based suggestions still contribute identifiers from the open file.
-    monaco.languages.registerCompletionItemProvider('powershell', {
-      triggerCharacters: ['-'],
-      provideCompletionItems(model, position) {
-        if (inCommentOrString(model, position)) return { suggestions: [] };
-
-        const word = model.getWordUntilPosition(position);
-        const range = new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, word.endColumn);
-        const line = model.getLineContent(position.lineNumber);
-        const typingParameter = word.startColumn > 1 && line[word.startColumn - 2] === '-';
-
-        if (typingParameter) {
-          const call = callAt(model, position);
-          if (!call) return { suggestions: [] };
-          const used = new Set([...call.tail.matchAll(/-([A-Za-z0-9]+)/g)]
-            .slice(0, -1).map(m => m[1].toLowerCase()));
-          return {
-            suggestions: call.fn.params
-              .filter(p => !used.has(p.name.toLowerCase()))
-              .map(p => ({
-                label: '-' + p.name,
-                kind: monaco.languages.CompletionItemKind.Property,
-                detail: (p.mandatory ? 'required ' : '') + (p.isSwitch ? 'switch' : p.type),
-                documentation: p.description,
-                insertText: p.name,
-                sortText: (p.mandatory ? '0' : '1') + p.name,
-                range
-              }))
-          };
-        }
-
-        return {
-          suggestions: catalog.map(fn => ({
-            label: fn.name,
-            kind: monaco.languages.CompletionItemKind.Function,
-            documentation: docFor(fn),
-            detail: fn.category,
-            insertText: toSnippet(fn.snippet),
-            insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
-            range
-          }))
-        };
-      }
-    });
-
-    monaco.languages.registerHoverProvider('powershell', {
-      provideHover(model, position) {
-        const word = model.getWordAtPosition(position);
-        if (!word) return null;
-        const fn = byName.get(word.word.toLowerCase());
-        if (!fn) return null;
-        return { contents: [docFor(fn), { value: '`' + signatureLabel(fn) + '`' }] };
-      }
-    });
-
-    monaco.languages.registerSignatureHelpProvider('powershell', {
-      signatureHelpTriggerCharacters: [' ', '-'],
-      provideSignatureHelp(model, position) {
-        const call = callAt(model, position);
-        if (!call) return null;
-        return {
-          value: {
-            signatures: [{
-              label: signatureLabel(call.fn),
-              documentation: call.fn.synopsis,
-              parameters: call.fn.params.map(p => ({ label: '-' + p.name, documentation: p.description }))
-            }],
-            activeSignature: 0,
-            activeParameter: activeParameter(call.fn, call.tail)
-          },
-          dispose() {}
-        };
-      }
-    });
-  }
-
   window.chrome.webview.addEventListener('message', e => {
     const msg = e.data;
     if (!editor) return;
     switch (msg.type) {
       case 'init':
-        catalog = msg.catalog || [];
-        byName = new Map(catalog.map(f => [f.name.toLowerCase(), f]));
         if (msg.background) applyTheme(msg.background, msg.dark);
         break;
       case 'theme':
         applyTheme(msg.background, msg.dark);
+        break;
+      case 'psadtVersion':
+        PsadtIntellisense.setVersion(msg.version);
+        break;
+      case 'pickFunction':
+        PsadtIntellisense.openPicker();
         break;
       case 'markers': {
         const f = files.get(msg.path);

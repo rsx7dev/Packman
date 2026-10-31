@@ -130,6 +130,13 @@
                         </StackPanel>
                     </Button>
                     <Button Style="{StaticResource ToolbarButton}" Margin="0,0,8,8"
+                            Click="PickFunction_Click" ToolTip="Insert a PSADT function (Ctrl+Shift+I)">
+                        <StackPanel Orientation="Horizontal">
+                            <controls:LineIcon Data="{DynamicResource IconList}" Width="16" Height="16"/>
+                            <TextBlock Text="Functions" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource ToolbarButton}" Margin="0,0,8,8"
                             Click="OpenExternally_Click" ToolTip="Open the active file in VS Code or another script editor">
                         <StackPanel Orientation="Horizontal">
                             <controls:LineIcon Data="{DynamicResource IconExternal}" Width="16" Height="16"/>

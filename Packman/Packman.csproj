@@ -45,8 +45,6 @@
     <None Include="PSADT\**\*" Exclude="PSADT\**\.gitkeep" CopyToOutputDirectory="PreserveNewest" />
     <!-- Monaco editor assets for the in-app script editor -->
     <None Include="MonacoEditor\**\*" CopyToOutputDirectory="PreserveNewest" />
-    <!-- PSADT v4 function catalog used by the Configure PSADT dialog -->
-    <None Include="PSADT_v4_Functions*.csv" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

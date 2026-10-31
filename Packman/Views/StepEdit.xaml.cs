@@ -17,9 +17,6 @@ namespace Packman.Views;
 /// </summary>
 public partial class StepEdit : UserControl, IMonacoHost
 {
-    /// <summary>Loaded once per process; the CSV doesn't change at runtime.</summary>
-    private static List<PSADTFunction>? _catalog;
-
     private bool _editorReady;
     private bool _editorFailed;
     private Task? _editorInit;          // one initialisation, shared by Loaded and IsVisibleChanged
@@ -180,7 +177,7 @@ public partial class StepEdit : UserControl, IMonacoHost
         {
             case "ready":
                 _editorReady = true;
-                Post(new { type = "init", catalog = BuildCatalogPayload(), background = CodeBackgroundHex(), dark = ThemeService.IsDark });
+                Post(new { type = "init", background = CodeBackgroundHex(), dark = ThemeService.IsDark });
                 _session?.OnEditorReady();
                 break;
 
@@ -235,28 +232,6 @@ public partial class StepEdit : UserControl, IMonacoHost
     private static bool IsEditorOrigin(string value)
         => Uri.TryCreate(value, UriKind.Absolute, out var uri) && uri.Scheme == "https"
             && uri.Host == "packman-editor" && uri.IsDefaultPort && string.IsNullOrEmpty(uri.UserInfo);
-
-    private static object BuildCatalogPayload()
-    {
-        _catalog ??= PSADTFunctionCatalog.LoadFromCsv(PSADTFunctionCatalog.GetCsvPath());
-        return _catalog.Select(f => new
-        {
-            name = f.Name,
-            synopsis = f.Synopsis,
-            category = f.Category,
-            snippet = f.GenerateCallWithPlaceholders(),
-            @params = f.Parameters
-                .Where(p => p.Name != "(none)")
-                .Select(p => new
-                {
-                    name = p.Name,
-                    type = p.Type,
-                    mandatory = p.Mandatory,
-                    isSwitch = p.IsSwitch,
-                    description = p.Description,
-                }),
-        }).ToList();
-    }
 
     // ═══════════ Package tree ═══════════
 
@@ -381,6 +356,13 @@ public partial class StepEdit : UserControl, IMonacoHost
     }
 
     private void RefreshTree_Click(object sender, RoutedEventArgs e) => ErrorReporter.FireAndForget(RefreshTreeAsync);
+
+    /// <summary>The page can't take keystrokes until WebView2 has focus, so focus it before opening the picker.</summary>
+    private void PickFunction_Click(object sender, RoutedEventArgs e)
+    {
+        EditorWebView.Focus();
+        Post(new { type = "pickFunction" });
+    }
 
     private void OpenExternally_Click(object sender, RoutedEventArgs e) => _session?.OpenInExternalEditor();
 
