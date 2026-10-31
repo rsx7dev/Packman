@@ -34,6 +34,7 @@ internal static class SetupUnitTests
             ("A name with a Windows-invalid character is rejected", InvalidCharRejected),
             ("A name with a control character is rejected", ControlCharRejected),
             ("A name ending with a dot is rejected", TrailingDotRejected),
+            ("A name over 64 characters is rejected", LongNameRejected),
             ("A reserved device name is rejected, with or without an extension", ReservedNameRejected),
             ("A name that only starts like a reserved name is accepted", ReservedPrefixAccepted),
             ("Application, Intune and Icon are rejected in any case", FixedFolderRejected),
@@ -145,6 +146,13 @@ internal static class SetupUnitTests
     {
         NotNull(PsadtLayout.ExtraFolderProblem("a\u0001b", Array.Empty<string>()));
         NotNull(PsadtLayout.ExtraFolderProblem("a\tb", Array.Empty<string>()));
+    }
+
+    private static void LongNameRejected()
+    {
+        NotNull(PsadtLayout.ExtraFolderProblem(new string('L', 260), Array.Empty<string>()));
+        NotNull(PsadtLayout.ExtraFolderProblem(new string('L', 65), Array.Empty<string>()));
+        IsNull(PsadtLayout.ExtraFolderProblem(new string('L', 64), Array.Empty<string>()));
     }
 
     private static void TrailingDotRejected()

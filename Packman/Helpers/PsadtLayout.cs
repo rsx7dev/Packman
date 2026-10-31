@@ -35,6 +35,8 @@ public static class PsadtLayout
         return folders;
     }
 
+    private const int MaxExtraFolderLength = 64;
+
     private static readonly char[] InvalidNameChars = ['<', '>', ':', '"', '|', '?', '*'];
 
     private static readonly string[] ReservedDeviceNames =
@@ -47,6 +49,7 @@ public static class PsadtLayout
     public static string? ExtraFolderProblem(string name, IEnumerable<string> existing)
     {
         if (name.Length == 0) return "Enter a folder name.";
+        if (name.Length > MaxExtraFolderLength) return $"Use at most {MaxExtraFolderLength} characters.";
         if (name.Contains('\\') || name.Contains('/')) return "Use a single folder name, without \\ or /.";
         if (name.IndexOfAny(InvalidNameChars) >= 0 || name.Any(char.IsControl))
             return "A folder name cannot contain < > : \" | ? * or control characters.";
