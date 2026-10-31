@@ -74,8 +74,9 @@ These are native Windows CI renders with sample data; they do not show a live te
 
 - **Built-in Monaco editor** (WebView2) with a package file tree, tabs, dirty markers and
   Ctrl+S save.
-- **PSADT v4 IntelliSense** — completions, hover documentation and signature help driven by the
-  bundled function catalog (`PSADT_v4_Functions*.csv`).
+- **PSADT v4 IntelliSense** — completions, hover documentation, signature help and a searchable
+  **Functions** picker driven by the bundled function catalog (`MonacoEditor/psadt-functions.json`),
+  filtered to the PSADT version in the package's `PSAppDeployToolkit.psd1`.
 - **PowerShell syntax checking** as you type (parse only — nothing in the script is executed);
   errors are underlined and counted in the status bar.
 - Search across the package by **file name and file contents**, jumping straight to the line.
@@ -449,8 +450,11 @@ it is where you replace `<silent flags>` and `<uninstall flags>` with the instal
 - Open files become tabs. A dot on a tab means unsaved changes. **Save** (or Ctrl+S) writes to the
   package on the share, preserving the file's original encoding and line endings.
 - PowerShell files get **PSADT v4 completions, hover documentation and signature help** from the
-  bundled catalog, plus **live syntax checking** — the problem count sits in the status bar and
-  errors are underlined. The check only parses; it never runs the script.
+  bundled catalog (type `Show-ADT…` or `-ADT`; `-` after a function name lists its parameters), a
+  **Functions** button (Ctrl+Shift+I) that opens a searchable picker grouped by verb and inserts the
+  call at the cursor, and functions that the package's PSADT version lacks are hidden from
+  completion and marked in the picker. They also get **live syntax checking** — the problem count
+  sits in the status bar and errors are underlined. The check only parses; it never runs the script.
 - If a file changes on disk while it is open, a **Changed on disk — reload** button appears.
   **Revert** throws away your buffer and re-reads the file.
 - **OPEN IN VS CODE** (footer) opens the active file — or the deploy script — in VS Code,
@@ -860,8 +864,7 @@ Packman/
   Fonts/          embedded UI fonts
   MonacoEditor/   the editor host page and Monaco assets
   PSADT/          bundled PSADT v4 template (script only)
-  Tools/          Update-PsadtCatalog.ps1, regenerates the function catalog
-  PSADT_v4_Functions*.csv   function catalog behind the editor's IntelliSense
+  Tools/          extract-psadt-functions.py, regenerates MonacoEditor/psadt-functions.json
 scripts/         native Windows preview utility and third-party inventory tooling
 packages/         vendored .nupkg files for offline restore
 .github/workflows/build.yml   restore, build, native previews and app startup on windows-latest

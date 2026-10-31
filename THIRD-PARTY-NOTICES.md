@@ -11,6 +11,7 @@ Packman's own source is distributed under [Apache 2.0](LICENSE). That license do
 | JetBrains Mono, static instances | [SIL OFL 1.1](Packman/Fonts/JetBrainsMono-OFL.txt) | [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono) |
 | Martian Mono, static instances | [SIL OFL 1.1](Packman/Fonts/MartianMono-OFL.txt) | [Martian Mono](https://github.com/evilmartians/mono) |
 | PSAppDeployToolkit deploy-script template | [LGPL 3.0](Packman/PSADT/COPYING.Lesser), [incorporated GPL 3.0](Packman/PSADT/COPYING.GPL) | [PSAppDeployToolkit](https://github.com/PSAppDeployToolkit/PSAppDeployToolkit) |
+| PSAppDeployToolkit function help (names, synopses, parameter descriptions, docs links) in the editor's function catalog | [LGPL 3.0](Packman/PSADT/COPYING.Lesser), [notice](Packman/MonacoEditor/psadt-functions-NOTICE.txt) | [PSAppDeployToolkit](https://github.com/PSAppDeployToolkit/PSAppDeployToolkit) |
 
 The font changes made for WPF are described in [Fonts/README.md](Packman/Fonts/README.md). The PSADT template is included as editable source; users must supply the complete PSADT v4 runtime and preserve its upstream notices. IntuneWinAppUtil and the installed WebView2 runtime are obtained separately and retain their own distribution terms.
 
