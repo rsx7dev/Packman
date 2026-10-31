@@ -399,7 +399,8 @@
       getDomNode: () => ui.root,
       getPosition: () => null
     });
-    editor.onMouseDown(() => closePicker());
+    // Clicks on the picker itself also reach the editor's mouse events; only clicks elsewhere close it.
+    editor.onMouseDown(e => { if (!ui.root.contains(e.target.element)) closePicker(); });
   }
 
   function onSearchKey(e) {
