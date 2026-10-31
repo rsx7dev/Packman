@@ -41,7 +41,7 @@ public static class PackageMarker
     }
 
     /// <summary>Path of the link file for a package folder.</summary>
-    public static string PathFor(string packagePath) => Path.Combine(packagePath, "Intune", FileName);
+    public static string PathFor(string packagePath) => Path.Combine(PsadtLayout.IntuneFolder(packagePath), FileName);
 
     /// <summary>
     /// Writes or overwrites the link. Returns null, or the warning to show when it could not be
@@ -51,7 +51,7 @@ public static class PackageMarker
     {
         try
         {
-            Directory.CreateDirectory(Path.Combine(packagePath, "Intune"));
+            Directory.CreateDirectory(PsadtLayout.IntuneFolder(packagePath));
             File.WriteAllText(PathFor(packagePath), JsonSerializer.Serialize(link, JsonOptions));
             return null;
         }

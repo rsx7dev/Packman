@@ -12,11 +12,22 @@
                         Subtitle="Configure authentication, paths, deployment defaults and appearance"
                         IsBodyScrollable="False">
 
+        <controls:PageFrame.HeaderActions>
+            <Button Style="{StaticResource GhostButton}" Click="RunSetup_Click" AutomationProperties.Name="Run setup again"
+                    ToolTip="Open the first-run setup with your current settings">
+                <StackPanel Orientation="Horizontal">
+                    <controls:LineIcon Data="{DynamicResource IconPlay}" Width="13" Height="13" Margin="0,0,8,0"/>
+                    <TextBlock Text="Run setup again" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+        </controls:PageFrame.HeaderActions>
+
         <!-- ══ Section tabs ═════════════════════════════════════════════ -->
         <controls:PageFrame.HeaderBottom>
             <WrapPanel>
                 <RadioButton x:Name="TabAuth" Style="{StaticResource PageTab}" Content="Authentication" IsChecked="True"/>
                 <RadioButton x:Name="TabNetworkPaths" Style="{StaticResource PageTab}" Content="Network paths"/>
+                <RadioButton x:Name="TabPackageLayout" Style="{StaticResource PageTab}" Content="Package layout"/>
                 <RadioButton x:Name="TabIntuneDefaults" Style="{StaticResource PageTab}" Content="Intune defaults"/>
                 <RadioButton x:Name="TabGroupAssignment" Style="{StaticResource PageTab}" Content="Group assignment"/>
                 <RadioButton x:Name="TabCodeSign" Style="{StaticResource PageTab}" Content="Code signing"/>
@@ -121,28 +132,15 @@
         <ScrollViewer x:Name="SectionScroll" Focusable="False"
                       VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
             <StackPanel>
-                <!-- First-run setup banner -->
-                <Border Style="{StaticResource CalloutWarn}" Margin="0,0,0,24"
-                        Visibility="{Binding ShowFirstRunBanner, Converter={StaticResource BoolToVis}}">
-                    <DockPanel>
-                        <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconBulb}" Foreground="{DynamicResource WarnBrush}"
-                                           Margin="0,0,10,0"/>
-                        <Button DockPanel.Dock="Right" Style="{StaticResource RowIconButton}" Command="{Binding DismissFirstRunCommand}"
-                                VerticalAlignment="Center" ToolTip="Dismiss">
-                            <controls:LineIcon Data="{DynamicResource IconX}" Width="12" Height="12"/>
-                        </Button>
-                        <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" FontSize="13" Margin="0,0,10,0">
-                            <Run Text="First-run setup" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}"/>
-                            <Run Text="  Set the package output folder, full PSADT v4 template and IntuneWinAppUtil path. Sign in to Intune, then save."
-                                 Foreground="{DynamicResource Text2Brush}"/>
-                        </TextBlock>
-                    </DockPanel>
-                </Border>
-
                 <Border Style="{StaticResource SectionPanel}">
                     <Grid>
                         <controls:AuthenticationSettings Visibility="{Binding IsChecked, ElementName=TabAuth, Converter={StaticResource BoolToVis}}"/>
                         <controls:NetworkPathsSettings Visibility="{Binding IsChecked, ElementName=TabNetworkPaths, Converter={StaticResource BoolToVis}}"/>
+                        <StackPanel Visibility="{Binding IsChecked, ElementName=TabPackageLayout, Converter={StaticResource BoolToVis}}">
+                            <controls:SectionHeader Title="Package layout"
+                                                    Caption="Applies to new packages only. Existing packages are never changed." Margin="0,0,0,20"/>
+                            <controls:PackageLayoutEditor DataContext="{Binding Layout}"/>
+                        </StackPanel>
                         <controls:IntuneDefaultsSettings Visibility="{Binding IsChecked, ElementName=TabIntuneDefaults, Converter={StaticResource BoolToVis}}"/>
                         <controls:GroupAssignmentSettings Visibility="{Binding IsChecked, ElementName=TabGroupAssignment, Converter={StaticResource BoolToVis}}"/>
                         <controls:CodeSigningSettings Visibility="{Binding IsChecked, ElementName=TabCodeSign, Converter={StaticResource BoolToVis}}"/>

@@ -29,6 +29,7 @@
     <!-- The Windows harnesses swap in fake Graph/Azure handlers, a test sign-in and a recording Remote Test service. -->
     <InternalsVisibleTo Include="PackageLinkWpfTests" />
     <InternalsVisibleTo Include="RemoteTestWpfTests" />
+    <InternalsVisibleTo Include="SetupTests" />
   </ItemGroup>
 
   <ItemGroup>

@@ -180,7 +180,7 @@ public sealed class RemoteTestViewModel : ObservableObject
     public void SelectPackage(string selectedPath)
     {
         string root = FolderBrowserHelper.GetPackageRootPath(selectedPath);
-        string? scriptPath = FolderBrowserHelper.GetPSADTScriptPath(Path.Combine(root, "Application"))
+        string? scriptPath = FolderBrowserHelper.GetPSADTScriptPath(PsadtLayout.ApplicationFolder(root))
             ?? FolderBrowserHelper.GetPSADTScriptPath(root);
 
         if (scriptPath == null)

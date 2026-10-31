@@ -271,9 +271,21 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>Settings saved: paths and defaults the rails summarise may have changed.</summary>
     public void RefreshFromSettings()
     {
-        RaiseAll(nameof(OutputShareReady), nameof(TemplateReady), nameof(OutputShare), nameof(PackageFolderPreview));
+        RaiseAll(nameof(OutputShareReady), nameof(TemplateReady), nameof(OutputShare), nameof(PackageFolderPreview), nameof(PackageFolders));
         Upload.RaiseReadiness();
         PrimaryCommand.RaiseCanExecuteChanged();
+    }
+
+    /// <summary>The folders a new package gets, as listed on the Create page.</summary>
+    public IReadOnlyList<string> PackageFolders
+    {
+        get
+        {
+            var layout = _settingsService.Settings.PackageLayout;
+            return new[] { PsadtLayout.ApplicationFolderName, PsadtLayout.IntuneFolderName }
+                .Concat(PsadtLayout.OptionalFolders(layout.IconFolder, layout.ExtraFolders))
+                .Select(folder => folder + "\\").ToList();
+        }
     }
 
     public MainViewModel()

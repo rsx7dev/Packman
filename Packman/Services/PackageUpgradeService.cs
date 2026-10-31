@@ -1,4 +1,5 @@
 using Packman.Helpers;
+using Packman.Models;
 using System.Diagnostics;
 using System.IO;
 
@@ -12,8 +13,13 @@ namespace Packman.Services;
 public class PackageUpgradeService
 {
     private readonly string _baseOutputPath;
+    private readonly AppSettings.PackageLayoutConfig _layout;
 
-    public PackageUpgradeService(string baseOutputPath) => _baseOutputPath = baseOutputPath;
+    public PackageUpgradeService(string baseOutputPath, AppSettings.PackageLayoutConfig layout)
+    {
+        _baseOutputPath = baseOutputPath;
+        _layout = layout;
+    }
 
     public Task<PackageCreationResult> UpgradePackageAsync(
         string existingPackagePath,
@@ -30,7 +36,7 @@ public class PackageUpgradeService
             ?? throw new FileNotFoundException(
                 $"{PsadtLayout.ScriptName} not found in the existing package. Packman upgrades PSADT v4 packages only.");
 
-        var existingApplication = Path.Combine(existingPackagePath, "Application");
+        var existingApplication = PsadtLayout.ApplicationFolder(existingPackagePath);
         if (!Directory.Exists(existingApplication))
             throw new DirectoryNotFoundException($"Source Application folder not found: {existingApplication}");
 
@@ -60,14 +66,17 @@ public class PackageUpgradeService
 
         try
         {
-            foreach (var folder in new[] { "Application", "Icon", "Intune" })
+            // packman.id in Intune\ belongs to the old version's app, so Intune\ starts empty.
+            Directory.CreateDirectory(PsadtLayout.IntuneFolder(newPackagePath));
+            var optionalFolders = PsadtLayout.OptionalFolders(_layout.IconFolder, _layout.ExtraFolders);
+            foreach (var folder in optionalFolders)
                 Directory.CreateDirectory(Path.Combine(newPackagePath, folder));
 
             // Files\ comes across whole: transforms, config and licence files the script
             // references sit there next to the installer. Only the installer is swapped.
-            DirectoryCopy.Copy(existingApplication, Path.Combine(newPackagePath, "Application"), cancellationToken);
+            DirectoryCopy.Copy(existingApplication, PsadtLayout.ApplicationFolder(newPackagePath), cancellationToken);
 
-            var files = Path.Combine(newPackagePath, "Application", "Files");
+            var files = PsadtLayout.FilesFolder(newPackagePath);
             Directory.CreateDirectory(files);
 
             if (oldSourceFileName == null)
@@ -80,9 +89,13 @@ public class PackageUpgradeService
 
             File.Copy(newSourcesPath, Path.Combine(files, newSourceFileName), true);
 
-            var icon = Path.Combine(existingPackagePath, "Icon");
-            if (Directory.Exists(icon))
-                DirectoryCopy.Copy(icon, Path.Combine(newPackagePath, "Icon"), cancellationToken);
+            // Icon and the extra folders carry their contents forward when the old version has them.
+            foreach (var folder in optionalFolders)
+            {
+                var previous = Path.Combine(existingPackagePath, folder);
+                if (Directory.Exists(previous))
+                    DirectoryCopy.Copy(previous, Path.Combine(newPackagePath, folder), cancellationToken);
+            }
             cancellationToken.ThrowIfCancellationRequested();
 
             UpdateScript(newPackagePath, manufacturer, appName, newVersion, newSourceFileName, newIsMsi, oldProductCode, newProductCode);
@@ -100,7 +113,7 @@ public class PackageUpgradeService
         string packagePath, string manufacturer, string appName, string version,
         string newSourceFileName, bool newIsMsi, string? oldProductCode, string? newProductCode)
     {
-        var scriptPath = Path.Combine(packagePath, "Application", PsadtLayout.ScriptName);
+        var scriptPath = PsadtLayout.ScriptPath(packagePath);
         if (!File.Exists(scriptPath))
             throw new FileNotFoundException($"{PsadtLayout.ScriptName} not found: {scriptPath}");
 
@@ -147,7 +160,7 @@ public class PackageUpgradeService
     // Fallback when the script does not name its product code: the old installer itself.
     private static string? ReadProductCodeFromFiles(string applicationFolder)
     {
-        var files = Path.Combine(applicationFolder, "Files");
+        var files = Path.Combine(applicationFolder, PsadtLayout.FilesFolderName);
         if (!Directory.Exists(files)) return null;
 
         return Directory.EnumerateFiles(files, "*.msi")

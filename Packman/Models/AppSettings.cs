@@ -21,6 +21,7 @@ public class AppSettings
     public AuthConfig Authentication { get; set; } = new();
     public CodeSigningConfig CodeSigning { get; set; } = new();
     public NetworkPathsConfig NetworkPaths { get; set; } = new();
+    public PackageLayoutConfig PackageLayout { get; set; } = new();
     public GroupAssignmentConfig GroupAssignment { get; set; } = new();
     public IntuneDefaultsConfig IntuneDefaults { get; set; } = new();
     public RemoteTestConfig RemoteTest { get; set; } = new();
@@ -46,6 +47,18 @@ public class AppSettings
         public string IntuneApplications { get; set; } = "";
         public string PSADTTemplate { get; set; } = "";
         public string IntuneWinAppUtil { get; set; } = "";
+
+        /// <summary>True once all three paths are set; below that, first-run setup is shown.</summary>
+        public bool IsComplete =>
+            !string.IsNullOrWhiteSpace(IntuneApplications) && !string.IsNullOrWhiteSpace(PSADTTemplate) && !string.IsNullOrWhiteSpace(IntuneWinAppUtil);
+    }
+
+    /// <summary>Folders a new package gets besides Application and Intune. Existing packages are never changed.</summary>
+    public class PackageLayoutConfig
+    {
+        public bool IconFolder { get; set; } = true;
+        // Created empty in every new package; plain folder names.
+        public List<string> ExtraFolders { get; set; } = new();
     }
 
     public class GroupAssignmentConfig

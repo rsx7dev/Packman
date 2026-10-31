@@ -10,17 +10,17 @@ public static class PackagePreflight
     public static IReadOnlyList<string> Check(string packageRoot)
     {
         var issues = new List<string>();
-        var application = Path.Combine(packageRoot, "Application");
-        var scriptPath = Path.Combine(application, PsadtLayout.ScriptName);
+        var application = PsadtLayout.ApplicationFolder(packageRoot);
+        var scriptPath = PsadtLayout.ScriptPath(packageRoot);
         var required = new[]
         {
             PsadtLayout.ScriptName,
             PsadtLayout.SetupFileName,
-            Path.Combine("PSAppDeployToolkit", "PSAppDeployToolkit.psd1")
+            Path.Combine(PsadtLayout.ToolkitFolderName, "PSAppDeployToolkit.psd1")
         };
         foreach (var file in required)
             if (!File.Exists(Path.Combine(application, file)))
-                issues.Add($"Missing Application/{file}. Use a complete PSADT v4 template in Settings → Network paths.");
+                issues.Add($"Missing {PsadtLayout.ApplicationFolderName}/{file}. Use a complete PSADT v4 template in Settings → Network paths.");
 
         if (!File.Exists(scriptPath)) return issues;
         try

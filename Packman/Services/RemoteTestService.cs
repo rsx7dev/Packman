@@ -90,9 +90,9 @@ public class RemoteTestService
             throw new DirectoryNotFoundException($"Source path not found: {sourcePath}");
 
         string relativeApplicationPath;
-        if (File.Exists(Path.Combine(sourcePath, "Application", PsadtLayout.ScriptName)))
+        if (File.Exists(PsadtLayout.ScriptPath(sourcePath)))
         {
-            relativeApplicationPath = "Application";
+            relativeApplicationPath = PsadtLayout.ApplicationFolderName;
             output($"[OK] Found {PsadtLayout.ScriptName} in Application subfolder");
         }
         else if (File.Exists(Path.Combine(sourcePath, PsadtLayout.ScriptName)))

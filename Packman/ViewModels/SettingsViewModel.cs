@@ -208,7 +208,7 @@ public sealed class SettingsViewModel : ObservableObject
     }
 
     // ── Network Paths ──────────────────────────────────────────────────
-    private static readonly string[] PathDependents = [nameof(IsConfigured), nameof(ShowFirstRunBanner)];
+    private static readonly string[] PathDependents = [nameof(IsConfigured)];
 
     private string _intuneApplicationsPath = "";
     public string IntuneApplicationsPath { get => _intuneApplicationsPath; set => Set(ref _intuneApplicationsPath, value, PathDependents); }
@@ -228,9 +228,9 @@ public sealed class SettingsViewModel : ObservableObject
         !string.IsNullOrWhiteSpace(_psadtTemplatePath) &&
         !string.IsNullOrWhiteSpace(_intuneWinAppUtilPath);
 
-    private bool _firstRunDismissed;
-    public bool ShowFirstRunBanner => !_firstRunDismissed && !IsConfigured;
-    public RelayCommand DismissFirstRunCommand { get; }
+    // ── Package layout ─────────────────────────────────────────────────
+    /// <summary>Icon and extra folders for new packages; the same editor setup uses.</summary>
+    public PackageLayoutViewModel Layout { get; } = new();
 
     // ── Group Assignment ───────────────────────────────────────────────
     private bool _createGroupPerPackage;
@@ -371,7 +371,6 @@ public sealed class SettingsViewModel : ObservableObject
 
     public SettingsViewModel(SettingsService svc, IntuneAuthService auth)
     {
-        DismissFirstRunCommand = new RelayCommand(() => { _firstRunDismissed = true; OnPropertyChanged(nameof(ShowFirstRunBanner)); });
         _svc = svc;
         _auth = auth;
         SaveCommand = new RelayCommand(Save);
@@ -418,6 +417,7 @@ public sealed class SettingsViewModel : ObservableObject
         IntuneApplicationsPath = s.NetworkPaths.IntuneApplications;
         PSADTTemplatePath = s.NetworkPaths.PSADTTemplate;
         IntuneWinAppUtilPath = s.NetworkPaths.IntuneWinAppUtil;
+        Layout.Load(s.PackageLayout);
 
         CreateGroupPerPackage = s.GroupAssignment.CreateGroupPerPackage;
         GroupNameTemplate = s.GroupAssignment.GroupNameTemplate;
@@ -664,6 +664,7 @@ public sealed class SettingsViewModel : ObservableObject
         s.NetworkPaths.IntuneApplications = IntuneApplicationsPath;
         s.NetworkPaths.PSADTTemplate = PSADTTemplatePath;
         s.NetworkPaths.IntuneWinAppUtil = IntuneWinAppUtilPath;
+        s.PackageLayout = Layout.ToConfig();
 
         s.GroupAssignment.CreateGroupPerPackage = CreateGroupPerPackage;
         s.GroupAssignment.GroupNameTemplate = GroupNameTemplate;

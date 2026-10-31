@@ -1,0 +1,90 @@
+<UserControl x:Class="Packman.Views.Onboarding.PathsStep"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="clr-namespace:Packman.Views.Controls">
+    <StackPanel Margin="0,0,24,0">
+        <TextBlock Text="Where things live" Style="{StaticResource H1}"/>
+        <TextBlock Text="Packman checks all three when you press Next." Style="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,4,0,18"/>
+
+        <!-- Applications share root -->
+        <TextBlock Text="Applications share root" Style="{StaticResource FieldLabel}"/>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox AutomationProperties.Name="Applications share root" Style="{StaticResource TextField}"
+                     Text="{Binding ApplicationsRoot, UpdateSourceTrigger=PropertyChanged}"/>
+            <Button Grid.Column="1" Style="{StaticResource GhostButton}" Click="BrowseRoot_Click" Margin="10,0,0,0"
+                    AutomationProperties.Name="Browse for the applications share root">
+                <StackPanel Orientation="Horizontal">
+                    <controls:LineIcon Data="{DynamicResource IconFolder}" Width="14" Height="14" Margin="0,0,7,0"/>
+                    <TextBlock Text="Browse" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+        </Grid>
+        <TextBlock Text="Packman creates every package here, for example \\server\share\IntuneApps. A local folder works too."
+                   Style="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+        <ContentControl Content="{Binding ApplicationsRootCheck}" ContentTemplate="{StaticResource SetupCheckCallout}" Focusable="False" Margin="0,8,0,0"/>
+
+        <!-- PSADT template -->
+        <TextBlock Text="PSADT v4 template" Style="{StaticResource FieldLabel}" Margin="0,22,0,6"/>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox AutomationProperties.Name="PSADT v4 template" Style="{StaticResource TextField}"
+                     Text="{Binding TemplatePath, UpdateSourceTrigger=PropertyChanged}"/>
+            <Button Grid.Column="1" Style="{StaticResource GhostButton}" Click="BrowseTemplate_Click" Margin="10,0,0,0"
+                    AutomationProperties.Name="Browse for the PSADT v4 template">
+                <StackPanel Orientation="Horizontal">
+                    <controls:LineIcon Data="{DynamicResource IconFolder}" Width="14" Height="14" Margin="0,0,7,0"/>
+                    <TextBlock Text="Browse" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+        </Grid>
+        <DockPanel Margin="0,6,0,0">
+            <Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Click="PsadtLink_Click" Margin="12,0,0,0"
+                    AutomationProperties.Name="Open the PSADT releases page">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="PSADT releases" VerticalAlignment="Center"/>
+                    <controls:LineIcon Data="{DynamicResource IconExternal}" Width="12" Height="12" Margin="6,0,0,0"/>
+                </StackPanel>
+            </Button>
+            <TextBlock Text="The folder with Invoke-AppDeployToolkit.ps1 and PSAppDeployToolkit. Packman does not download it for you."
+                       Style="{StaticResource SubText}" TextWrapping="Wrap"/>
+        </DockPanel>
+        <ContentControl Content="{Binding TemplateCheck}" ContentTemplate="{StaticResource SetupCheckCallout}" Focusable="False" Margin="0,8,0,0"/>
+
+        <!-- IntuneWinAppUtil -->
+        <TextBlock Text="IntuneWinAppUtil.exe" Style="{StaticResource FieldLabel}" Margin="0,22,0,6"/>
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox AutomationProperties.Name="IntuneWinAppUtil.exe path" Style="{StaticResource TextField}"
+                     Text="{Binding IntuneWinAppUtilPath, UpdateSourceTrigger=PropertyChanged}"/>
+            <Button Grid.Column="1" Style="{StaticResource GhostButton}" Click="BrowseTool_Click" Margin="10,0,0,0"
+                    AutomationProperties.Name="Browse for IntuneWinAppUtil.exe">
+                <StackPanel Orientation="Horizontal">
+                    <controls:LineIcon Data="{DynamicResource IconFolder}" Width="14" Height="14" Margin="0,0,7,0"/>
+                    <TextBlock Text="Browse" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+        </Grid>
+        <DockPanel Margin="0,6,0,0">
+            <Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Click="ToolLink_Click" Margin="12,0,0,0"
+                    AutomationProperties.Name="Open the Microsoft download page for IntuneWinAppUtil">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Text="Microsoft download" VerticalAlignment="Center"/>
+                    <controls:LineIcon Data="{DynamicResource IconExternal}" Width="12" Height="12" Margin="6,0,0,0"/>
+                </StackPanel>
+            </Button>
+            <TextBlock Text="The file itself, not its folder. Packman uses it to build each .intunewin."
+                       Style="{StaticResource SubText}" TextWrapping="Wrap"/>
+        </DockPanel>
+        <ContentControl Content="{Binding IntuneWinAppUtilCheck}" ContentTemplate="{StaticResource SetupCheckCallout}" Focusable="False" Margin="0,8,0,0"/>
+    </StackPanel>
+</UserControl>
