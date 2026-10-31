@@ -150,7 +150,7 @@ public class DetectionDiscoveryService
     }
 
     // Machine-wide locations plus AppData\Local for user-context installs.
-    private static List<string> GetSearchRoots(string computerName)
+    internal static List<string> GetSearchRoots(string computerName)
     {
         // This PC is read directly; its admin share may be disabled.
         string cShare = computerName.Equals(Environment.MachineName, StringComparison.OrdinalIgnoreCase)

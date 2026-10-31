@@ -30,6 +30,11 @@ public class RemoteTestService
     private const string TaskName = "Packman_RemoteTest";
     private const string ExitCodeSentinel = "PACKMAN_EXIT_CODE:";
 
+    // /MIR mirrors, /MT:16 multithreaded, /J unbuffered, /NOOFFLOAD skips the ODX
+    // attempt (unusable over SMB), /R:2 /W:5 replaces the 1M-retry defaults, and
+    // /NP /NFL /NDL drops per-file output, which otherwise dominates the runtime.
+    private const string RobocopyOptions = "/MIR /MT:16 /J /NOOFFLOAD /R:2 /W:5 /NP /NFL /NDL /NJH";
+
     // SCHED_S_TASK_HAS_NOT_RUN: registered but never produced a result.
     private const int NeverRan = 267011;
 
@@ -119,15 +124,19 @@ public class RemoteTestService
         string stagedPath = local ? remotePackagePath : $@"\\{computerName}\C$\Temp\Packman\{packageName}";
 
         output($"Copying files to {stagedPath}...");
-        var copyTimer = Stopwatch.StartNew();
-        CopyWithRobocopy(sourcePath, stagedPath, copyProgress);
-        copyTimer.Stop();
-        copyProgress?.Invoke(null);
+        // Locally the copy runs inside the elevated script, so a staging folder only an admin can write works too.
+        if (!local)
+        {
+            var copyTimer = Stopwatch.StartNew();
+            CopyWithRobocopy(sourcePath, stagedPath, copyProgress);
+            copyTimer.Stop();
+            copyProgress?.Invoke(null);
 
-        var copiedFiles = Directory.GetFiles(stagedPath, "*", SearchOption.AllDirectories);
-        double sizeMb = copiedFiles.Sum(f => new FileInfo(f).Length) / 1048576.0;
-        output($"Package size: {Math.Round(sizeMb, 2)} MB");
-        output($"[OK] {copiedFiles.Length} files in sync after {Math.Round(copyTimer.Elapsed.TotalSeconds, 1)} seconds");
+            var copiedFiles = Directory.GetFiles(stagedPath, "*", SearchOption.AllDirectories);
+            double sizeMb = copiedFiles.Sum(f => new FileInfo(f).Length) / 1048576.0;
+            output($"Package size: {Math.Round(sizeMb, 2)} MB");
+            output($"[OK] {copiedFiles.Length} files in sync after {Math.Round(copyTimer.Elapsed.TotalSeconds, 1)} seconds");
+        }
 
         // Intune runs the command line from the content folder, so the task does too.
         string workingDirectory = relativeApplicationPath.Length == 0 ? remotePackagePath : $@"{remotePackagePath}\{relativeApplicationPath}";
@@ -156,7 +165,9 @@ public class RemoteTestService
         string taskScript = BuildTaskScript(runAsUser, commandLine, workingDirectory, consoleLog, configPath);
         if (local)
         {
-            RunElevated(taskScript, output, Emit);
+            // Staging, task and cleanup share one elevation; the cleanup lines therefore precede "Exit code".
+            string cleanupScript = cleanupAfterDeploy ? BuildLocalCleanupScript(stagedPath) : "";
+            RunElevated(BuildLocalStageScript(sourcePath, stagedPath) + taskScript + cleanupScript, output, Emit);
         }
         else
         {
@@ -182,7 +193,7 @@ public class RemoteTestService
         if (exitCode == -1)
             output("WARNING: The remote monitor returned no exit code; check the PSADT log on the target.");
 
-        if (cleanupAfterDeploy)
+        if (cleanupAfterDeploy && !local)
         {
             output("");
             output("Cleaning up...");
@@ -205,7 +216,7 @@ public class RemoteTestService
     /// when Packman is not elevated. An elevated process cannot be redirected, so the script
     /// appends its output to a file, which is tailed here until the process ends.
     /// </summary>
-    private static void RunElevated(string taskScript, Action<string> output, Action<string> emit)
+    internal virtual void RunElevated(string taskScript, Action<string> output, Action<string> emit)
     {
         string outputFile = Path.Combine(Path.GetTempPath(), $"Packman_Local_{Guid.NewGuid():N}.log");
         File.WriteAllText(outputFile, "");
@@ -257,8 +268,27 @@ public class RemoteTestService
         }
     }
 
+    /// <summary>Elevated twin of <see cref="CopyWithRobocopy"/>: mirrors the package into the staging folder.</summary>
+    private static string BuildLocalStageScript(string source, string destination) => """
+        robocopy.exe '__SOURCE__' '__DESTINATION__' __OPTIONS__ | Out-Null
+        if ($LASTEXITCODE -ge 8) { throw "Robocopy failed with exit code $LASTEXITCODE" }
+        "[OK] Package staged in __DESTINATION__"
+
+        """
+        .Replace("__SOURCE__", EscapeSingleQuoted(source.TrimEnd('\\')))
+        .Replace("__DESTINATION__", EscapeSingleQuoted(destination.TrimEnd('\\')))
+        .Replace("__OPTIONS__", RobocopyOptions);
+
+    private static string BuildLocalCleanupScript(string stagedPath) => """
+
+        "Cleaning up..."
+        try { Remove-Item -LiteralPath '__PATH__' -Recurse -Force -ErrorAction Stop; "[OK] Cleanup completed" }
+        catch { "WARNING: Cleanup failed: $($_.Exception.Message)" }
+        """
+        .Replace("__PATH__", EscapeSingleQuoted(stagedPath));
+
     /// <summary>Text appended since <paramref name="offset"/>; until <paramref name="final"/>, only whole lines.</summary>
-    private static string ReadNewLines(string path, ref long offset, bool final)
+    internal static string ReadNewLines(string path, ref long offset, bool final)
     {
         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
         stream.Seek(offset, SeekOrigin.Begin);
@@ -514,13 +544,10 @@ public class RemoteTestService
 
     private static void CopyWithRobocopy(string source, string destination, Action<int?>? progress)
     {
-        // /MIR mirrors, /MT:16 multithreaded, /J unbuffered, /NOOFFLOAD skips the ODX
-        // attempt (unusable over SMB), /R:2 /W:5 replaces the 1M-retry defaults, and
-        // /NP /NFL /NDL drops per-file output, which otherwise dominates the runtime.
         var psi = new ProcessStartInfo
         {
             FileName = "robocopy.exe",
-            Arguments = $"\"{source.TrimEnd('\\')}\" \"{destination.TrimEnd('\\')}\" /MIR /MT:16 /J /NOOFFLOAD /R:2 /W:5 /NP /NFL /NDL /NJH",
+            Arguments = $"\"{source.TrimEnd('\\')}\" \"{destination.TrimEnd('\\')}\" {RobocopyOptions}",
             UseShellExecute = false,
             RedirectStandardOutput = true,
             CreateNoWindow = true

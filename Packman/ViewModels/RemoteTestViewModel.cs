@@ -78,6 +78,9 @@ public sealed class RemoteTestViewModel : ObservableObject
     public RelayCommand ApplyDetectionCommand { get; }
     public RelayCommand ClearLogCommand { get; }
 
+    /// <summary>The Windows harness swaps in a service that records instead of elevating.</summary>
+    internal Func<RemoteTestService> CreateService { get; set; } = () => new RemoteTestService();
+
     /// <summary>Raised with the discovered rule when the packager applies it; the host routes it to the publish step.</summary>
     public event Action<DetectionRule>? ApplyDetectionRequested;
 
@@ -385,7 +388,7 @@ public sealed class RemoteTestViewModel : ObservableObject
             if (!local) RememberComputer(context.Computer);
             try
             {
-                exitCode = await Task.Run(() => new RemoteTestService().Deploy(
+                exitCode = await Task.Run(() => CreateService().Deploy(
                     context.Computer, packagePath, deploymentType, commandLine, cleanup, runAsUser,
                     Append, percent => CopyPercent = percent, local));
             }
