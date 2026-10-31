@@ -53,8 +53,8 @@ internal static class Program
 
     private static void Log(string text)
     {
-        Output.AppendText(text + Environment.NewLine);
-        Output.ScrollToEnd();
+        Output.Text = text + Environment.NewLine + Output.Text;
+        Output.ScrollToHome();
         if (Directory.Exists(Root)) File.AppendAllText(Path.Combine(Root, "evidence.txt"), text + Environment.NewLine);
     }
 
@@ -66,6 +66,7 @@ internal static class Program
     private static async Task Prepare()
     {
         RequireClosed();
+        if (File.Exists(Path.Combine(Root, "restored.txt"))) Directory.Move(Root, Root + "-restored-" + DateTime.UtcNow.Ticks);
         if (Directory.Exists(Root) || Directory.Exists(Stage) || Directory.Exists(Installed) || Directory.Exists(Logs))
             throw new Exception("A fixture path already exists. Inspect it; do not overwrite baseline data.");
         Directory.CreateDirectory(Root);
@@ -77,7 +78,7 @@ internal static class Program
         Log("Baseline: fixture stage, installed app and dedicated PSADT logs absent. Settings backed up.");
         using var client = new HttpClient();
         client.DefaultRequestHeaders.UserAgent.ParseAdd("Packman-Manual-Verification");
-        const string url = "https://github.com/PSAppDeployToolkit/PSAppDeployToolkit/releases/download/4.1.7/PSAppDeployToolkit_Template_v4.1.7.zip";
+        const string url = "https://github.com/PSAppDeployToolkit/PSAppDeployToolkit/releases/download/4.1.7/PSAppDeployToolkit_Template_v4.zip";
         Log("Downloading real PSADT runtime: " + url);
         var archive = Path.Combine(Root, "runtime.zip");
         await File.WriteAllBytesAsync(archive, await client.GetByteArrayAsync(url));
@@ -152,6 +153,8 @@ internal static class Program
         RequireClosed();
         if (!File.Exists(Path.Combine(Root, "settings-existed.txt"))) throw new Exception("No fixture baseline to restore.");
         if (Directory.Exists(Installed)) throw new Exception("Complete Uninstall in Packman first; the installed probe still exists.");
+        if (Directory.Exists(Stage) || Directory.Exists(Logs) || File.Exists(Path.Combine(Root, "winrm.xml")))
+        {
         Log("ATTENDANT: approve fixture cleanup UAC. It removes only this fixture's stage/logs and restores WinRM.");
         await PowerShell($$"""
             $ErrorActionPreference = 'Stop'
@@ -170,6 +173,7 @@ internal static class Program
             }
             'PRIVILEGED CLEANUP COMPLETE'
             """, true);
+        }
         if (File.ReadAllText(Path.Combine(Root, "settings-existed.txt")) == "True")
             File.Copy(Path.Combine(Root, "settings.backup"), Settings, true);
         else File.Delete(Settings);
@@ -178,6 +182,7 @@ internal static class Program
         if (File.Exists(Path.Combine(Root, "runtime.zip"))) File.Delete(Path.Combine(Root, "runtime.zip"));
         Log("Settings restored byte-for-byte; test source/template/packages removed. Evidence retained at " + Root);
         await Inspect();
+        File.WriteAllText(Path.Combine(Root, "restored.txt"), "Restored");
         Log($"RESTORED: stage absent={!Directory.Exists(Stage)}, app absent={!Directory.Exists(Installed)}, logs absent={!Directory.Exists(Logs)}");
     }
 
