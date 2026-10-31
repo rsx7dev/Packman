@@ -40,3 +40,6 @@ ds-bundle/
 .design-sync/.cache/
 .design-sync/learnings/
 .design-sync/node_modules
+
+# Test fixtures named release/ are real files
+!tests/fixtures/psadt-catalog/release/

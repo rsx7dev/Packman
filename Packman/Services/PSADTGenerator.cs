@@ -154,11 +154,11 @@ public class PSADTGenerator
                         ?? (msi ? appInfo.Name + ".msi" : "setup.exe");
 
         if (!script.InsertAfterSection(PsadtScript.InstallSection,
-                "", msi ? "## MSI Installation" : "## EXE Installation", PsadtScript.InstallCommand(msi, installer)))
+                "", msi ? "## MSI Installation" : "## EXE Installation", PsadtScript.InstallCommand(msi, installer, appInfo.InstallArguments)))
             warnings.Add($"No '<Perform {PsadtScript.InstallSection} tasks here>' marker in the template; add the install command by hand.");
 
         if (!script.InsertAfterSection(PsadtScript.UninstallSection,
-                "", msi ? "## Uninstall MSI" : "## Uninstall EXE", PsadtScript.UninstallCommand(msi, installer, appInfo.MsiProductCode)))
+                "", msi ? "## Uninstall MSI" : "## Uninstall EXE", PsadtScript.UninstallCommand(msi, installer, appInfo.MsiProductCode, appInfo.UninstallArguments)))
             warnings.Add($"No '<Perform {PsadtScript.UninstallSection} tasks here>' marker in the template; add the uninstall command by hand.");
 
         script.Save();

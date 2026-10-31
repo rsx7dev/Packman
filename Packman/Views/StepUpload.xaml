@@ -65,24 +65,6 @@
                 </StackPanel>
             </Grid>
 
-            <!-- Upgrade only: the relationship the publish writes. -->
-            <Border Style="{StaticResource Callout}" Margin="0,16,0,0"
-                    Visibility="{Binding Upload.HasSupersedence, Converter={StaticResource BoolToVis}}">
-                <DockPanel>
-                    <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconRefresh}" Foreground="{DynamicResource AccentTextBrush}"
-                                       VerticalAlignment="Top" Margin="0,1,10,0"/>
-                    <StackPanel>
-                        <TextBlock Text="Supersedence" FontWeight="SemiBold" FontSize="13"/>
-                        <TextBlock Text="{Binding Upload.SupersedenceSummary}" TextWrapping="Wrap" FontSize="12.5" LineHeight="18" Margin="0,3,0,0"/>
-                    </StackPanel>
-                </DockPanel>
-            </Border>
-            <Border Style="{StaticResource CalloutNeutral}" Margin="0,16,0,0"
-                    Visibility="{Binding ShowNoSupersedenceNote, Converter={StaticResource BoolToVis}}">
-                <TextBlock TextWrapping="Wrap" FontSize="12.5" LineHeight="18"
-                           Text="No earlier Intune app is recorded for the upgraded package, so this version publishes as a new app without supersedence."/>
-            </Border>
-
             <Border Style="{StaticResource SectionRule}"/>
 
             <!-- ═══ Detection rule ═══ -->
@@ -282,6 +264,12 @@
             <controls:SectionHeader Title="Assignments" Caption="The Microsoft Entra groups and intent for this application. Pre-filled from Settings ▸ Group assignment."/>
             <controls:GroupPickerControl DataContext="{Binding Upload.GroupPicker}" Margin="0,16,0,0"/>
             <TextBlock Text="{Binding Upload.PerPackageGroupsSummary}" Style="{StaticResource SubText}" FontSize="12.5" TextWrapping="Wrap" Margin="0,12,0,0"/>
+
+            <Border Style="{StaticResource SectionRule}"/>
+
+            <!-- ═══ Supersedence ═══ -->
+            <controls:SectionHeader Title="Supersedence" Caption="Optional. Existing apps in the connected tenant that this one supersedes. Nothing is superseded unless you add it."/>
+            <controls:SupersedencePickerControl DataContext="{Binding Upload.Supersedence}" Margin="0,16,0,0"/>
 
             <Border Style="{StaticResource CalloutWarn}" Margin="0,14,0,0"
                     Visibility="{Binding Upload.IsNotSignedIn, Converter={StaticResource BoolToVis}}">
