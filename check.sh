@@ -19,4 +19,10 @@ dotnet run --file "$check_target" --no-build -c Release
 dotnet restore tests/PackageLinkTests.cs
 dotnet build tests/PackageLinkTests.cs --no-restore -c Release
 dotnet run --file tests/PackageLinkTests.cs --no-build -c Release
-if [ "$check_target" = tests/DeviceStatusTests.cs ]; then dotnet run --file tests/PackageLinkWpfTests.cs -c Release; fi
+dotnet restore tests/SetupUnitTests.cs
+dotnet build tests/SetupUnitTests.cs --no-restore -c Release
+dotnet run --file tests/SetupUnitTests.cs --no-build -c Release
+if [ "$check_target" = tests/DeviceStatusTests.cs ]; then
+    dotnet run --file tests/PackageLinkWpfTests.cs -c Release
+    dotnet run --file tests/SetupTests.cs -c Release
+fi
