@@ -55,7 +55,7 @@ public partial class IntuneUploadService
         string installContext,
         string? iconPath = null,
         IUploadProgress? progress = null,
-        string? predecessorAppId = null,
+        IReadOnlyList<SupersedenceLink>? supersedence = null,
         AppSettings.GroupAssignmentConfig? groupAssignment = null,
         RequirementInfo? requirements = null,
         List<ReturnCodeInfo>? returnCodes = null,
@@ -116,8 +116,8 @@ public partial class IntuneUploadService
             Report(progress, log, 97, "Waiting for Intune to finish publishing...");
             await WaitForApplicationPublishedAsync(appId, ct);
 
-            if (!string.IsNullOrEmpty(predecessorAppId))
-                await WriteSupersedenceAsync(appId, predecessorAppId, log, ct);
+            if (supersedence is { Count: > 0 })
+                await WriteSupersedenceAsync(appId, supersedence, log, ct);
 
             var picked = pickedGroups?.Where(g => !string.IsNullOrWhiteSpace(g.GroupId)).ToList() ?? new List<AssignedGroup>();
             if (picked.Count > 0 || (groupAssignment?.HasAnyAssignment() ?? false))
@@ -294,29 +294,27 @@ public partial class IntuneUploadService
         }
     }
 
-    private async Task WriteSupersedenceAsync(string newAppId, string predecessorAppId, UploadLogger log, CancellationToken ct)
+    private async Task WriteSupersedenceAsync(string newAppId, IReadOnlyList<SupersedenceLink> supersedence, UploadLogger log, CancellationToken ct)
     {
         var payload = new
         {
-            relationships = new object[]
+            relationships = supersedence.Select(link => new Dictionary<string, string>
             {
-                new Dictionary<string, string>
-                {
-                    ["@odata.type"] = "#microsoft.graph.mobileAppSupersedence",
-                    ["targetId"] = predecessorAppId,
-                    ["targetType"] = "child",
-                    ["supersedenceType"] = "update",
-                },
-            },
+                ["@odata.type"] = "#microsoft.graph.mobileAppSupersedence",
+                ["targetId"] = link.AppId,
+                ["targetType"] = "child",
+                ["supersedenceType"] = link.Type,
+            }).ToList(),
         };
 
         try
         {
             var response = await _graph.PostAsync($"{GraphClient.MobileApps}/{newAppId}/updateRelationships", payload, "Write supersedence", ct, throwOnError: false);
             if (response.IsSuccess)
-                log.Success($"Marked previous app {predecessorAppId} as superseded");
+                foreach (var link in supersedence)
+                    log.Success($"Marked app {link.AppId} as superseded ({link.Type})");
             else
-                RecordFollowUpWarning($"Could not write supersedence (HTTP {response.StatusCode}): {GraphException.ExtractMessage(response.Body)}", log);
+                RecordFollowUpWarning($"Intune rejected the supersedence (HTTP {response.StatusCode}): {GraphException.ExtractMessage(response.Body)}", log);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)

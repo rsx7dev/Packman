@@ -87,7 +87,7 @@
             <ContentControl Style="{StaticResource KvRow}" Tag="Type" Content="PSADT v4 · Win32"/>
             <ContentControl Style="{StaticResource KvRow}" Tag="Detection" Content="{Binding Upload.DetectionMethodLabel}"/>
             <ContentControl Style="{StaticResource KvRow}" Tag="Deploy mode" Content="{Binding Upload.SelectedDeployMode}"/>
-            <ContentControl Style="{StaticResource KvRow}" Tag="Supersedes" Content="{Binding CreatePackage.PredecessorAppId}"
+            <ContentControl Style="{StaticResource KvRow}" Tag="Supersedes" Content="{Binding Upload.SupersedenceRailText}"
                             Visibility="{Binding Upload.HasSupersedence, Converter={StaticResource BoolToVis}}"/>
 
             <TextBlock Text="Before publishing" Style="{StaticResource H3}" Margin="0,26,0,2"/>

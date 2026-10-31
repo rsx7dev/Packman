@@ -59,6 +59,9 @@ internal static class PackageLinkWpfTests
             // model marshals progress to its dispatcher, which this thread would block.
             Run("A new upload writes Intune\\packman.id with the uploaded app's values", NewUploadWritesLink);
             Run("A content update overwrites packman.id with that app", UpdateOverwritesLink);
+            Run("An upload writes every chosen supersedence in one updateRelationships call", UploadWritesSupersedence);
+            Run("Rejected supersedence keeps the app and shows Intune's message as a warning", RejectedSupersedenceWarns);
+            Run("The Supersedes field starts empty, defaults to Update and blocks itself and duplicates", SupersedenceFieldRules);
             Run("A read-only packman.id leaves the upload successful and logs a warning", ReadOnlyLinkStillSucceeds);
 
             var linked = Load("linked-app", link: ("linked-app", Tenant));
@@ -132,6 +135,74 @@ internal static class PackageLinkWpfTests
         Equal(UnencryptedSize, link.UnencryptedSize);
         True(DateTime.UtcNow - DateTime.Parse(link.UploadedAt, null, System.Globalization.DateTimeStyles.RoundtripKind) < TimeSpan.FromMinutes(5), "uploadedAt is now, in UTC");
         True(!File.Exists(Path.Combine(package, "Application", PackageMarker.FileName)), "nothing in Application\\");
+    }
+
+    private static readonly SupersedenceLink[] TwoApps = [new("old-1", SupersedenceType.Update), new("old-2", SupersedenceType.Replace)];
+
+    private static void UploadWritesSupersedence()
+    {
+        Intune.RelationshipBodies.Clear();
+        var (service, appInfo, package, rules) = SupersedenceUpload("Contoso_Supersede");
+
+        Task.Run(() => service.UploadWin32ApplicationAsync(appInfo, package, rules, "i", "u", "test", "system", supersedence: TwoApps)).GetAwaiter().GetResult();
+
+        Equal(1, Intune.RelationshipBodies.Count);
+        var relationships = JsonDocument.Parse(Intune.RelationshipBodies[0]).RootElement.GetProperty("relationships");
+        Equal(2, relationships.GetArrayLength());
+        Equal("old-1", relationships[0].GetProperty("targetId").GetString());
+        Equal("update", relationships[0].GetProperty("supersedenceType").GetString());
+        Equal("old-2", relationships[1].GetProperty("targetId").GetString());
+        Equal("replace", relationships[1].GetProperty("supersedenceType").GetString());
+    }
+
+    private static void RejectedSupersedenceWarns()
+    {
+        Intune.RelationshipBodies.Clear();
+        Intune.RejectRelationships = true;
+        try
+        {
+            var (service, appInfo, package, rules) = SupersedenceUpload("Contoso_TooLarge");
+
+            var ex = Assert(() => Task.Run(() => service.UploadWin32ApplicationAsync(appInfo, package, rules, "i", "u", "test", "system", supersedence: TwoApps)).GetAwaiter().GetResult());
+
+            True(ex is IntuneFollowUpException { AppId: FakeIntune.CreatedAppId }, $"follow-up exception: {ex}");
+            True(ex!.Message.Contains("supersedence graph is too large"), $"Intune's message shown: '{ex.Message}'");
+        }
+        finally
+        {
+            Intune.RejectRelationships = false;
+        }
+    }
+
+    private static void SupersedenceFieldRules()
+    {
+        var field = new SupersedencePickerViewModel(() => "own-app");
+        Equal(0, field.Selected.Count);
+
+        field.AddCommand.Execute(new IntuneApplication { Id = "own-app", DisplayName = "Own" });
+        Equal(0, field.Selected.Count);
+        True(field.Hint.Contains("itself"), $"self hint: '{field.Hint}'");
+
+        var other = new IntuneApplication { Id = "other", DisplayName = "Other", Version = "1.0", Publisher = "Contoso" };
+        field.AddCommand.Execute(other);
+        field.AddCommand.Execute(other);
+        Equal(1, field.Selected.Count);
+        Equal(SupersedenceType.Update, field.Selected[0].Type);
+        True(field.Hint.Contains("already in the list"), $"duplicate hint: '{field.Hint}'");
+    }
+
+    private static (IntuneUploadService Service, ApplicationInfo App, string Package, List<DetectionRule> Rules) SupersedenceUpload(string folder)
+    {
+        var service = new IntuneUploadService(() => Task.FromResult("test-token"), Tenant, null, FakeIntuneWinAppUtil());
+        var appInfo = new ApplicationInfo { Manufacturer = "Contoso", Name = "Supersede", Version = "2.0", DisplayName = AppName };
+        var rules = new List<DetectionRule> { new() { Type = DetectionRuleType.File, Path = @"C:\Program Files\Contoso", FileOrFolderName = "app.exe" } };
+        return (service, appInfo, Package(folder, "2.0"), rules);
+    }
+
+    private static Exception? Assert(Action action)
+    {
+        try { action(); return null; }
+        catch (Exception ex) { return ex; }
     }
 
     private static void UpdateOverwritesLink()
@@ -294,6 +365,12 @@ internal static class PackageLinkWpfTests
         public const string ContentVersionId = "cv-1";
         private readonly HashSet<string> _committedFiles = new();
 
+        /// <summary>Bodies of the updateRelationships calls, one per call.</summary>
+        public List<string> RelationshipBodies { get; } = new();
+
+        /// <summary>Answers updateRelationships with Intune's too-large error.</summary>
+        public bool RejectRelationships { get; set; }
+
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
         {
             var url = request.RequestUri!.ToString();
@@ -323,6 +400,13 @@ internal static class PackageLinkWpfTests
                 return Json(HttpStatusCode.OK, committed
                     ? "{\"uploadState\":\"commitFileSuccess\"}"
                     : "{\"uploadState\":\"azureStorageUriRequestSuccess\",\"azureStorageUri\":\"https://fake.blob.core.windows.net/c/f?sig=1\"}");
+            }
+            if (method == "POST" && path.EndsWith("/updateRelationships"))
+            {
+                lock (RelationshipBodies) RelationshipBodies.Add(await request.Content!.ReadAsStringAsync(ct));
+                return RejectRelationships
+                    ? Json(HttpStatusCode.BadRequest, "{\"error\":{\"code\":\"BadRequest\",\"message\":\"The supersedence graph is too large.\"}}")
+                    : Json(HttpStatusCode.NoContent, "");
             }
             if (method == "PATCH")
                 return Json(HttpStatusCode.NoContent, "");

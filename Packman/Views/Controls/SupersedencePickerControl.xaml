@@ -1,0 +1,99 @@
+<UserControl x:Class="Packman.Views.Controls.SupersedencePickerControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="clr-namespace:Packman"
+             xmlns:vm="clr-namespace:Packman.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:SupersedencePickerViewModel}">
+    <!-- DataContext is a SupersedencePickerViewModel. App search, result rows and the
+         chosen apps, each with its Update/Replace type. -->
+    <StackPanel>
+        <TextBlock Text="Supersedes" Style="{StaticResource FieldLabel}" Margin="0,0,0,6"/>
+        <TextBox AutomationProperties.Name="Supersedes" Style="{StaticResource TextField}"
+                 IsEnabled="{Binding IsEnabled}"
+                 local:PlaceholderText.Text="Search Win32 apps by name…"
+                 Text="{Binding Query, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+
+        <TextBlock Margin="0,7,0,0" FontSize="12" Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap"
+                   Text="Connect to Intune in Settings first to choose the apps this one supersedes."
+                   Visibility="{Binding IsDisabled, Converter={StaticResource BoolToVis}}"/>
+        <TextBlock Margin="0,7,0,0" FontSize="12" Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap"
+                   Text="{Binding Hint}" Visibility="{Binding Hint, Converter={StaticResource NonEmptyToVis}}"/>
+
+        <!-- One-click suggestion on Upgrade: the linked previous version. Nothing is written unless it is added. -->
+        <Button Style="{StaticResource LinkButton}" HorizontalAlignment="Left" Margin="0,8,0,0" FontSize="12.5"
+                Content="{Binding SuggestionText}" Command="{Binding AddSuggestionCommand}"
+                Visibility="{Binding HasSuggestion, Converter={StaticResource BoolToVis}}"/>
+
+        <!-- Search results: name, version and publisher tell similar apps apart. -->
+        <ItemsControl ItemsSource="{Binding Results}" Margin="0,8,0,0">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Button FocusVisualStyle="{StaticResource FocusVisual}" HorizontalContentAlignment="Stretch" Margin="0,0,0,6" Cursor="Hand"
+                            AutomationProperties.Name="{Binding DisplayName}"
+                            Command="{Binding DataContext.AddCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                            CommandParameter="{Binding}">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" Padding="12,9" CornerRadius="7">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding DisplayName}" FontSize="12.5" Foreground="{DynamicResource InkBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Version, StringFormat='v{0}'}" FontSize="12" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                                        <TextBlock Grid.Column="2" Text="{Binding Publisher}" FontSize="12" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center" Margin="12,0,0,0"/>
+                                    </Grid>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- Each chosen app keeps its own type. -->
+        <ItemsControl ItemsSource="{Binding Selected}" Margin="0,12,0,0">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1" Padding="0,10">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center" Margin="0,0,12,0">
+                                <TextBlock Text="{Binding DisplayName}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                <TextBlock Text="{Binding Detail}" Style="{StaticResource SubText}" FontSize="12" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <Border Grid.Column="1" Style="{StaticResource SegmentGroup}" Margin="0,0,8,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <RadioButton Style="{StaticResource ContextToggle}" Content="Update"
+                                                 AutomationProperties.Name="{Binding DisplayName, StringFormat='Update {0}'}"
+                                                 IsChecked="{Binding Type, Mode=TwoWay, Converter={StaticResource StringMatch}, ConverterParameter=update}"/>
+                                    <RadioButton Style="{StaticResource ContextToggle}" Content="Replace" Margin="3,0,0,0"
+                                                 AutomationProperties.Name="{Binding DisplayName, StringFormat='Replace {0}'}"
+                                                 IsChecked="{Binding Type, Mode=TwoWay, Converter={StaticResource StringMatch}, ConverterParameter=replace}"/>
+                                </StackPanel>
+                            </Border>
+                            <Button Grid.Column="2" Style="{StaticResource RowIconButton}" Content="×" ToolTip="Remove from supersedence"
+                                    AutomationProperties.Name="{Binding DisplayName, StringFormat='Remove {0} from supersedence'}"
+                                    Command="{Binding DataContext.RemoveCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}"/>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <TextBlock Margin="0,10,0,0" FontSize="12.5" LineHeight="18" Foreground="{DynamicResource MutedBrush}" TextWrapping="Wrap"
+                   Visibility="{Binding HasSelection, Converter={StaticResource BoolToVis}}">
+            <Run Text="Update" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}"/><Run Text=" replaces the previous app in place; it isn't uninstalled first."/><LineBreak/>
+            <Run Text="Replace" FontWeight="SemiBold" Foreground="{DynamicResource InkBrush}"/><Run Text=" uninstalls the previous app first, then installs this one."/>
+        </TextBlock>
+    </StackPanel>
+</UserControl>
