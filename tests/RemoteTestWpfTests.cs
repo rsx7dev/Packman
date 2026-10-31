@@ -37,6 +37,7 @@ internal static class RemoteTestWpfTests
         ("A package without its launcher fails before anything elevates", MissingLauncher),
         ("Detection searches this PC's C:\\ directly and another PC over C$", SearchRoots),
         ("The output file is read in whole lines until the run ends", ReadsWholeLines),
+        ("The real elevated runner streams output, reports errors and takes a script of full size", RunnerStreamsOutput),
         ("Run on this PC targets this PC, and typing another computer leaves it", ModeSwitch),
         ("The first local install asks for confirmation; declining runs nothing", ConfirmDeclined),
         ("Local install and uninstall forward the deploy mode and fill the log and summary", ViewModelRuns),
@@ -188,6 +189,25 @@ internal static class RemoteTestWpfTests
         True(remote.Take(3).All(r => r.StartsWith("\\\\OTHERPC\\C$")), $"remote roots over C$: {string.Join(", ", remote.Take(3))}");
     }
 
+    // The real RunElevated, told Packman is already elevated so it starts PowerShell without a UAC
+    // prompt. Covers the wrapper, the encoded command at the size of the real script, and the tail.
+    private static void RunnerStreamsOutput()
+    {
+        var chunks = new List<string>();
+        var script = "'tick 1'; Start-Sleep -Milliseconds 1500; 'tick 2'; Write-Error 'non-terminating'; throw 'boom'\n# " + new string('x', 10_000);
+        new AlreadyElevatedService().RunElevated(script, _ => { }, chunks.Add);
+        var text = string.Join("", chunks);
+        True(text.Contains("tick 1\n") && text.Contains("tick 2\n"), $"script output arrives:\n{text}");
+        True(text.Contains("ERROR: ") && text.Contains("non-terminating"), "a non-terminating error is reported");
+        True(text.Contains("ERROR: boom"), "a terminating error is reported");
+        True(chunks.Count(c => c.Length > 0) >= 2, $"output is streamed while the script runs, got {chunks.Count(c => c.Length > 0)} chunk(s)");
+    }
+
+    private sealed class AlreadyElevatedService : RemoteTestService
+    {
+        internal override bool IsElevated => true;
+    }
+
     private static void ReadsWholeLines()
     {
         var path = Path.GetTempFileName();
@@ -230,7 +250,7 @@ internal static class RemoteTestWpfTests
             Run(vm.InstallCommand);
             True(_dialogs.Messages.Count == 1, $"asked once, got {_dialogs.Messages.Count}");
             True(_dialogs.Messages[0].Contains("on this PC") && _dialogs.Messages[0].Contains(Environment.MachineName), $"message names this PC: {_dialogs.Messages[0]}");
-            True(service.Scripts.Count == 0 && vm.Lines.Count == 0, "nothing ran");
+            True(service.Scripts.Count == 0 && !vm.Lines.Any(l => l.Text.StartsWith("Packman Remote Test")), "nothing ran");
             True(!vm.IsRunning, "not left running");
         }
         finally { Directory.Delete(root, true); }

@@ -216,6 +216,8 @@ public class RemoteTestService
     /// when Packman is not elevated. An elevated process cannot be redirected, so the script
     /// appends its output to a file, which is tailed here until the process ends.
     /// </summary>
+    internal virtual bool IsElevated => new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
+
     internal virtual void RunElevated(string taskScript, Action<string> output, Action<string> emit)
     {
         string outputFile = Path.Combine(Path.GetTempPath(), $"Packman_Local_{Guid.NewGuid():N}.log");
@@ -242,7 +244,7 @@ public class RemoteTestService
             UseShellExecute = true,
             WindowStyle = ProcessWindowStyle.Hidden
         };
-        if (!new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator))
+        if (!IsElevated)
         {
             psi.Verb = "runas";
             output("Registering a SYSTEM task needs administrator rights; asking for elevation (UAC)...");
