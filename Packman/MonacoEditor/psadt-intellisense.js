@@ -266,7 +266,7 @@
     const p = call && findParameter(call.fn, name);
     if (!p) return null;
     const type = [p.type, p.mandatory ? 'required' : ''].filter(Boolean).join(', ');
-    return [{ value: '**-' + p.name + '**' + (type ? ' (' + type + ')' : '') + '\n\n' + p.description }];
+    return [{ value: '**-' + p.name + '**' + (type ? ' (' + type + ')' : '') + '\n\n' + p.description + '\n\n[Docs](' + call.fn.docs_url + ')' }];
   }
 
   // ── Signature help ───────────────────────────────────────────────────

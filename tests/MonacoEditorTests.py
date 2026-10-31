@@ -45,6 +45,7 @@ HELPERS = """
 window.__ed = () => monaco.editor.getEditors()[0];
 window.__setText = text => { const model = __ed().getModel(); model.setValue(text); return model; };
 window.__endPos = model => ({ lineNumber: model.getLineCount(), column: model.getLineMaxColumn(model.getLineCount()) });
+true;
 """
 
 
@@ -228,7 +229,7 @@ def check_parameter_completion_mandatory_first(browser, base):
     welcome = FUNCTIONS["Show-ADTInstallationWelcome"]
     mandatory = [p["name"] for p in welcome["parameters"] if p["mandatory"]]
     with editor(browser, base) as ed:
-        items = ed.complete("Show-ADTInstallationWelcome -")
+        items = sorted(ed.complete("Show-ADTInstallationWelcome -"), key=lambda item: item["sortText"])
         labels = [item["label"] for item in items]
         assert sorted(labels) == sorted("-" + p["name"] for p in welcome["parameters"]), "parameter labels differ from the catalog"
         assert {item["label"] for item in items[:len(mandatory)]} == {"-" + n for n in mandatory}, "mandatory parameters are not first"
@@ -260,7 +261,7 @@ def check_used_parameters_left_out(browser, base):
         typed = "Show-ADTInstallationWelcome -Clo"
         typed_items = ed.complete(typed)
         assert {"-CloseProcesses", "-CloseProcessesCountdown"} <= {item["label"] for item in typed_items}, "typed prefix does not keep matching parameters"
-        assert all(item["range"]["startColumn"] == typed.index("-") + 1 for item in typed_items), "range does not start at the dash"
+        assert all(item["range"]["startColumn"] == typed.rindex("-") + 1 for item in typed_items), "range does not start at the dash"
         ed.check_no_page_errors()
 
 
@@ -323,6 +324,7 @@ def check_hover_contents(browser, base):
         assert "System.String" in param_value, "parameter hover lacks the full type"
         assert re.search("mandatory|required", param_value, re.I), "parameter hover lacks the mandatory flag"
         assert FUNCTIONS["Add-ADTEdgeExtension"]["parameters"][0]["description"] in param_value, "parameter hover lacks its description"
+        assert f"[Docs]({FUNCTIONS['Add-ADTEdgeExtension']['docs_url']})" in param_value, "parameter hover lacks the docs link"
 
         hidden_value = "\n".join(part["value"] for part in ed.hover("Show-ADTNotifyIcon", 1, 5)["contents"])
         assert "Not in this package's PSADT 4.1.7" in hidden_value, "hover lacks the availability sentence"
@@ -367,10 +369,10 @@ def check_version_filter(browser, base):
                 assert "Get-ADTEnvironment" in shown, "release function hidden on 4.1.7"
                 assert ed.labels("Show-ADTNotifyIcon -"), "hidden function lost its parameter help"
                 assert "-Force" in ed.labels("Show-ADTNotifyIcon -"), "hidden function lost -Force"
-                assert ed.page.evaluate("PsadtIntellisense.availability(FN)", FUNCTIONS["Show-ADTNotifyIcon"]) == "devOnly"
-                assert ed.page.evaluate("PsadtIntellisense.availability(FN)", FUNCTIONS["Get-ADTEnvironment"]) == "available"
+                assert ed.page.evaluate("(fn) => PsadtIntellisense.availability(fn)", FUNCTIONS["Show-ADTNotifyIcon"]) == "devOnly"
+                assert ed.page.evaluate("(fn) => PsadtIntellisense.availability(fn)", FUNCTIONS["Get-ADTEnvironment"]) == "available"
             if version == "4.2.0":
-                assert ed.page.evaluate("PsadtIntellisense.availability(FN)", FUNCTIONS["Get-ADTEnvironment"]) == "removed"
+                assert ed.page.evaluate("(fn) => PsadtIntellisense.availability(fn)", FUNCTIONS["Get-ADTEnvironment"]) == "removed"
 
             ed.open_picker()
             unavailable = ed.page.eval_on_selector_all("#psadt-list li[role=option].psadt-unavailable", "els => els.map(e => e.dataset.name)")
@@ -388,9 +390,9 @@ def check_version_filter(browser, base):
 
 def check_version_badges(browser, base):
     with editor(browser, base, version="4.1.7") as ed:
-        assert ed.page.evaluate("PsadtIntellisense.badgeText(FN)", FUNCTIONS["Show-ADTNotifyIcon"]) == "4.2 only"
-        assert ed.page.evaluate("PsadtIntellisense.badgeText(FN)", FUNCTIONS["Get-ADTEnvironment"]) == "removed in 4.2"
-        assert ed.page.evaluate("PsadtIntellisense.badgeText(FN)", FUNCTIONS["Add-ADTEdgeExtension"]) == ""
+        assert ed.page.evaluate("(fn) => PsadtIntellisense.badgeText(fn)", FUNCTIONS["Show-ADTNotifyIcon"]) == "4.2 only"
+        assert ed.page.evaluate("(fn) => PsadtIntellisense.badgeText(fn)", FUNCTIONS["Get-ADTEnvironment"]) == "removed in 4.2"
+        assert ed.page.evaluate("(fn) => PsadtIntellisense.badgeText(fn)", FUNCTIONS["Add-ADTEdgeExtension"]) == ""
         ed.open_picker()
         assert ed.picker_row("Show-ADTNotifyIcon").locator(".psadt-badge").inner_text() == "4.2 only"
         assert ed.picker_row("Get-ADTEnvironment").locator(".psadt-badge").inner_text() == "removed in 4.2"
