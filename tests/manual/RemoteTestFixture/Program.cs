@@ -33,6 +33,7 @@ internal static class Program
         Add("Protect staging (UAC)", Protect);
         Add("Inspect", Inspect);
         Add("Restore PC (UAC)", Restore);
+        Add("Remove saved fixture evidence", RemoveEvidence);
         Log("Manual Remote Test fixture. Close Packman before Prepare or Restore. UAC approvals belong to the attendant.");
         Log("Fixture/evidence: " + Root);
         app.Run(new Window { Title = "Packman local verification fixture", Width = 1050, Height = 700, Content = panel });
@@ -176,6 +177,10 @@ internal static class Program
         if (File.ReadAllText(Path.Combine(Root, "settings-existed.txt")) == "True")
             File.Copy(Path.Combine(Root, "settings.backup"), Settings, true);
         else File.Delete(Settings);
+        bool settingsRestored = File.ReadAllText(Path.Combine(Root, "settings-existed.txt")) == "True"
+            ? File.ReadAllBytes(Settings).SequenceEqual(File.ReadAllBytes(Path.Combine(Root, "settings.backup")))
+            : !File.Exists(Settings);
+        if (!settingsRestored) throw new Exception("Settings do not match the baseline.");
         foreach (var directory in new[] { "template", "packages", "sources" })
             if (Directory.Exists(Path.Combine(Root, directory))) Directory.Delete(Path.Combine(Root, directory), true);
         if (File.Exists(Path.Combine(Root, "runtime.zip"))) File.Delete(Path.Combine(Root, "runtime.zip"));
@@ -183,6 +188,21 @@ internal static class Program
         await Inspect();
         File.WriteAllText(Path.Combine(Root, "restored.txt"), "Restored");
         Log($"RESTORED: stage absent={!Directory.Exists(Stage)}, app absent={!Directory.Exists(Installed)}, logs absent={!Directory.Exists(Logs)}");
+    }
+
+    private static Task RemoveEvidence()
+    {
+        RequireClosed();
+        if (!File.Exists(Path.Combine(Root, "restored.txt")) || Directory.Exists(Stage) || Directory.Exists(Installed) || Directory.Exists(Logs))
+            throw new Exception("Restore the PC and save the evidence before removing fixture files.");
+        foreach (var archive in Directory.GetDirectories(Path.GetDirectoryName(Root)!, Path.GetFileName(Root) + "-restored-*"))
+        {
+            if (!File.Exists(Path.Combine(archive, "restored.txt"))) throw new Exception("Archive lacks a restoration marker: " + archive);
+            Directory.Delete(archive, true);
+        }
+        Directory.Delete(Root, true);
+        Log("REMOVED: fixture evidence, settings backups and prior restored attempts. No fixture temp directory remains.");
+        return Task.CompletedTask;
     }
 
     private static async Task PowerShell(string script, bool elevate)

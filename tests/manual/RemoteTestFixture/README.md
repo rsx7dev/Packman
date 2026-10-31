@@ -45,7 +45,10 @@ dotnet build tests/manual/RemoteTestFixture/RemoteTestFixture.csproj -c Release
    and original WinRM state, removes only fixture staging/logs and newly created
    empty parents, and removes the temporary template/source/packages. It refuses
    restoration if the probe application is still installed: uninstall first.
-   Record the final inspection and compare it with baseline.
+   Record the final inspection and compare it with baseline. Settings restoration
+   is checked against the original bytes.
+9. Save the evidence externally, then click **Remove saved fixture evidence** to
+   delete the temporary recovery backups and prior restored fixture attempts.
 
 The helper records its output and saves PSADT logs under
 `%TEMP%\PackmanLocalVerificationT0218`. Preserve these as test evidence before
