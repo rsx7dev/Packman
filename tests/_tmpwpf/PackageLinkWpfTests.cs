@@ -397,7 +397,8 @@ internal static class PackageLinkWpfTests
             }
             if (method == "POST" && path.EndsWith("/updateRelationships"))
             {
-                lock (RelationshipBodies) RelationshipBodies.Add(await request.Content!.ReadAsStringAsync(ct));
+                var body = await request.Content!.ReadAsStringAsync(ct);
+                lock (RelationshipBodies) RelationshipBodies.Add(body);
                 return RejectRelationships
                     ? Json(HttpStatusCode.BadRequest, "{\"error\":{\"code\":\"BadRequest\",\"message\":\"The supersedence graph is too large.\"}}")
                     : Json(HttpStatusCode.NoContent, "");
