@@ -13,6 +13,10 @@ public class ApplicationInfo
     public string MsiProductVersion { get; set; } = "";
     public string MsiUpgradeCode { get; set; } = "";
 
+    /// <summary>Silent switches (EXE) or MSI properties (MSI) written into the install command; empty keeps the placeholder.</summary>
+    public string InstallArguments { get; set; } = "";
+    public string UninstallArguments { get; set; } = "";
+
     private string _displayName = "";
 
     /// <summary>Title shown in Intune. Defaults to "Vendor Name Version" until overridden.</summary>
