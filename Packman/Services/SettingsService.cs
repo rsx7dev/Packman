@@ -23,14 +23,24 @@ public class SettingsService
 
     // %LocalAppData%: the install directory is read-only for a machine-wide install.
     // The old path next to the exe is still read once so settings carry over.
-    private readonly string _path = Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-        "Packman", "appsettings.json");
+    private readonly string _path;
+
+    // The bundled PSADT folder ships without the v4 runtime, so it is never a usable template.
+    private static readonly string BundledTemplatePath =
+        Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "PSADT")));
 
     private static readonly string LegacyPath =
         Path.Combine(AppContext.BaseDirectory, "appsettings.json");
 
     private AppSettings? _settings;
+
+    /// <param name="path">Settings file to use; defaults to the one under %LocalAppData%.</param>
+    public SettingsService(string? path = null)
+    {
+        _path = path ?? Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "Packman", "appsettings.json");
+    }
 
     public AppSettings Settings => _settings ??= Load();
 
@@ -47,6 +57,7 @@ public class SettingsService
             var settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(source), ReadOptions)
                            ?? new AppSettings();
             Migrate(settings);
+            ClearBundledTemplate(settings);
             return settings;
         }
         catch (Exception ex)
@@ -83,6 +94,33 @@ public class SettingsService
         groups.NewGroupIntent = AssignmentIntent.Required;
     }
 
+    /// <summary>
+    /// Empties the template path when it points at a bundled PSADT folder (or inside it): the one
+    /// next to this executable, or any Packman\PSADT folder such as a source checkout's, so an old
+    /// saved path is not kept or shown. No replacement is chosen.
+    /// </summary>
+    private static void ClearBundledTemplate(AppSettings settings)
+    {
+        var template = settings.NetworkPaths.PSADTTemplate;
+        if (string.IsNullOrWhiteSpace(template)) return;
+
+        var full = Path.TrimEndingDirectorySeparator(Path.GetFullPath(template.Trim()));
+        var insideRunningBundle = full.Equals(BundledTemplatePath, StringComparison.OrdinalIgnoreCase) ||
+            full.StartsWith(BundledTemplatePath + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
+        if (insideRunningBundle || IsPackmanPsadtFolder(template))
+            settings.NetworkPaths.PSADTTemplate = "";
+    }
+
+    private static bool IsPackmanPsadtFolder(string path)
+    {
+        var parts = path.Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        for (var i = 0; i + 1 < parts.Length; i++)
+            if (parts[i].Equals("Packman", StringComparison.OrdinalIgnoreCase) &&
+                parts[i + 1].Equals("PSADT", StringComparison.OrdinalIgnoreCase))
+                return true;
+        return false;
+    }
+
     /// <summary>Where the settings live; shown on the Settings page.</summary>
     public string SettingsPath => _path;
 
@@ -92,6 +130,7 @@ public class SettingsService
     /// </summary>
     public void Save()
     {
+        ClearBundledTemplate(Settings);
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
         TextFileIO.Write(_path, JsonSerializer.Serialize(Settings, WriteOptions), new System.Text.UTF8Encoding(false));
         Saved?.Invoke();

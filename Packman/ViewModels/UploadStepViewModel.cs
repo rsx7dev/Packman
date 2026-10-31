@@ -68,6 +68,8 @@ public class UploadStepViewModel : ObservableObject
         GroupPicker.SelectedGroups.CollectionChanged += (_, _) =>
             RaiseAll(nameof(AssignmentCount), nameof(HasAssignment), nameof(AssignmentState), nameof(AssignmentDetail));
         _auth.StateChanged += RaiseReadiness;
+        Supersedence = new SupersedencePickerViewModel(OwnAppId);
+        Supersedence.Changed += () => RaiseAll(nameof(HasSupersedence), nameof(SupersedenceRailText));
 
         AddReturnCodeCommand = new RelayCommand(AddReturnCode);
         RestoreDefaultsCommand = new RelayCommand(ApplyIntuneDefaults);
@@ -121,11 +123,14 @@ public class UploadStepViewModel : ObservableObject
     };
     public string AssignmentDetail => HasAssignment ? "" : "Publishes without an assignment. Add a group to deploy it.";
 
-    /// <summary>Upgrade only: the Intune app this version replaces.</summary>
-    public bool HasSupersedence => !string.IsNullOrEmpty(_create.PredecessorAppId);
-    public string SupersedenceSummary => HasSupersedence
-        ? $"Supersedes app {_create.PredecessorAppId} (update: the previous version is replaced, not uninstalled first)"
-        : "";
+    /// <summary>The Supersedes field: the existing apps this one supersedes, chosen by the owner.</summary>
+    public SupersedencePickerViewModel Supersedence { get; }
+    public bool HasSupersedence => Supersedence.HasSelection;
+    public string SupersedenceRailText => string.Join(Environment.NewLine, Supersedence.Selected.Select(s => s.Summary));
+
+    /// <summary>The Intune app this package is already linked to, which it can't supersede.</summary>
+    private string OwnAppId() =>
+        string.IsNullOrEmpty(_create.CurrentPackagePath) ? "" : PackageMarker.Read(_create.CurrentPackagePath)?.AppId ?? "";
 
     /// <summary>The "Publishing…" overlay: steps, progress, cancel and done.</summary>
     public PublishRunViewModel Publish { get; } = new();
@@ -423,7 +428,7 @@ public class UploadStepViewModel : ObservableObject
         nameof(IsSignedIn), nameof(IsNotSignedIn), nameof(SignedInUser), nameof(TenantName),
         nameof(CanAttemptPublish), nameof(ShowSignInCallout), nameof(CommandsReady), nameof(CommandsState),
         nameof(AssignmentCount), nameof(HasAssignment), nameof(AssignmentState), nameof(AssignmentDetail),
-        nameof(HasSupersedence), nameof(SupersedenceSummary), nameof(InstallContextText), nameof(ArchitectureText),
+        nameof(HasSupersedence), nameof(SupersedenceRailText), nameof(InstallContextText), nameof(ArchitectureText),
         nameof(RestartBehaviorText), nameof(MaxRunTimeText), nameof(InstallCommandPreview), nameof(UninstallCommandPreview));
 
     /// <summary>
@@ -546,7 +551,7 @@ public class UploadStepViewModel : ObservableObject
         var installCommand = InstallCommandPreview;
         var uninstallCommand = UninstallCommandPreview;
         var iconPath = string.IsNullOrEmpty(_create.ExtractedIconPath) ? null : _create.ExtractedIconPath;
-        var predecessorAppId = string.IsNullOrEmpty(_create.PredecessorAppId) ? null : _create.PredecessorAppId;
+        var supersedence = Supersedence.Links;
 
         NativeCodeSigner? signer = settings.CodeSigning.Enabled
             ? new NativeCodeSigner(settings.CodeSigning.CertificateThumbprint, settings.CodeSigning.TimestampServer)
@@ -559,7 +564,7 @@ public class UploadStepViewModel : ObservableObject
             TenantName,
             (progress, ct) => uploadService.UploadWin32ApplicationAsync(
                 appInfo, packagePath, detectionRules, installCommand, uninstallCommand,
-                appInfo.DisplayName, appInfo.InstallContext, iconPath, progress, predecessorAppId,
+                appInfo.DisplayName, appInfo.InstallContext, iconPath, progress, supersedence,
                 groupAssignment, requirements, returnCodes,
                 settings.IntuneDefaults.PrivacyUrl, settings.IntuneDefaults.InformationUrl,
                 assignedGroups, settings.IntuneDefaults.RestartBehavior, settings.IntuneDefaults.MaxRunTimeMinutes, ct),

@@ -68,7 +68,7 @@ public sealed class MainViewModel : ObservableObject
         set
         {
             if (!Set(ref _isUpgradeMode, value)) return;
-            RaiseAll(nameof(PrimaryLabel), nameof(StepHint), nameof(ShowNoSupersedenceNote));
+            RaiseAll(nameof(PrimaryLabel), nameof(StepHint));
         }
     }
 
@@ -200,9 +200,6 @@ public sealed class MainViewModel : ObservableObject
             return string.IsNullOrEmpty(path) ? "" : Path.GetFileName(path.TrimEnd(Path.DirectorySeparatorChar));
         }
     }
-
-    /// <summary>An upgrade whose previous version has no recorded Intune app: it publishes as a new app.</summary>
-    public bool ShowNoSupersedenceNote => IsUpgradeMode && HasPackage && !Upload.HasSupersedence;
 
     public string PackagePathShort => HasPackage ? CreatePackage.CurrentPackagePath : "no package yet";
 
@@ -384,6 +381,7 @@ public sealed class MainViewModel : ObservableObject
         ActiveTool = PackageTool.None;
         CreatePackage.Reset();
         Upgrade.Reset();
+        Upload.Supersedence.Reset();
         CurrentStepIndex = GenerateStep;
         RaisePackageDependents();
     }
@@ -418,6 +416,9 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task RunCreateAsync()
     {
+        // A file still being read would be built as the wrong package type.
+        await CreatePackage.InstallerRead;
+
         // Ask before replacing, rather than reporting the collision after the fact.
         var existing = CreatePackage.FindExistingPackage(_settingsService.Settings);
         var overwrite = false;
@@ -456,8 +457,12 @@ public sealed class MainViewModel : ObservableObject
         CreatePackage.Version = Upgrade.NewVersion;
         CreatePackage.SourcesPath = Upgrade.NewSourcePath;
         CreatePackage.CurrentPackagePath = newPackagePath;
-        CreatePackage.PredecessorAppId = await PackageMarker.PredecessorAppIdAsync(Upgrade.ExistingPackagePath,
-            async id => _auth.IsSignedIn && await AppServices.Apps.ApplicationExistsAsync(id));
+
+        // Supersedence is opt-in: the linked previous version is only offered on Configure.
+        Upload.Supersedence.Reset();
+        if (_auth.IsSignedIn)
+            await Upload.Supersedence.SuggestAsync(await PackageMarker.PredecessorAppIdAsync(Upgrade.ExistingPackagePath,
+                id => AppServices.Apps.ApplicationExistsAsync(id)));
 
         RaisePackageDependents();
     }

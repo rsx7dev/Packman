@@ -66,15 +66,17 @@ These are native Windows CI renders with sample data; they do not show a live te
 - A fixed package layout per version: `Application/`, `Intune/`, `Icon/`.
 - Replace-or-cancel prompt when the version folder already exists.
 - **Upgrade** an existing package to a new version — the old package is copied forward (keeping
-  your script edits), the new installer swapped in, metadata refreshed, and an Intune
-  **supersedence** relationship written on upload.
+  your script edits), the new installer swapped in and metadata refreshed.
+- **Supersedence** is opt-in: on Configure, search the connected tenant's Win32 apps and choose the
+  ones this app supersedes, each as **Update** or **Replace**. All are written in one call on upload.
 
 ### Script editing
 
 - **Built-in Monaco editor** (WebView2) with a package file tree, tabs, dirty markers and
   Ctrl+S save.
-- **PSADT v4 IntelliSense** — completions, hover documentation and signature help driven by the
-  bundled function catalog (`PSADT_v4_Functions*.csv`).
+- **PSADT v4 IntelliSense** — completions, hover documentation, signature help and a searchable
+  **Functions** picker driven by the bundled function catalog (`MonacoEditor/psadt-functions.json`),
+  filtered to the PSADT version in the package's `PSAppDeployToolkit.psd1`.
 - **PowerShell syntax checking** as you type (parse only — nothing in the script is executed);
   errors are underlined and counted in the status bar.
 - Search across the package by **file name and file contents**, jumping straight to the line.
@@ -367,6 +369,25 @@ the primary button; **← Back** steps back.
    | **.exe** | The file's version resource (product name, company, file version) | App Name, Manufacturer, Version — whatever the resource actually contains |
    | **either** | The embedded application icon | The icon shown on the card, archived into the package and uploaded to Intune with the app |
 
+   While the file is read the right rail shows **Reading installer…**; a file that cannot be read
+   shows a warning there instead. Nothing is ever run: the read is static.
+
+   **Installer panel (right rail).** At the bottom of the rail:
+
+   - **EXE** — Packman looks at the PE headers, sections, resources and the data appended to the
+     file and names the technology (Inno Setup, NSIS, WiX Burn, InstallShield, Advanced Installer,
+     InstallAware, Wise, Setup Factory, Squirrel/Velopack, ClickOnce, 7-Zip/WinRAR SFX, MSIX/AppX
+     bundle) with a **High / Medium / Low** confidence and the marker it matched. The known silent
+     install and uninstall switches are listed with a one-line explanation; **Add** puts a switch
+     into the **Install arguments** or **Uninstall arguments** field. If nothing matches, the
+     type is **Unknown** and the common guesses are listed, each marked *untested*. The table
+     lives in `Packman/Services/InstallerCatalog.cs`; a new installer type is a new entry there.
+   - **MSI** — the key properties (`ProductName`, `ProductVersion`, `Manufacturer`, `ProductCode`,
+     `UpgradeCode`, `ALLUSERS`, the reboot properties and the install directories), then the full
+     Property table with a search box. Public (uppercase) properties have an **Add** button that
+     puts `NAME=value` into **Install arguments**. `.mst` transforms beside the MSI are listed;
+     Packman copies only the MSI, so add the `.mst` to Files and use `-Transforms` in Edit script.
+
    If the EXE has no usable metadata, the app name falls back to a cleaned-up version of the file
    name. Only **empty** fields are filled — anything you already typed is left alone, so you can
    type the name first and drop the file second.
@@ -381,7 +402,14 @@ the primary button; **← Back** steps back.
    - **SYSTEM** — installs for all users, elevated. The usual choice for managed apps.
    - **USER** — installs for the current user only, without elevation.
 
-5. Press **Generate package**.
+5. **Install arguments / Uninstall arguments.** Two optional fields below the install context,
+   shown once a file is chosen and filled by the rail's **Add** buttons (or typed). They are
+   written into the generated script: an EXE's `-ArgumentList` and, for an MSI,
+   `-AdditionalArgumentList`. Leave them empty and the EXE keeps the `<silent flags>` /
+   `<uninstall flags>` placeholders. The uninstall line still runs the setup file; where the
+   vendor's real uninstaller is a separate file the rail says so.
+
+6. Press **Generate package**.
 
 **What generation actually does.** Packman copies your PSADT template into
 
@@ -398,8 +426,9 @@ then rewrites `Invoke-AppDeployToolkit.ps1` — `AppVendor`, `AppName`, `AppVers
 - **MSI** → `Start-ADTMsiProcess -Action 'Install' -FilePath "$($adtSession.DirFiles)\your.msi"`,
   and an uninstall by **product code**. Usually ready to run as generated.
 - **EXE** → `Start-ADTProcess -FilePath "$($adtSession.DirFiles)\setup.exe" -ArgumentList
-  '<silent flags>'`, and the same for uninstall with `'<uninstall flags>'`. **You must replace
-  those two placeholders** in the editor — they are literal text, not real switches.
+  '<silent flags>'`, and the same for uninstall with `'<uninstall flags>'`. **Unless you filled
+  Install arguments / Uninstall arguments, you must replace those two placeholders** in the
+  editor — they are literal text, not real switches.
 
 If that version folder already exists you are asked whether to **replace** it; declining cancels
 without touching anything.
@@ -412,15 +441,20 @@ script**, **Remote test**, **Open folder** — and the primary button becomes **
 ## Editing the deploy script
 
 **Edit script** opens the package in the built-in editor. It is optional — but for an EXE package
-it is where you replace `<silent flags>` and `<uninstall flags>` with the installer's real switches.
+it is where you replace `<silent flags>` and `<uninstall flags>` with the installer's real switches
+(unless you added them in step 1), point the uninstall line at a separate uninstaller, or add
+`-Transforms` for an MSI.
 
 - The left rail shows the package file tree; the search box searches **file names and contents**
   and jumps to the matching line.
 - Open files become tabs. A dot on a tab means unsaved changes. **Save** (or Ctrl+S) writes to the
   package on the share, preserving the file's original encoding and line endings.
 - PowerShell files get **PSADT v4 completions, hover documentation and signature help** from the
-  bundled catalog, plus **live syntax checking** — the problem count sits in the status bar and
-  errors are underlined. The check only parses; it never runs the script.
+  bundled catalog (type `Show-ADT…` or `-ADT`; `-` after a function name lists its parameters), a
+  **Functions** button (Ctrl+Shift+I) that opens a searchable picker grouped by verb and inserts the
+  call at the cursor, and functions that the package's PSADT version lacks are hidden from
+  completion and marked in the picker. They also get **live syntax checking** — the problem count
+  sits in the status bar and errors are underlined. The check only parses; it never runs the script.
 - If a file changes on disk while it is open, a **Changed on disk — reload** button appears.
   **Revert** throws away your buffer and re-reads the file.
 - **OPEN IN VS CODE** (footer) opens the active file — or the deploy script — in VS Code,
@@ -552,8 +586,8 @@ reports cleanup success or failure. If no app ID was confirmed, check Intune bef
 
 On success the status reads **Uploaded to Intune · App ID …**, `Intune\packman.id` (app ID, tenant
 ID, upload time, display name and version, `.intunewin` file name and size) is written into the
-package folder, and — if the package came from the upgrade flow — a
-**supersedence** relationship is written marking the previous app as superseded by this one.
+package folder, and — if you chose apps in **Supersedence** on Configure — their
+**supersedence** relationships are written, each as **Update** or **Replace**, in one call.
 
 Packman waits for Intune to report the app as published before assigning groups. If final
 publication is uncertain, or later assignment or supersedence work fails or is cancelled,
@@ -577,8 +611,9 @@ The old package is copied forward — **keeping your script edits and everything
 (transforms, config and licence files stay put) — only the installer the script points at is
 replaced by the new one, the script metadata and MSI product code are refreshed, and the icon is
 carried over. If the script names no installer, the old one is left next to the new one and the
-status line says so. The wizard then continues exactly as for a new package; on upload the previous app
-(identified by `Intune\packman.id` in the old package folder) is marked as superseded.
+status line says so. The wizard then continues exactly as for a new package. Nothing is superseded
+automatically: if the old package was published from Packman, Configure offers a one-click
+**Supersede the previous version** suggestion (identified by `Intune\packman.id` in the old package folder).
 
 Unlike Create, an upgrade **fails** rather than prompting if the target version folder already
 exists — delete it or pick a different version.
@@ -829,8 +864,7 @@ Packman/
   Fonts/          embedded UI fonts
   MonacoEditor/   the editor host page and Monaco assets
   PSADT/          bundled PSADT v4 template (script only)
-  Tools/          Update-PsadtCatalog.ps1, regenerates the function catalog
-  PSADT_v4_Functions*.csv   function catalog behind the editor's IntelliSense
+  Tools/          extract-psadt-functions.py, regenerates MonacoEditor/psadt-functions.json
 scripts/         native Windows preview utility and third-party inventory tooling
 packages/         vendored .nupkg files for offline restore
 .github/workflows/build.yml   restore, build, native previews and app startup on windows-latest

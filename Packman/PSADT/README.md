@@ -1,8 +1,8 @@
 # PSADT v4 Template
 
 This is the template folder Packman copies when creating or upgrading a package.
-Set **Settings → Network Paths → PSADT Template Path** to this folder (or your own
-network copy).
+It is incomplete: it lacks the PSADT v4 runtime (see **Important** below), so do not point
+**Settings → Network Paths → PSADT Template Path** at it until the runtime is added.
 
 ## Structure
 

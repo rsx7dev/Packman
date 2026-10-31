@@ -19,6 +19,17 @@ dotnet run --file "$check_target" --no-build -c Release
 dotnet restore tests/PackageLinkTests.cs
 dotnet build tests/PackageLinkTests.cs --no-restore -c Release
 dotnet run --file tests/PackageLinkTests.cs --no-build -c Release
+dotnet restore tests/InstallerInsightTests.cs
+dotnet build tests/InstallerInsightTests.cs --no-restore -c Release
+dotnet run --file tests/InstallerInsightTests.cs --no-build -c Release
+dotnet restore tests/SettingsTemplateTests.cs
+dotnet build tests/SettingsTemplateTests.cs --no-restore -c Release
+dotnet run --file tests/SettingsTemplateTests.cs --no-build -c Release
+dotnet restore tests/ScriptEditorTests.cs
+dotnet build tests/ScriptEditorTests.cs --no-restore -c Release
+dotnet run --file tests/ScriptEditorTests.cs --no-build -c Release
+python3 tests/PsadtCatalogTests.py
+python3 tests/MonacoEditorTests.py
 if [ "$check_target" = tests/DeviceStatusTests.cs ]; then
     dotnet run --file tests/PackageLinkWpfTests.cs -c Release
     dotnet run --file tests/RemoteTestWpfTests.cs -c Release
