@@ -367,6 +367,25 @@ the primary button; **← Back** steps back.
    | **.exe** | The file's version resource (product name, company, file version) | App Name, Manufacturer, Version — whatever the resource actually contains |
    | **either** | The embedded application icon | The icon shown on the card, archived into the package and uploaded to Intune with the app |
 
+   While the file is read the right rail shows **Reading installer…**; a file that cannot be read
+   shows a warning there instead. Nothing is ever run: the read is static.
+
+   **Installer panel (right rail).** At the bottom of the rail:
+
+   - **EXE** — Packman looks at the PE headers, sections, resources and the data appended to the
+     file and names the technology (Inno Setup, NSIS, WiX Burn, InstallShield, Advanced Installer,
+     InstallAware, Wise, Setup Factory, Squirrel/Velopack, ClickOnce, 7-Zip/WinRAR SFX, MSIX/AppX
+     bundle) with a **High / Medium / Low** confidence and the marker it matched. The known silent
+     install and uninstall switches are listed with a one-line explanation; **Add** puts a switch
+     into the **Install arguments** or **Uninstall arguments** field. If nothing matches, the
+     type is **Unknown** and the common guesses are listed, each marked *untested*. The table
+     lives in `Packman/Services/InstallerCatalog.cs`; a new installer type is a new entry there.
+   - **MSI** — the key properties (`ProductName`, `ProductVersion`, `Manufacturer`, `ProductCode`,
+     `UpgradeCode`, `ALLUSERS`, the reboot properties and the install directories), then the full
+     Property table with a search box. Public (uppercase) properties have an **Add** button that
+     puts `NAME=value` into **Install arguments**. `.mst` transforms beside the MSI are listed;
+     Packman copies only the MSI, so add the `.mst` to Files and use `-Transforms` in Edit script.
+
    If the EXE has no usable metadata, the app name falls back to a cleaned-up version of the file
    name. Only **empty** fields are filled — anything you already typed is left alone, so you can
    type the name first and drop the file second.
@@ -381,7 +400,14 @@ the primary button; **← Back** steps back.
    - **SYSTEM** — installs for all users, elevated. The usual choice for managed apps.
    - **USER** — installs for the current user only, without elevation.
 
-5. Press **Generate package**.
+5. **Install arguments / Uninstall arguments.** Two optional fields below the install context,
+   shown once a file is chosen and filled by the rail's **Add** buttons (or typed). They are
+   written into the generated script: an EXE's `-ArgumentList` and, for an MSI,
+   `-AdditionalArgumentList`. Leave them empty and the EXE keeps the `<silent flags>` /
+   `<uninstall flags>` placeholders. The uninstall line still runs the setup file; where the
+   vendor's real uninstaller is a separate file the rail says so.
+
+6. Press **Generate package**.
 
 **What generation actually does.** Packman copies your PSADT template into
 
@@ -398,8 +424,9 @@ then rewrites `Invoke-AppDeployToolkit.ps1` — `AppVendor`, `AppName`, `AppVers
 - **MSI** → `Start-ADTMsiProcess -Action 'Install' -FilePath "$($adtSession.DirFiles)\your.msi"`,
   and an uninstall by **product code**. Usually ready to run as generated.
 - **EXE** → `Start-ADTProcess -FilePath "$($adtSession.DirFiles)\setup.exe" -ArgumentList
-  '<silent flags>'`, and the same for uninstall with `'<uninstall flags>'`. **You must replace
-  those two placeholders** in the editor — they are literal text, not real switches.
+  '<silent flags>'`, and the same for uninstall with `'<uninstall flags>'`. **Unless you filled
+  Install arguments / Uninstall arguments, you must replace those two placeholders** in the
+  editor — they are literal text, not real switches.
 
 If that version folder already exists you are asked whether to **replace** it; declining cancels
 without touching anything.
@@ -412,7 +439,9 @@ script**, **Remote test**, **Open folder** — and the primary button becomes **
 ## Editing the deploy script
 
 **Edit script** opens the package in the built-in editor. It is optional — but for an EXE package
-it is where you replace `<silent flags>` and `<uninstall flags>` with the installer's real switches.
+it is where you replace `<silent flags>` and `<uninstall flags>` with the installer's real switches
+(unless you added them in step 1), point the uninstall line at a separate uninstaller, or add
+`-Transforms` for an MSI.
 
 - The left rail shows the package file tree; the search box searches **file names and contents**
   and jumps to the matching line.
