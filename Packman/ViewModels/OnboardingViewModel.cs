@@ -392,6 +392,7 @@ public sealed class OnboardingViewModel : ObservableObject
         var connection = IsInteractive ? "Interactive sign-in" : "App registration";
         var certificate = AvailableCertificates.FirstOrDefault(c => c.Thumbprint.Equals(Thumbprint, StringComparison.OrdinalIgnoreCase))?.DisplayName
             ?? Thumbprint;
+        var certificateText = certificate.Length > 0 ? $", certificate {certificate}" : ", no certificate chosen";
         var tested = ConnectionOk ? "Connection tested" : "Connect later: packaging works offline";
         var folders = PsadtLayout.OptionalFolders(Layout.IconFolder, Layout.ExtraFolders);
 
@@ -399,7 +400,7 @@ public sealed class OnboardingViewModel : ObservableObject
         [
             new("Connection", IsInteractive
                 ? $"{connection}. {tested}."
-                : $"{connection}, certificate {certificate}. {tested}.", ConnectionStep),
+                : $"{connection}{certificateText}. {tested}.", ConnectionStep),
             new("Packages folder", ApplicationsRoot.Trim(), PathsStep),
             new("PSADT template", TemplatePath.Trim(), PathsStep),
             new("IntuneWinAppUtil", IntuneWinAppUtilPath.Trim(), PathsStep),
