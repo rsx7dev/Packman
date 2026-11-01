@@ -3,53 +3,52 @@
 Installer file to published Intune app, in the shortest path that works. Every step links to the
 full explanation in the [Packman manual](docs/MANUAL.md).
 
-> Before you start: Windows, the .NET 10 Desktop Runtime, a PSADT v4 template folder
-> including the runtime, `IntuneWinAppUtil.exe`, and an Intune account with the required Graph
-> permissions — see [Requirements](README.md#requirements).
+> Before you start: Windows, the .NET 10 Desktop Runtime, and an Intune account with the required
+> Graph permissions — see [Requirements](README.md#requirements). The PSADT v4 template and
+> `IntuneWinAppUtil.exe` are included.
 
 ---
 
 ## 1. Set it up once
 
-Open **Settings** and complete two sections, then press **Save settings**:
+On first launch Packman asks one question: the **Packages folder** where packages are written (see
+[First-run setup](docs/MANUAL.md#first-run-setup--the-settings-page)). The PSADT v4 template and
+`IntuneWinAppUtil.exe` are included, so there is nothing else to download or locate.
 
-1. **Authentication** — press **Sign in** (interactive needs no app registration), then
-   **Test connection** to check read access and publishing permission (it reads the token's
-   permissions and changes nothing). Sign-in asks for read access only; Packman asks
-   for write permission the first time you publish or change an app, and for directory access when
-   you open **Advanced**. A dedicated app registration is recommended over the shared default client:
-   see [Dedicated app registration](docs/MANUAL.md#dedicated-app-registration).
-2. **Network paths** — **Intune Applications Path** (where packages are written), **PSADT Template
-   Path**, and **IntuneWinAppUtil Path** (see [Get IntuneWinAppUtil.exe](#get-intunewinapputilexe)).
+To publish, open **Settings ▸ Authentication**, press **Sign in** (interactive needs no app
+registration), then **Test connection** to check read access and publishing permission (it reads the
+token's permissions and changes nothing). Sign-in asks for read access only; Packman asks
+for write permission the first time you publish or change an app, and for directory access when
+you open **Advanced**. A dedicated app registration is recommended over the shared default client:
+see [Dedicated app registration](docs/MANUAL.md#dedicated-app-registration). Packaging works without
+signing in.
 
 Code signing, group-assignment defaults, Intune defaults and the theme are optional. Until you
 dismiss it, the **Create** page shows a **Before your first package** card listing anything still
 missing, with a link to the setting that fixes it.
-→ [First-run setup](docs/MANUAL.md#first-run-setup--the-settings-page)
 
-### Get IntuneWinAppUtil.exe
+### Using your own IntuneWinAppUtil.exe or PSADT template
 
-Packman does not bundle or download Microsoft's Win32 Content Prep Tool. Get it from its only
-official source, Microsoft's repository
-[microsoft/Microsoft-Win32-Content-Prep-Tool](https://github.com/microsoft/Microsoft-Win32-Content-Prep-Tool)
-(*Releases*, or `IntuneWinAppUtil.exe` in the repository root), then check the file before you
-point Settings at it:
+Packman bundles Microsoft's Win32 Content Prep Tool (1.8.7, from
+[microsoft/Microsoft-Win32-Content-Prep-Tool](https://github.com/microsoft/Microsoft-Win32-Content-Prep-Tool))
+and PSADT 4.1.8. To use another build, set **IntuneWinAppUtil Path** or **PSADT Template Path** under
+**Settings ▸ Network paths**; empty uses the bundled one. Check a tool of your own before you point
+Settings at it:
 
 ```powershell
 Get-AuthenticodeSignature .\IntuneWinAppUtil.exe | Format-List Status, SignerCertificate
 Get-FileHash -Algorithm SHA256 .\IntuneWinAppUtil.exe
 ```
 
-`Status` must be `Valid` with a *Microsoft Corporation* signer. Record the SHA256 and compare it on
-every packaging machine (or against the release you downloaded it from), so they all build with the
-same tool. Keep it outside the share Packman writes packages to.
+`Status` must be `Valid` with a *Microsoft Corporation* signer. Keep it outside the share Packman
+writes packages to.
 
 ## 2. Generate the package
 
 **Create** → drag your MSI or EXE onto the **Source installer** field. Name, manufacturer,
 version and icon are filled from the installer; correct anything you disagree with, pick
 **x64** or **x86** and **System** or **User**, then **Generate package**. The button stays disabled until the
-installer, name, manufacturer, version, output share and template are set; its tooltip says which is
+installer, name, manufacturer, version and output share are set; its tooltip says which is
 missing. Dropping a different installer replaces the values the last one filled in, but keeps what
 you typed.
 

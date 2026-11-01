@@ -113,8 +113,8 @@ Each area links to the part of the [manual](docs/MANUAL.md) that explains it.
 | **OS** | Windows (WPF, Windows certificate store, WinRM client) |
 | **Runtime** | .NET 10 Desktop Runtime — or the .NET 10 SDK to build |
 | **Editor host** | Microsoft Edge **WebView2 Runtime**, for the in-app script editor. Without it the editor falls back to opening the script in your own editor |
-| **PSADT v4 template** | A folder holding `Invoke-AppDeployToolkit.ps1` **plus the runtime** (`Invoke-AppDeployToolkit.exe` and the `PSAppDeployToolkit` module). A script-only starter ships in `Packman/PSADT/`; see `Packman/PSADT/README.md` |
-| **Content prep tool** | `IntuneWinAppUtil.exe` (Microsoft Win32 Content Prep Tool) |
+| **PSADT v4 template** | Included: PSADT 4.1.8 with its runtime, in `PSADT/` beside `Packman.exe`. Set a path in Settings only to use your own |
+| **Content prep tool** | Included: `IntuneWinAppUtil.exe` 1.8.7 (Microsoft Win32 Content Prep Tool), in `IntuneWinAppUtil/` beside `Packman.exe`. Set a path in Settings only to use your own |
 | **Tenant** | An active Microsoft Intune license and Microsoft Graph permissions for the selected [authentication mode](docs/MANUAL.md#authentication) |
 | **Remote test (optional)** | A test machine with WinRM enabled and reachable, and administrative rights on it (the package is staged over the `C$` admin share) |
 
@@ -128,8 +128,8 @@ Successful [Windows CI runs](https://github.com/TechLakeRS/Packman/actions/workf
 provide a **Packman-community-windows** artifact. Extract the entire archive and launch
 `Packman.exe` after installing the runtimes listed under [Requirements](#requirements). CI artifacts
 are development builds, not a separately signed installer or stable release. Tagged versions are
-published as GitHub Releases; see [Releases](CONTRIBUTING.md#releases). The complete PSADT runtime
-and `IntuneWinAppUtil.exe` still need to be configured in Settings.
+published as GitHub Releases; see [Releases](CONTRIBUTING.md#releases). On first launch Packman asks
+only for the folder to write packages to; the PSADT template and `IntuneWinAppUtil.exe` are included.
 
 ### Build and run from source
 

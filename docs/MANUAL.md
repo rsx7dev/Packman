@@ -28,9 +28,8 @@ they do not show a live tenant or a real deployment.
 
 ## Before you start
 
-Packman needs Windows, the .NET 10 Desktop Runtime, a PSADT v4 template folder that includes the
-runtime, `IntuneWinAppUtil.exe` and, for publishing, a Microsoft Intune tenant with the Graph
-permissions described under [Authentication](#authentication). The full list is in
+Packman needs Windows, the .NET 10 Desktop Runtime and, for publishing, a Microsoft Intune tenant
+with the Graph permissions described under [Authentication](#authentication). The full list is in
 [Requirements](../README.md#requirements). To build and run from source, or to get a CI build, see
 [Get started](../README.md#get-started); [HOWTO.md](../HOWTO.md) walks through the first package.
 
@@ -38,33 +37,25 @@ permissions described under [Authentication](#authentication). The full list is 
 
 ## First-run setup — the Settings page
 
-On first launch, before the three paths are set, Packman opens a short setup instead of the main
-window: **Welcome**, **Connection**, **Paths**, **Package folders** and **Review and finish**.
-**Get started** begins it, **Back** keeps what you typed, and nothing is saved until **Finish**.
+On first launch, until the packages folder is set, Packman opens a one-question setup instead of
+the main window: **Packages folder**, the folder every package is written to (a network share or a
+local folder). **Get started** checks it: the folder must exist (a write test creates and deletes a
+temp file; a read-only folder only warns that `packman.id` cannot be written). It is saved, the main
+window opens, and setup is not shown again. Closing it unfinished ends the app.
 
-- **Connection** — choose **Interactive sign-in** or **App registration** (**Tenant ID**,
-  **Application (Client) ID** and a **Certificate** from `CurrentUser\My` that has a private key;
-  the required Graph permissions are listed with a **Copy** button). **Test connection** must pass
-  before **Next**, or choose **Connect later**: packaging works offline, and the Intune pages ask
-  you to sign in until you connect in Settings.
-- **Paths** — the **Applications share root** must exist (a write test creates and deletes a temp
-  file; a read-only root only warns that `packman.id` cannot be written), the **PSADT v4 template**
-  must hold `Invoke-AppDeployToolkit.ps1` and the `PSAppDeployToolkit` folder, and
-  **IntuneWinAppUtil.exe** must be that file. The **PSADT releases** and **Microsoft download** links open the
-  [PSADT releases](https://github.com/PSAppDeployToolkit/PSAppDeployToolkit/releases) and the
-  [Win32 Content Prep Tool](https://github.com/microsoft/Microsoft-Win32-Content-Prep-Tool) pages;
-  Packman downloads nothing.
-- **Package folders** — see [Package layout](#package-layout).
+Nothing else is asked. The PSADT v4 template (PSADT 4.1.8 with its runtime, in `PSADT\Application`
+beside `Packman.exe`) and `IntuneWinAppUtil.exe` 1.8.7 (in `IntuneWinAppUtil\`) are included, and
+used while **PSADT Template Path** and **IntuneWinAppUtil Path** are empty. Connect to Intune,
+choose package folders and change any path in Settings when you need to.
 
 Until you dismiss it, the **Create** page opens with a **Before your first package** card that
 checks the output share, PSADT template, `IntuneWinAppUtil.exe` and Intune sign-in, each with an
 **Open settings** link, and explains the EXE switches step. **Got it** hides the card for good
 (saved in settings); it comes back while the share, template or converter is missing or broken.
 
-**Run setup again** in Settings reopens it with your current values. The sections below describe
-the same options on the Settings page. **Authentication** and **Network paths** are the two you
-must complete; the rest have working defaults. Press **Save settings** when done — except
-Appearance, which applies and saves immediately.
+The sections below describe the options on the Settings page. **Authentication** is needed to
+publish and **Network paths** only for the packages folder; the rest have working defaults. Press
+**Save settings** when done — except Appearance, which applies and saves immediately.
 
 ### Authentication
 
@@ -155,10 +146,10 @@ publishing stops before building or uploading content.
 | Setting | What it is |
 |---|---|
 | **Intune Applications Path** | Root folder where packages are written, typically a share. |
-| **PSADT Template Path** | Your PSADT v4 folder — either the folder containing `Invoke-AppDeployToolkit.ps1` or the script path itself. |
-| **IntuneWinAppUtil Path** | Full path to `IntuneWinAppUtil.exe`. |
+| **PSADT Template Path** | Optional. Your own PSADT v4 folder — either the folder containing `Invoke-AppDeployToolkit.ps1` or the script path itself. Empty uses the bundled template. |
+| **IntuneWinAppUtil Path** | Optional. Full path to your own `IntuneWinAppUtil.exe`. Empty uses the bundled one. |
 
-Package generation is blocked until the first two are set; upload is blocked until the third is.
+Package generation is blocked until the Intune Applications Path is set.
 
 ### Package layout
 
@@ -172,7 +163,7 @@ into the `.intunewin`) and `Intune` (the built `.intunewin` and `packman.id`). T
   `.intunewin`, and a new version made with Upgrade copies their contents forward.
 
 The setting applies to new packages only; existing packages are never changed. It is in
-Settings ▸ Package layout and, during first-run setup, on the **Package folders** step.
+Settings ▸ Package layout.
 
 ### Group assignment
 
@@ -223,7 +214,7 @@ steps back.
 1. Leave the mode toggle on **Create new**.
 
    **Generate package** stays disabled until the installer, application name, manufacturer and
-   version are filled in and the output share and PSADT template are set in Settings; its tooltip
+   version are filled in and the output share is set in Settings; its tooltip
    names the first thing missing.
 
 2. Pick the source installer. Press **Browse…**, or drag an MSI/EXE straight onto the
@@ -659,9 +650,9 @@ Known limits, so you do not go looking:
   supported.
 - You cannot upload a bare `.intunewin` or an arbitrary installer — the package must have the
   PSADT layout.
-- Packman does not ship the PSADT runtime. The bundled template is script-only; without the
-  runtime in your template folder the `.intunewin` build produces nothing, and a remote test
-  refuses to start because `Invoke-AppDeployToolkit.exe` is missing.
+- A template path of your own must include the PSADT runtime. Without it the `.intunewin` build
+  produces nothing, and a remote test refuses to start because `Invoke-AppDeployToolkit.exe` is
+  missing. The bundled template includes it.
 
 ### Editing published apps
 
@@ -719,10 +710,9 @@ Known limits, so you do not go looking:
 
 | Symptom | Fix |
 |---|---|
-| *Configure IntuneApplications and PSADTTemplate paths in Settings first.* | Set both under Settings ▸ Network paths. |
-| *Set the IntuneWinAppUtil path on the Settings page first.* | Point **IntuneWinAppUtil Path** at `IntuneWinAppUtil.exe`. |
+| *Set the Intune Applications Path in Settings first.* | Set it under Settings ▸ Network paths. |
 | *PSADT template not found.* | The template path must be the folder containing `Invoke-AppDeployToolkit.ps1` (or that script's path). |
-| *IntuneWinAppUtil finished but produced no .intunewin file.* | The template needs the full PSADT v4 runtime, not just the script. See `Packman/PSADT/README.md`. |
+| *IntuneWinAppUtil finished but produced no .intunewin file.* | A template of your own needs the full PSADT v4 runtime, not just the script. Clear **PSADT Template Path** to use the bundled one. |
 | *Package version … already exists.* | Confirm the replace prompt (create), or delete the version folder / pick another version (upgrade). |
 | *Sign in to Intune on the Settings page first.* | Sign in, then press **Test connection**, before uploading. |
 | Connection test shows a failed read check | Review the HTTP status, consent and tenant access for that service. The write checks run separately. |

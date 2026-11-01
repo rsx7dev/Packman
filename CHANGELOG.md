@@ -25,8 +25,8 @@ All notable changes to Packman are recorded here. The format follows
 
 - Loading another installer replaces the name, manufacturer and version the previous installer
   filled in, and keeps values typed by hand.
-- **Generate package** is disabled until the installer, name, manufacturer, version, output share and
-  PSADT template are set; its tooltip names the first missing item.
+- **Generate package** is disabled until the installer, name, manufacturer, version and output share
+  are set; its tooltip names the first missing item.
 - Package preflight runs on entering Configure and Review. The rail shows its state, Review lists the
   issues, and **Publish** stays disabled until the package is clean.
 - Remote test runs the same preflight and lists issues as warnings in the log.
@@ -37,6 +37,11 @@ All notable changes to Packman are recorded here. The format follows
 - The README is a short landing page. The feature guide moved to `docs/MANUAL.md`, and the contributor
   sections (preview utility, releases, offline builds, project layout) moved to CONTRIBUTING.md.
 
+- First-run setup asks one question, the packages folder, instead of five steps. Connecting to
+  Intune and the package folders are set in Settings, which no longer has **Run setup again**.
+- An empty **PSADT Template Path** or **IntuneWinAppUtil Path** uses the bundled copy, so only the
+  packages folder is needed to start packaging.
+
 ### Removed
 
 - Internal design drafts and review notes, and the tooling folders that generated them, ahead of
@@ -44,6 +49,11 @@ All notable changes to Packman are recorded here. The format follows
 
 ### Added
 
+- Bundled PSADT 4.1.8 template with its runtime (`Invoke-AppDeployToolkit.exe` and the
+  `PSAppDeployToolkit` module) and Microsoft's `IntuneWinAppUtil.exe` 1.8.7, copied beside
+  `Packman.exe`. Licenses are in THIRD-PARTY-NOTICES.md.
+- `tests/BundledToolsTests.py`, run by `check.sh`: the template has its runtime, the script matches
+  the runtime version, and `IntuneWinAppUtil.exe` is the pinned build.
 - `tests/DocsLinkTests.py`, run by `check.sh`: checks relative links, `#` anchors, image alt text,
   heading levels, code fence languages, repo paths in code fences and leaked internal references in
   the tracked markdown. `--external` also fetches every web link before a release.
@@ -54,8 +64,7 @@ All notable changes to Packman are recorded here. The format follows
 - `tests/Packman.Tests` xunit project, run by `check.sh` on Windows.
 - Tag-triggered release job: builds with the tag's version, signs `Packman.exe` and `Packman.dll`,
   and publishes a zip and its SHA256 as a GitHub Release.
-- HOWTO instructions for getting `IntuneWinAppUtil.exe` from Microsoft and checking its signature
-  and hash.
+- HOWTO instructions for checking the signature and hash of an `IntuneWinAppUtil.exe` of your own.
 
 ## [1.1.0]
 

@@ -192,7 +192,8 @@ Packman/
   Themes/         light/dark palettes, styles, icons
   Fonts/          embedded UI fonts
   MonacoEditor/   the editor host page and Monaco assets
-  PSADT/          bundled PSADT v4 template (script only)
+  PSADT/          bundled PSADT v4 template (script and runtime)
+  IntuneWinAppUtil/  bundled IntuneWinAppUtil.exe and its license terms
   Tools/          extract-psadt-functions.py, regenerates MonacoEditor/psadt-functions.json
 tests/            file-based test programs, Python checks and the xunit project Packman.Tests
 docs/             the manual, the UI design notes and the documentation screenshots
