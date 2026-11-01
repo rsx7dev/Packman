@@ -34,9 +34,19 @@ All notable changes to Packman are recorded here. The format follows
   and removes the test task from the target.
 - The Settings connection test skips the device and user read checks until those scopes are granted.
 - CI runs `./check.sh`, so every test program runs, not two of them.
+- The README is a short landing page. The feature guide moved to `docs/MANUAL.md`, and the contributor
+  sections (preview utility, releases, offline builds, project layout) moved to CONTRIBUTING.md.
+
+### Removed
+
+- Internal design drafts and review notes, and the tooling folders that generated them, ahead of
+  publishing the source.
 
 ### Added
 
+- `tests/DocsLinkTests.py`, run by `check.sh`: checks relative links, `#` anchors, image alt text,
+  heading levels, code fence languages, repo paths in code fences and leaked internal references in
+  the tracked markdown. `--external` also fetches every web link before a release.
 - **Before your first package** card on the Create page: output share, PSADT template,
   IntuneWinAppUtil and sign-in, each with an **Open settings** link, plus the EXE switches step. Its
   dismissal is saved in settings.

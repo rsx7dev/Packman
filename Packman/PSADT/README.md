@@ -6,7 +6,7 @@ It is incomplete: it lacks the PSADT v4 runtime (see **Important** below), so do
 
 ## Structure
 
-```
+```text
 PSADT/
   Application/                     <- copied into each new package
     Invoke-AppDeployToolkit.ps1    <- v4 deploy script (Packman edits the metadata)

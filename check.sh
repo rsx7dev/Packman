@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Portable parser/CSV and package-link checks everywhere; Windows also builds Packman, checks WPF
+# Portable parser/CSV, package-link and documentation checks everywhere; Windows also builds Packman, checks WPF
 # and runs tests/Packman.Tests. CI runs this script as is.
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -39,13 +39,14 @@ for candidate in python3 python; do
 done
 if [ -n "$python" ]; then
     "$python" tests/PsadtCatalogTests.py
+    "$python" tests/DocsLinkTests.py
     if "$python" -c "import playwright" 2>/dev/null; then
         "$python" tests/MonacoEditorTests.py
     else
         echo "check.sh: skipping tests/MonacoEditorTests.py (install with: pip install playwright && playwright install chromium)"
     fi
 else
-    echo "check.sh: skipping PSADT catalog and Monaco tests (python not found)"
+    echo "check.sh: skipping PSADT catalog, documentation and Monaco tests (python not found)"
 fi
 if [ "$check_target" = tests/DeviceStatusTests.cs ]; then
     dotnet run --file tests/PackageLinkWpfTests.cs -c Release
