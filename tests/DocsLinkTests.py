@@ -39,7 +39,7 @@ HTML_IMG = re.compile(r"<img\b[^>]*>", re.IGNORECASE)
 HTML_ATTR = r"""\b{}\s*=\s*["']([^"']*)["']"""
 HTML_HREF = re.compile(HTML_ATTR.format("href"), re.IGNORECASE)
 BARE_URL = re.compile(r"https?://[^\s<>\"'\]]+")
-SCHEME = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]+:")
+PUBLIC_SCHEME = re.compile(r"^(?:https?|mailto):", re.IGNORECASE)
 
 
 def tracked_files():
@@ -158,7 +158,16 @@ class Repository:
 
 
 def is_remote(target):
-    return bool(SCHEME.match(target))
+    return bool(PUBLIC_SCHEME.match(target))
+
+
+def check_schemes(repo):
+    """Only http, https and mailto are exempt from file resolution; file:, ftp: and drive paths must not pass."""
+    public = ["http://example.com", "HTTPS://example.com/a#b", "mailto:a@example.com"]
+    private = ["file:///C:/Internal/report.md", "ftp://host/x", "javascript:alert(1)", "C:/Internal/report.md"]
+    return [f"{target} is wrongly treated as {'private' if want else 'public'}"
+            for want, targets in ((True, public), (False, private))
+            for target in targets if is_remote(target) != want]
 
 
 def check_links(repo):
@@ -282,6 +291,7 @@ def check_external(repo, skipped):
 def main():
     repo = Repository()
     checks = [
+        ("schemes", check_schemes),
         ("links", check_links),
         ("images", check_images),
         ("lint", check_lint),
