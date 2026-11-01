@@ -189,7 +189,7 @@ internal static class UiPreviews
                 new SettingsService(Path.Combine(Path.GetTempPath(), "packman-preview-settings.json"))));
             var setupRoot = (FrameworkElement)setup.Content;
             setup.Content = null;
-            RenderShell(setupRoot, $"{theme}-00-setup", 760, 520);
+            RenderShell(setupRoot, $"{theme}-00-setup", 760, 440);
             setup.Close();
 
             var combo = new ComboBox { IsEditable = true, Text = "TEST-PC-01", Width = 240 };

@@ -5,8 +5,8 @@
         xmlns:local="clr-namespace:Packman"
         xmlns:controls="clr-namespace:Packman.Views.Controls"
         Title="Packman — Set up"
-        Width="760" Height="520"
-        MinWidth="640" MinHeight="460"
+        Width="760" Height="440"
+        MinWidth="640" MinHeight="400"
         WindowStartupLocation="CenterScreen"
         ExtendsContentIntoTitleBar="True"
         WindowBackdropType="Mica"
@@ -56,7 +56,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="The PSADT v4 template and IntuneWinAppUtil are included. Connect to Intune in Settings when you publish."
+                        <TextBlock Text="The PSADT v4 template and IntuneWinAppUtil are included."
                                    Style="{StaticResource FooterHint}" Margin="0,0,18,0"/>
                         <Button Grid.Column="1" Command="{Binding NextCommand}" IsDefault="True" MinWidth="160" Style="{StaticResource PrimaryButton}"
                                 AutomationProperties.Name="Get started">
@@ -89,7 +89,17 @@
                 </Grid>
                 <TextBlock Text="Packman creates every package here. A network share or a local folder works."
                            Style="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,6,0,0"/>
-                <ContentControl Content="{Binding ApplicationsRootCheck}" ContentTemplate="{StaticResource SetupCheckCallout}" Focusable="False" Margin="0,8,0,0"/>
+                <ContentControl Content="{Binding ApplicationsRootCheck}" ContentTemplate="{StaticResource SetupCheckCallout}" Focusable="False" Margin="0,8,0,0">
+                    <ContentControl.Style>
+                        <Style TargetType="ContentControl">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding ApplicationsRootCheck}" Value="{x:Null}">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </ContentControl.Style>
+                </ContentControl>
             </StackPanel>
         </controls:PageFrame>
     </Grid>
