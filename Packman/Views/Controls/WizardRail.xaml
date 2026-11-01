@@ -123,9 +123,6 @@
             <controls:StatusRow Label="Output share"
                                 Kind="{Binding OutputShareReady, Converter={StaticResource BoolToText}, ConverterParameter='ok|warn'}"
                                 Value="{Binding OutputShareReady, Converter={StaticResource BoolToText}, ConverterParameter='Ready|Set in Settings'}"/>
-            <controls:StatusRow Label="PSADT template"
-                                Kind="{Binding TemplateReady, Converter={StaticResource BoolToText}, ConverterParameter='ok|warn'}"
-                                Value="{Binding TemplateReady, Converter={StaticResource BoolToText}, ConverterParameter='Ready|Set in Settings'}"/>
             <controls:StatusRow Label="Intune connection" Value="{Binding ConnectionLabel}"
                                 Kind="{Binding IsConnected, Converter={StaticResource BoolToText}, ConverterParameter='ok|pending'}"
                                 Detail="{Binding IsConnected, Converter={StaticResource BoolToText}, ConverterParameter='|Needed at step 3'}"/>

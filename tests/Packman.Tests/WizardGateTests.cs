@@ -28,7 +28,6 @@ public sealed class WizardGateTests : IDisposable
         var vm = new MainViewModel(_settings, _auth);
         var paths = _settings.Settings.NetworkPaths;
         paths.IntuneApplications = "";
-        paths.PSADTTemplate = "";
 
         var steps = new (string Expected, Action Fix)[]
         {
@@ -37,7 +36,6 @@ public sealed class WizardGateTests : IDisposable
             ("Enter the manufacturer", () => vm.CreatePackage.Manufacturer = "Vendor"),
             ("Enter the version", () => vm.CreatePackage.Version = "1.0"),
             ("Set the output share in Settings", () => paths.IntuneApplications = _folder),
-            ("Set the PSADT template in Settings", () => paths.PSADTTemplate = _folder),
         };
         foreach (var (expected, fix) in steps)
         {

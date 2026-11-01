@@ -36,15 +36,16 @@ public sealed class SetupChecklistTests : IDisposable
     }
 
     [Fact]
-    public async Task FreshInstallListsEveryPrerequisiteAsMissing()
+    public async Task FreshInstallNeedsOnlyTheOutputShareAndSignIn()
     {
         var checklist = new SetupChecklistViewModel(_settings, _auth);
         await checklist.RefreshAsync();
 
         Assert.Equal(new[] { "Output share", "PSADT template", "IntuneWinAppUtil", "Intune sign-in" }, checklist.Items.Select(i => i.Label));
         Assert.Equal("bad", Kind(checklist, "Output share"));
-        Assert.Equal("bad", Kind(checklist, "PSADT template"));
-        Assert.Equal("bad", Kind(checklist, "IntuneWinAppUtil"));
+        // Empty paths use the template and tool bundled in the build output.
+        Assert.Equal("ok", Kind(checklist, "PSADT template"));
+        Assert.Equal("ok", Kind(checklist, "IntuneWinAppUtil"));
         Assert.Equal("warn", Kind(checklist, "Intune sign-in"));
         Assert.True(checklist.HasMissing);
         Assert.True(checklist.IsVisible);

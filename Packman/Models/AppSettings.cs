@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using Packman.Helpers;
+using System.Text.Json.Serialization;
 
 namespace Packman.Models;
 
@@ -47,12 +48,21 @@ public class AppSettings
     public class NetworkPathsConfig
     {
         public string IntuneApplications { get; set; } = "";
+
+        /// <summary>A template of your own; empty uses the one bundled with Packman.</summary>
         public string PSADTTemplate { get; set; } = "";
+
+        /// <summary>An IntuneWinAppUtil.exe of your own; empty uses the one bundled with Packman.</summary>
         public string IntuneWinAppUtil { get; set; } = "";
 
-        /// <summary>True once all three paths are set; below that, first-run setup is shown.</summary>
-        public bool IsComplete =>
-            !string.IsNullOrWhiteSpace(IntuneApplications) && !string.IsNullOrWhiteSpace(PSADTTemplate) && !string.IsNullOrWhiteSpace(IntuneWinAppUtil);
+        [JsonIgnore]
+        public string PSADTTemplateInUse => string.IsNullOrWhiteSpace(PSADTTemplate) ? BundledTools.PsadtTemplate : PSADTTemplate;
+
+        [JsonIgnore]
+        public string IntuneWinAppUtilInUse => string.IsNullOrWhiteSpace(IntuneWinAppUtil) ? BundledTools.IntuneWinAppUtil : IntuneWinAppUtil;
+
+        /// <summary>True once the packages folder is set; until then, first-run setup is shown.</summary>
+        public bool IsComplete => !string.IsNullOrWhiteSpace(IntuneApplications);
     }
 
     /// <summary>Folders a new package gets besides Application and Intune. Existing packages are never changed.</summary>

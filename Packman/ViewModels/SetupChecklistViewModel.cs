@@ -59,7 +59,7 @@ public sealed class SetupChecklistViewModel : ObservableObject
         var sequence = Interlocked.Increment(ref _sequence);
         IsChecking = true;
         var paths = _settings.Settings.NetworkPaths;
-        var (share, template, converter) = (paths.IntuneApplications, paths.PSADTTemplate, paths.IntuneWinAppUtil);
+        var (share, template, converter) = (paths.IntuneApplications, paths.PSADTTemplateInUse, paths.IntuneWinAppUtilInUse);
 
         // The share and template are often UNC paths, which can take seconds to time out.
         var checks = await Task.Run(() => new[]

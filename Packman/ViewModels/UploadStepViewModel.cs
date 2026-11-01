@@ -509,12 +509,6 @@ public class UploadStepViewModel : ObservableObject
         }
 
         var settings = _settingsService.Settings;
-        if (string.IsNullOrWhiteSpace(settings.NetworkPaths.IntuneWinAppUtil))
-        {
-            StatusText = "Set the IntuneWinAppUtil path on the Settings page first.";
-            return;
-        }
-
         // Group creation is granted on the Advanced screen, never prompted for here.
         if ((settings.GroupAssignment.CreateGroupPerPackage || settings.GroupAssignment.CreateUninstallGroupPerPackage)
             && !_auth.HasScopes(IntuneAuthService.GroupCreateScopes))
@@ -570,7 +564,7 @@ public class UploadStepViewModel : ObservableObject
             ? new NativeCodeSigner(settings.CodeSigning.CertificateThumbprint, settings.CodeSigning.TimestampServer)
             : null;
 
-        var uploadService = new IntuneUploadService(_auth.CreateSessionTokenProvider(), _auth.TenantId ?? "", signer, settings.NetworkPaths.IntuneWinAppUtil);
+        var uploadService = new IntuneUploadService(_auth.CreateSessionTokenProvider(), _auth.TenantId ?? "", signer, settings.NetworkPaths.IntuneWinAppUtilInUse);
 
         await Publish.RunAsync(
             $"Publishing {appInfo.Manufacturer} {appInfo.Name}…".Trim(),

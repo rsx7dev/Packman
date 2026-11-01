@@ -225,11 +225,8 @@ public sealed class SettingsViewModel : ObservableObject
     /// <summary>Where the settings file lives; shown under the page title.</summary>
     public string SettingsPath => _svc.SettingsPath;
 
-    /// <summary>The three paths every flow needs are filled in.</summary>
-    public bool IsConfigured =>
-        !string.IsNullOrWhiteSpace(_intuneApplicationsPath) &&
-        !string.IsNullOrWhiteSpace(_psadtTemplatePath) &&
-        !string.IsNullOrWhiteSpace(_intuneWinAppUtilPath);
+    /// <summary>The packages folder is set; the template and tool default to the bundled ones.</summary>
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(_intuneApplicationsPath);
 
     // ── Package layout ─────────────────────────────────────────────────
     /// <summary>Icon and extra folders for new packages; the same editor setup uses.</summary>

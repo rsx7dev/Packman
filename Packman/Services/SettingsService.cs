@@ -25,7 +25,8 @@ public class SettingsService
     // The old path next to the exe is still read once so settings carry over.
     private readonly string _path;
 
-    // The bundled PSADT folder ships without the v4 runtime, so it is never a usable template.
+    // An empty template path means the bundled template, so a saved path into it is dropped
+    // rather than kept: it would go stale when Packman is installed somewhere else.
     private static readonly string BundledTemplatePath =
         Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "PSADT")));
 
@@ -97,7 +98,7 @@ public class SettingsService
     /// <summary>
     /// Empties the template path when it points at a bundled PSADT folder (or inside it): the one
     /// next to this executable, or any Packman\PSADT folder such as a source checkout's, so an old
-    /// saved path is not kept or shown. No replacement is chosen.
+    /// saved path is not kept or shown. The empty path resolves to the bundled template.
     /// </summary>
     private static void ClearBundledTemplate(AppSettings settings)
     {

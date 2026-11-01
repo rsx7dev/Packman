@@ -255,7 +255,6 @@ public sealed class MainViewModel : ObservableObject
                 : Blank(CreatePackage.Manufacturer) ? "Enter the manufacturer"
                 : Blank(CreatePackage.Version) ? "Enter the version"
                 : Blank(paths.IntuneApplications) ? "Set the output share in Settings"
-                : Blank(paths.PSADTTemplate) ? "Set the PSADT template in Settings"
                 : null;
         }
     }
@@ -337,7 +336,6 @@ public sealed class MainViewModel : ObservableObject
 
     // ── Package preview (rail beside the Package step) ──────────────────
     public bool OutputShareReady => !string.IsNullOrWhiteSpace(_settingsService.Settings.NetworkPaths.IntuneApplications);
-    public bool TemplateReady => !string.IsNullOrWhiteSpace(_settingsService.Settings.NetworkPaths.PSADTTemplate);
     public string OutputShare => OutputShareReady ? _settingsService.Settings.NetworkPaths.IntuneApplications : "Not set";
 
     /// <summary>
@@ -367,7 +365,7 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>Settings saved: paths and defaults the rails summarise may have changed.</summary>
     public void RefreshFromSettings()
     {
-        RaiseAll(nameof(OutputShareReady), nameof(TemplateReady), nameof(OutputShare), nameof(PackageFolderPreview), nameof(PackageFolders));
+        RaiseAll(nameof(OutputShareReady), nameof(OutputShare), nameof(PackageFolderPreview), nameof(PackageFolders));
         Upload.RaiseReadiness();
         RaisePrimaryState();
     }

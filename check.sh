@@ -39,6 +39,7 @@ for candidate in python3 python; do
 done
 if [ -n "$python" ]; then
     "$python" tests/PsadtCatalogTests.py
+    "$python" tests/BundledToolsTests.py
     "$python" tests/DocsLinkTests.py
     if "$python" -c "import playwright" 2>/dev/null; then
         "$python" tests/MonacoEditorTests.py

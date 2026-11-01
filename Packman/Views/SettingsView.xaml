@@ -12,16 +12,6 @@
                         Subtitle="Configure authentication, paths, deployment defaults and appearance"
                         IsBodyScrollable="False">
 
-        <controls:PageFrame.HeaderActions>
-            <Button Style="{StaticResource GhostButton}" Click="RunSetup_Click" AutomationProperties.Name="Run setup again"
-                    ToolTip="Open the first-run setup with your current settings">
-                <StackPanel Orientation="Horizontal">
-                    <controls:LineIcon Data="{DynamicResource IconPlay}" Width="13" Height="13" Margin="0,0,8,0"/>
-                    <TextBlock Text="Run setup again" VerticalAlignment="Center"/>
-                </StackPanel>
-            </Button>
-        </controls:PageFrame.HeaderActions>
-
         <!-- ══ Section tabs ═════════════════════════════════════════════ -->
         <controls:PageFrame.HeaderBottom>
             <WrapPanel>

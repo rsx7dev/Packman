@@ -407,8 +407,8 @@ public class CreatePackageViewModel : ObservableObject
     public string? FindExistingPackage(AppSettings settings)
     {
         var outputPath = settings.NetworkPaths.IntuneApplications;
-        var templatePath = settings.NetworkPaths.PSADTTemplate;
-        if (string.IsNullOrWhiteSpace(outputPath) || string.IsNullOrWhiteSpace(templatePath))
+        var templatePath = settings.NetworkPaths.PSADTTemplateInUse;
+        if (string.IsNullOrWhiteSpace(outputPath))
             return null;
         if (string.IsNullOrWhiteSpace(AppName))
             return null;
@@ -429,11 +429,11 @@ public class CreatePackageViewModel : ObservableObject
         try
         {
             var outputPath = settings.NetworkPaths.IntuneApplications;
-            var templatePath = settings.NetworkPaths.PSADTTemplate;
+            var templatePath = settings.NetworkPaths.PSADTTemplateInUse;
 
-            if (string.IsNullOrWhiteSpace(outputPath) || string.IsNullOrWhiteSpace(templatePath))
+            if (string.IsNullOrWhiteSpace(outputPath))
             {
-                StatusText = "Configure IntuneApplications and PSADTTemplate paths in Settings first.";
+                StatusText = "Set the Intune Applications Path in Settings first.";
                 return null;
             }
 

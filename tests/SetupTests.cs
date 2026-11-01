@@ -27,9 +27,9 @@ using Packman.Views;
 // OnboardingViewModel / OnboardingWindow. Every settings file is a temp file. Graph answers from a
 // fake handler and the sign-in is UseTestSession with an all-zero tenant, so nothing signs in or
 // calls a real service. Covers the package folders for each layout, an upgrade carrying Icon and
-// extra folders forward, the Connection gate, Back keeping values, an unedited rerun writing the
-// same bytes, Finish touching only its own settings blocks, and a non-empty AutomationProperties.Name
-// on every visible input.
+// extra folders forward, setup asking only for the packages folder, the bundled template and
+// IntuneWinAppUtil standing in for empty paths, Finish touching only the packages folder, and a
+// non-empty AutomationProperties.Name on every visible input.
 //   dotnet run --file tests/SetupTests.cs -c Release
 // Exits non-zero when a check fails.
 internal static class SetupTests
@@ -40,10 +40,6 @@ internal static class SetupTests
     private const string Permission = "DeviceManagementApps.ReadWrite.All";
     private const string Version1 = "1.0";
     private const string Version2 = "2.0";
-
-    // Settings blocks Finish does not own. Everything else must come back unchanged.
-    private static readonly string[] UntouchedBlocks =
-        ["Theme", "NavHidden", "CodeSigning", "GroupAssignment", "IntuneDefaults", "RemoteTest"];
 
     private static int _passed;
     private static readonly List<string> Failures = new();
@@ -64,14 +60,11 @@ internal static class SetupTests
             ("Generator with Icon off creates Application and Intune only", GeneratorIconOff),
             ("Generator with two extra folders creates them empty next to Application and Intune", GeneratorExtraFolders),
             ("Upgrade copies Icon and extra-folder contents from the previous version", UpgradeCopiesOptionalFolders),
-            ("Connection Next is blocked until Test connection passes or Connect later is chosen", ConnectionGate),
-            ("A passing Test connection unlocks Connection Next, and editing a field clears it", ConnectionPassAndEdit),
-            ("Test connection signs in with the chosen method and tenant, not an earlier session", ConnectionTestsChosenMethod),
-            ("A connection test finishing after an edit does not unlock Next", ConnectionEditDuringTest),
-            ("A path edited while the checks run is not advanced on the old result", PathEditDuringCheck),
-            ("Going Back and then Next keeps every value entered on earlier steps", BackKeepsValues),
-            ("An unedited rerun Finish leaves the settings file byte-identical", UneditedRerunIdentical),
-            ("Finish with edits changes only AuthMode, Authentication, NetworkPaths and PackageLayout", FinishTouchesOwnedBlocks),
+            ("Setup is shown only until the packages folder is set", SetupShownUntilFolderSet),
+            ("Empty template and tool paths use the bundled ones; a path of your own wins", BundledPathsAreTheDefault),
+            ("A missing folder keeps setup open and saves nothing", MissingFolderStays),
+            ("A folder edited while it is checked is not saved on the old result", FolderEditDuringCheck),
+            ("Completing setup saves only the packages folder", CompletingSavesOnlyTheFolder),
             ("A layout saved in Settings applies to the next package and leaves the first untouched", SettingsLayoutAppliesToNewPackages),
             ("Every visible onboarding input has a non-empty AutomationProperties.Name", InputsAreNamed),
         };
@@ -156,191 +149,92 @@ internal static class SetupTests
 
     // Onboarding flow
 
-    private static void ConnectionGate()
+    private static void SetupShownUntilFolderSet()
     {
-        var vm = NewViewModel(TempSettings().Service);
-        vm.CurrentStepIndex = 1;
-        IsFalse(vm.NextCommand.CanExecute(null), "Next blocked before a test or Connect later");
-        vm.ConnectLaterCommand.Execute(null);
-        IsTrue(vm.NextCommand.CanExecute(null), "Next allowed after Connect later");
+        var paths = new AppSettings.NetworkPathsConfig();
+        IsFalse(paths.IsComplete, "a fresh install shows setup");
+        paths.IntuneApplications = TempDir();
+        IsTrue(paths.IsComplete, "the packages folder alone completes the paths");
     }
 
-    private static void ConnectionPassAndEdit()
+    private static void BundledPathsAreTheDefault()
     {
-        var vm = NewViewModel(TempSettings().Service);
-        vm.IsInteractive = false;
-        vm.TenantId = AllZeroTenant;
-        vm.ClientId = FakeClientId;
-        vm.Thumbprint = FakeThumbprint;
-        vm.CurrentStepIndex = 1;
-        Wait(vm.TestConnectionAsync());
-        IsTrue(vm.ConnectionOk, "test connection passes against the fake Graph");
-        IsTrue(vm.NextCommand.CanExecute(null), "Next allowed after a passing test");
+        var paths = new AppSettings.NetworkPathsConfig();
+        Equal(BundledTools.PsadtTemplate, paths.PSADTTemplateInUse);
+        Equal(BundledTools.IntuneWinAppUtil, paths.IntuneWinAppUtilInUse);
 
-        vm.TenantId = "00000000-0000-0000-0000-000000000002";
-        IsFalse(vm.ConnectionOk, "editing the tenant clears the pass");
-        IsFalse(vm.NextCommand.CanExecute(null), "Next blocked again after the edit");
+        var template = FakeTemplate(TempDir());
+        var tool = FakeTool(TempDir());
+        paths.PSADTTemplate = template;
+        paths.IntuneWinAppUtil = tool;
+        Equal(template, paths.PSADTTemplateInUse);
+        Equal(tool, paths.IntuneWinAppUtilInUse);
+
+        var json = JsonSerializer.Serialize(new AppSettings());
+        IsFalse(json.Contains("InUse"), "the paths in use are not saved");
     }
 
-    private static void ConnectionTestsChosenMethod()
+    private static void MissingFolderStays()
     {
-        var vm = NewViewModel(TempSettings().Service);
-        var calls = new List<(AuthMode Mode, string Tenant)>();
-        vm.SignIn = (mode, cfg, _) =>
-        {
-            calls.Add((mode, cfg.TenantId));
-            AppServices.Auth.UseTestSession(AllZeroTenant, FakeToken());
-            return Task.CompletedTask;
-        };
-        vm.CurrentStepIndex = 1;
+        var settings = TempSettings();
+        var vm = new OnboardingViewModel(settings.Service);
+        var completed = false;
+        vm.Completed += () => completed = true;
 
-        vm.IsInteractive = false;
-        vm.TenantId = AllZeroTenant;
-        vm.ClientId = FakeClientId;
-        vm.Thumbprint = FakeThumbprint;
-        Wait(vm.TestConnectionAsync());
-        IsTrue(vm.ConnectionOk, "app registration test passes");
+        vm.ApplicationsRoot = Path.Combine(TempDir(), "missing");
+        Wait(vm.NextAsync());
 
-        // A session from the app registration exists now; Interactive must still sign in itself.
-        vm.IsInteractive = true;
-        IsFalse(vm.ConnectionOk, "switching the method clears the pass");
-        Wait(vm.TestConnectionAsync());
-        Equal(2, calls.Count);
-        Equal(AuthMode.Interactive, calls[1].Mode);
-
-        // A new interactive tenant is signed in again with that tenant.
-        vm.TenantId = "00000000-0000-0000-0000-000000000002";
-        Wait(vm.TestConnectionAsync());
-        Equal(3, calls.Count);
-        Equal("00000000-0000-0000-0000-000000000002", calls[2].Tenant);
+        IsFalse(completed, "setup stays open");
+        Equal("bad", vm.ApplicationsRootCheck!.Kind);
+        IsFalse(File.Exists(settings.Path), "nothing is saved");
     }
 
-    private static void ConnectionEditDuringTest()
+    private static void FolderEditDuringCheck()
     {
-        var vm = NewViewModel(TempSettings().Service);
-        vm.SignIn = (_, _, _) =>
-        {
-            AppServices.Auth.UseTestSession(AllZeroTenant, FakeToken());
-            vm.TenantId = "00000000-0000-0000-0000-000000000002";
-            return Task.CompletedTask;
-        };
-        vm.CurrentStepIndex = 1;
-        vm.IsInteractive = false;
-        vm.TenantId = AllZeroTenant;
-        vm.ClientId = FakeClientId;
-        vm.Thumbprint = FakeThumbprint;
-
-        Wait(vm.TestConnectionAsync());
-        IsFalse(vm.ConnectionOk, "the pass belongs to the old tenant");
-        IsFalse(vm.NextCommand.CanExecute(null), "Next stays blocked");
-        Equal(0, vm.ConnectionChecks.Count);
-    }
-
-    private static void PathEditDuringCheck()
-    {
-        var vm = NewViewModel(TempSettings().Service);
-        vm.CurrentStepIndex = 2;
+        var settings = TempSettings();
+        var vm = new OnboardingViewModel(settings.Service);
+        var completed = false;
+        vm.Completed += () => completed = true;
         vm.ApplicationsRoot = TempDir();
-        vm.TemplatePath = FakeTemplate(TempDir());
-        vm.IntuneWinAppUtilPath = FakeTool(TempDir());
 
         // Run inside a dispatcher operation so the check's continuation can only run after the edit.
         Wait(Dispatcher.CurrentDispatcher.InvokeAsync(async () =>
         {
             var next = vm.NextAsync();
-            vm.TemplatePath = Path.Combine(TempDir(), "missing");
+            vm.ApplicationsRoot = Path.Combine(TempDir(), "missing");
             await next;
         }).Task.Unwrap());
 
-        Equal(2, vm.CurrentStepIndex);
-        IsTrue(vm.TemplateCheck == null, "no stale result is shown for the edited path");
+        IsFalse(completed, "the old result is not acted on");
+        IsTrue(vm.ApplicationsRootCheck == null, "no stale result is shown for the edited folder");
+        IsFalse(File.Exists(settings.Path), "nothing is saved");
     }
 
-    private static void BackKeepsValues()
-    {
-        var root = TempDir();
-        var template = FakeTemplate(TempDir());
-        var tool = FakeTool(TempDir());
-        var vm = NewViewModel(TempSettings().Service);
-
-        vm.CurrentStepIndex = 1;
-        vm.TenantId = AllZeroTenant;
-        vm.ClientId = FakeClientId;
-        vm.ConnectLaterCommand.Execute(null);
-        Wait(vm.NextAsync());
-
-        vm.ApplicationsRoot = root;
-        vm.TemplatePath = template;
-        vm.IntuneWinAppUtilPath = tool;
-        Wait(vm.NextAsync());
-        Equal(3, vm.CurrentStepIndex);
-
-        vm.Layout.IconFolder = false;
-        vm.Layout.NewFolderName = "Docs";
-        vm.Layout.AddFolderCommand.Execute(null);
-
-        vm.BackCommand.Execute(null);
-        Equal(2, vm.CurrentStepIndex);
-        Equal(root, vm.ApplicationsRoot);
-        Equal(template, vm.TemplatePath);
-        Equal(tool, vm.IntuneWinAppUtilPath);
-
-        vm.BackCommand.Execute(null);
-        Equal(1, vm.CurrentStepIndex);
-        Equal(AllZeroTenant, vm.TenantId);
-        Equal(FakeClientId, vm.ClientId);
-        IsTrue(vm.NextCommand.CanExecute(null), "Connect later still set on Back");
-
-        Wait(vm.NextAsync());
-        Wait(vm.NextAsync());
-        Equal(3, vm.CurrentStepIndex);
-        IsFalse(vm.Layout.IconFolder, "Icon choice kept");
-        SequenceEqual(new[] { "Docs" }, vm.Layout.ExtraFolders);
-    }
-
-    private static void UneditedRerunIdentical()
+    private static void CompletingSavesOnlyTheFolder()
     {
         var settings = TempSettings();
-        var root = TempDir();
-        Seed(settings.Service, root, FakeTemplate(TempDir()), FakeTool(TempDir()));
-        var before = File.ReadAllBytes(settings.Path);
-
-        var vm = NewViewModel(new SettingsService(settings.Path));
-        Walk(vm);
-
-        var after = File.ReadAllBytes(settings.Path);
-        IsTrue(before.AsSpan().SequenceEqual(after), "settings file byte-identical after an unedited rerun");
-    }
-
-    private static void FinishTouchesOwnedBlocks()
-    {
-        var settings = TempSettings();
-        var root = TempDir();
-        Seed(settings.Service, root, FakeTemplate(TempDir()), FakeTool(TempDir()));
         var s = settings.Service.Settings;
         s.Theme = AppTheme.Light;
-        s.NavHidden = true;
+        s.AuthMode = AuthMode.AppRegistration;
+        s.Authentication.TenantId = AllZeroTenant;
         s.CodeSigning.Enabled = true;
-        s.GroupAssignment.CreateGroupPerPackage = true;
+        s.PackageLayout = new AppSettings.PackageLayoutConfig { IconFolder = false, ExtraFolders = ["Docs"] };
         settings.Service.Save();
         var before = ReadNode(settings.Path);
 
-        var vm = NewViewModel(new SettingsService(settings.Path));
-        var newRoot = TempDir();
-        vm.CurrentStepIndex = 1;
-        vm.ConnectLaterCommand.Execute(null);
-        Wait(vm.NextAsync());
-        vm.ApplicationsRoot = newRoot;
-        Wait(vm.NextAsync());
-        vm.Layout.IconFolder = false;
-        Wait(vm.NextAsync());
+        var root = TempDir();
+        var vm = new OnboardingViewModel(new SettingsService(settings.Path));
+        var completed = false;
+        vm.Completed += () => completed = true;
+        vm.ApplicationsRoot = " " + root + " ";
         Wait(vm.NextAsync());
 
+        IsTrue(completed, "Completed is raised");
         var after = ReadNode(settings.Path);
-        foreach (var block in UntouchedBlocks)
+        Equal(root, after["NetworkPaths"]!["IntuneApplications"]!.GetValue<string>());
+        foreach (var block in new[] { "Theme", "AuthMode", "Authentication", "CodeSigning", "PackageLayout", "GroupAssignment", "IntuneDefaults", "RemoteTest" })
             IsTrue(JsonNode.DeepEquals(before[block], after[block]), $"{block} unchanged");
-        Equal(newRoot, after["NetworkPaths"]!["IntuneApplications"]!.GetValue<string>());
-        IsFalse(after["PackageLayout"]!["IconFolder"]!.GetValue<bool>(), "PackageLayout saved");
+        IsTrue(new SettingsService(settings.Path).Settings.NetworkPaths.IsComplete, "setup is not shown again");
     }
 
     private static void SettingsLayoutAppliesToNewPackages()
@@ -369,27 +263,16 @@ internal static class SetupTests
 
     private static void InputsAreNamed()
     {
-        var settings = TempSettings();
-        var vm = NewViewModel(settings.Service);
-        var window = new OnboardingWindow(vm);
+        var window = new OnboardingWindow(new OnboardingViewModel(TempSettings().Service));
         window.Show();
         try
         {
-            foreach (var interactive in new[] { true, false })
-            {
-                vm.IsInteractive = interactive;
-                for (var step = 0; step < vm.Steps.Count; step++)
-                {
-                    vm.CurrentStepIndex = step;
-                    window.UpdateLayout();
-                    foreach (var input in VisibleInputs(window))
-                    {
-                        var name = AutomationProperties.GetName(input);
-                        IsFalse(string.IsNullOrWhiteSpace(name),
-                            $"{input.GetType().Name} on step {step} ({(interactive ? "Interactive" : "App registration")}) has no AutomationProperties.Name");
-                    }
-                }
-            }
+            window.UpdateLayout();
+            var inputs = VisibleInputs(window).ToList();
+            IsTrue(inputs.Count > 0, "setup shows an input");
+            foreach (var input in inputs)
+                IsFalse(string.IsNullOrWhiteSpace(AutomationProperties.GetName(input)),
+                    $"{input.GetType().Name} has no AutomationProperties.Name");
         }
         finally
         {
@@ -398,17 +281,6 @@ internal static class SetupTests
     }
 
     // Helpers: view models, settings, package fixtures
-
-    // The sign-in is the test session, so a test never needs a certificate or a prompt.
-    private static OnboardingViewModel NewViewModel(SettingsService settings)
-        => new(settings, AppServices.Auth)
-        {
-            SignIn = (_, _, _) =>
-            {
-                AppServices.Auth.UseTestSession(AllZeroTenant, FakeToken());
-                return Task.CompletedTask;
-            },
-        };
 
     private static TempSettingsFile TempSettings()
     {
@@ -430,17 +302,6 @@ internal static class SetupTests
         s.NetworkPaths.IntuneWinAppUtil = tool;
         s.PackageLayout = new AppSettings.PackageLayoutConfig { IconFolder = true, ExtraFolders = ["Docs"] };
         svc.Save();
-    }
-
-    // Walks a fresh onboarding run: Connect later, the paths, the layout, then Finish.
-    private static void Walk(OnboardingViewModel vm)
-    {
-        vm.CurrentStepIndex = 1;
-        vm.ConnectLaterCommand.Execute(null);
-        Wait(vm.NextAsync());
-        Wait(vm.NextAsync());
-        Wait(vm.NextAsync());
-        Wait(vm.NextAsync());
     }
 
     private static string Generate(string root, AppSettings.PackageLayoutConfig layout, string name = "Reader", string? template = null)

@@ -428,8 +428,7 @@ public sealed class UploadToIntuneViewModel : ObservableObject
     public PublishRunViewModel Publish { get; } = new();
 
     public bool UploadEnabled =>
-        IsValidated && CanAttemptPublish && !Publish.IsPublishing &&
-        !string.IsNullOrWhiteSpace(_settings.Settings.NetworkPaths.IntuneWinAppUtil);
+        IsValidated && CanAttemptPublish && !Publish.IsPublishing;
 
     private async Task UploadAsync()
     {
@@ -482,7 +481,7 @@ public sealed class UploadToIntuneViewModel : ObservableObject
             ? new NativeCodeSigner(settings.CodeSigning.CertificateThumbprint, settings.CodeSigning.TimestampServer)
             : null;
 
-        var uploadService = new IntuneUploadService(_auth.CreateSessionTokenProvider(), _auth.TenantId ?? "", signer, settings.NetworkPaths.IntuneWinAppUtil);
+        var uploadService = new IntuneUploadService(_auth.CreateSessionTokenProvider(), _auth.TenantId ?? "", signer, settings.NetworkPaths.IntuneWinAppUtilInUse);
         var packageRoot = PackageRoot;
         var rules = DetectionRules.ToList();
         var groups = GroupPicker.AssignableGroups;

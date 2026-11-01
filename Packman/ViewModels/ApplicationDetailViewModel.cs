@@ -268,7 +268,7 @@ public sealed class ApplicationDetailViewModel : ObservableObject
         try
         {
             var uploadService = new IntuneUploadService(
-                AppServices.Auth.CreateSessionTokenProvider(), AppServices.Auth.TenantId ?? "", signer, settings.NetworkPaths.IntuneWinAppUtil);
+                AppServices.Auth.CreateSessionTokenProvider(), AppServices.Auth.TenantId ?? "", signer, settings.NetworkPaths.IntuneWinAppUtilInUse);
 
             var progress = new DetailProgress(this);
             var appId = Detail.Id;
