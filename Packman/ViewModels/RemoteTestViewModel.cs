@@ -345,6 +345,7 @@ public sealed class RemoteTestViewModel : ObservableObject
         LastRunSucceeded = null;
         LastRunSummary = "";
         StatusText = $"{deploymentType.ToLowerInvariant()} running…";
+        ActivityLog.Shared.Section($"Remote test: {deploymentType.ToLowerInvariant()} on {TargetComputer}");
         _flushTimer.Start();
         var context = CaptureDetectionContext();
 
@@ -552,6 +553,17 @@ public sealed class RemoteTestViewModel : ObservableObject
     {
         var line = new RemoteTestLine { Time = DateTime.Now.ToString("HH:mm:ss"), Text = text, Kind = Classify(text) };
         lock (_pending) _pending.Add(line);
+
+        // The same line goes to the live console; the rule-off lines are only decoration there.
+        ActivityLevel? level = line.Kind switch
+        {
+            LineKind.Good => ActivityLevel.Success,
+            LineKind.Warn => ActivityLevel.Warning,
+            LineKind.Bad => ActivityLevel.Error,
+            LineKind.Info => ActivityLevel.Info,
+            _ => null,
+        };
+        if (level is { } shown) ActivityLog.Shared.Add(shown, text);
     }
 
     private void Flush()

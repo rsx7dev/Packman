@@ -355,7 +355,7 @@
                     </controls:PageFrame>
 
                     <!-- Remote test from inside the wizard: the package is the one just generated. -->
-                    <controls:PageFrame Title="{Binding ToolTitle}" Subtitle="{Binding ToolSubtitle}"
+                    <controls:PageFrame Title="{Binding ToolTitle}" Subtitle="{Binding ToolSubtitle}" HasConsole="True"
                                         Visibility="{Binding IsTestToolOpen, Converter={StaticResource BoolToVis}}">
                         <controls:PageFrame.Breadcrumb>
                             <StackPanel Orientation="Horizontal">
