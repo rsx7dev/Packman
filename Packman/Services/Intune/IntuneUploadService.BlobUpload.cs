@@ -102,7 +102,7 @@ public partial class IntuneUploadService
         if (totalChunks > MaxBlocks)
             throw new Exception($"Package is too large to upload: it would need {totalChunks:N0} blocks and Azure allows {MaxBlocks:N0}.");
 
-        progress?.UpdateProgress(60, $"Uploading package to Azure ({ByteSize.Format(totalSize)})...");
+        Report(progress, log, 60, $"Uploading package to Azure ({ByteSize.Format(totalSize)})...");
 
         using var archive = ZipFile.OpenRead(intuneWin.IntuneWinPath);
         var entry = archive.GetEntry(intuneWin.ContentEntryName)
@@ -145,14 +145,14 @@ public partial class IntuneUploadService
 
             var percent = (int)((long)chunkIndex * 100 / totalChunks);
             var band = 60 + (int)((chunkIndex + 1.0) / totalChunks * 22);
-            progress?.UpdateProgress(band, $"Uploading chunk {chunkIndex + 1}/{totalChunks} ({percent}%)");
+            Report(progress, log, band, $"Uploading chunk {chunkIndex + 1}/{totalChunks} ({percent}%)");
 
             await PutBlockAsync(GetSasUriAsync, blockId, buffer, read, chunkIndex, totalChunks, ct);
         }
 
-        progress?.UpdateProgress(83, "Finalizing Azure upload...");
+        Report(progress, log, 83, "Finalizing Azure upload...");
         await PutBlockListAsync(GetSasUriAsync, blockIds, ct);
-        progress?.UpdateProgress(84, "Package uploaded to Azure");
+        Report(progress, log, 84, "Package uploaded to Azure");
     }
 
     private static async Task PutBlockAsync(Func<bool, CancellationToken, Task<string>> getSasUriAsync, string blockId,

@@ -86,4 +86,18 @@ public sealed class IntuneUploadServiceTests : GraphStaticsFixture
         Assert.Empty(Deletes);
         Assert.Null(service.RollbackSucceeded);
     }
+
+    [Fact]
+    public async Task TransferProgressReachesTheConsoleBeforeTheUploadCompletes()
+    {
+        ActivityLog.Shared.Clear();
+
+        await Upload(Service());
+
+        var lines = ActivityLog.Shared.Lines.Select(l => l.Text).ToList();
+        var finished = lines.FindIndex(t => t.StartsWith("App now serves content version"));
+        Assert.True(finished >= 0, "the upload never finished");
+        foreach (var expected in new[] { "Uploading package to Azure", "Uploading chunk 1/1", "Finalizing Azure upload...", "Package uploaded to Azure" })
+            Assert.True(lines.FindIndex(t => t.StartsWith(expected)) is >= 0 and var at && at < finished, $"'{expected}' was not shown before the upload completed");
+    }
 }

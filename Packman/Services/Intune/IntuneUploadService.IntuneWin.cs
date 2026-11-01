@@ -20,7 +20,7 @@ public partial class IntuneUploadService
             return;
         }
 
-        progress?.UpdateProgress(10, "Signing the deployment script...");
+        Report(progress, log, 10, "Signing the deployment script...");
         try
         {
             var scriptPath = await PackageSigningService.SignAsync(packagePath, _signer, ct);
