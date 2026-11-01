@@ -7,7 +7,7 @@ using Xunit;
 
 namespace Packman.Tests;
 
-/// <summary>The T-0224 fixes as their callers see them: scopes, staging, auto-fill and the welcome card.</summary>
+/// <summary>Scopes, staging, auto-fill and the welcome card, as their callers see them.</summary>
 public sealed class ContractTests : GraphStaticsFixture
 {
     private const string Tenant = "11111111-1111-1111-1111-111111111111";
