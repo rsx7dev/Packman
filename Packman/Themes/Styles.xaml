@@ -1287,13 +1287,27 @@
                             <!-- Rail -->
                             <Border x:Name="rail" Grid.Column="1" Grid.RowSpan="3" Width="312" Background="{DynamicResource RailBrush}"
                                     BorderBrush="{DynamicResource LineBrush}" BorderThickness="1,0,0,0" CornerRadius="0,9,9,0">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
-                                    <ContentPresenter Content="{TemplateBinding Rail}" Margin="22,22,22,24"/>
-                                </ScrollViewer>
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Focusable="False">
+                                        <ContentPresenter Content="{TemplateBinding Rail}" Margin="22,22,22,24"/>
+                                    </ScrollViewer>
+                                    <!-- Pinned under the scrolling inspector. -->
+                                    <Border x:Name="console" Grid.Row="1" Visibility="Collapsed" Padding="22,14,22,18"
+                                            BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0">
+                                        <controls:ActivityConsole/>
+                                    </Border>
+                                </Grid>
                             </Border>
                         </Grid>
                     </Border>
                     <ControlTemplate.Triggers>
+                        <Trigger Property="HasConsole" Value="True">
+                            <Setter TargetName="console" Property="Visibility" Value="Visible"/>
+                        </Trigger>
                         <Trigger Property="Leading" Value="{x:Null}">
                             <Setter TargetName="leading" Property="Visibility" Value="Collapsed"/>
                         </Trigger>

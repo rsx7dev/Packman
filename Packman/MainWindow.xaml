@@ -220,7 +220,7 @@
                 <Grid x:Name="CreatePackagePage">
                     <!-- The wizard. Each step scrolls on its own so switching steps
                          doesn't inherit the previous step's scroll position. -->
-                    <controls:PageFrame Title="Create package"
+                    <controls:PageFrame Title="Create package" HasConsole="True"
                                         Subtitle="Prepare, test and publish a PSADT application to Microsoft Intune"
                                         IsBodyScrollable="False"
                                         Visibility="{Binding IsWizard, Converter={StaticResource BoolToVis}}">

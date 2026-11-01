@@ -11,7 +11,7 @@
 
     <!-- Publish a package built earlier. The sections match the wizard's Configure step,
          so the two forms read as one. DataContext: UploadToIntuneViewModel. -->
-    <controls:PageFrame Title="Upload to Intune"
+    <controls:PageFrame Title="Upload to Intune" HasConsole="True"
                         Subtitle="Publish an existing PSADT package to Microsoft Intune">
 
         <!-- ═══════════ FOOTER ═══════════ -->

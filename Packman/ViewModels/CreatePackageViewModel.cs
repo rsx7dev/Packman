@@ -424,6 +424,7 @@ public class CreatePackageViewModel : ObservableObject
 
         IsGenerating = true;
         StatusText = "Copying the PSADT template and source files…";
+        ActivityLog.Shared.Section($"Creating package {AppName} {Version}");
         _cts = new CancellationTokenSource();
 
         try
@@ -434,6 +435,7 @@ public class CreatePackageViewModel : ObservableObject
             if (string.IsNullOrWhiteSpace(outputPath))
             {
                 StatusText = "Set the Intune Applications Path in Settings first.";
+                ActivityLog.Shared.Error(StatusText);
                 return null;
             }
 
@@ -450,6 +452,7 @@ public class CreatePackageViewModel : ObservableObject
             StatusText = result.Warnings.Count == 0
                 ? $"Package created · {DateTime.Now:HH:mm:ss}"
                 : $"Package created · {DateTime.Now:HH:mm:ss} · check the script: {string.Join(" ", result.Warnings)}";
+            ActivityLog.Shared.Success($"Package created: {packagePath}");
             Debug.WriteLine($"Package created: {packagePath}");
             return packagePath;
         }
@@ -457,11 +460,13 @@ public class CreatePackageViewModel : ObservableObject
         {
             WasCancelled = true;
             StatusText = "Generation cancelled. Nothing was left on the share.";
+            ActivityLog.Shared.Warning(StatusText);
             return null;
         }
         catch (Exception ex)
         {
             StatusText = $"Error: {ex.Message}";
+            ActivityLog.Shared.Error(StatusText);
             Debug.WriteLine($"Package generation failed: {ex}");
             return null;
         }

@@ -7,7 +7,8 @@ namespace Packman.Services;
 /// <summary>
 /// Per-package log for an upload or a content update, written to
 /// %LocalAppData%\Packman\Logs\{Upload|Update}\{App}-{date}.log.
-/// Tokens and SAS URIs never go through here.
+/// Tokens and SAS URIs never go through here. Every line except metadata is also shown in the
+/// live console (<see cref="ActivityLog"/>).
 /// </summary>
 public sealed class UploadLogger : IDisposable
 {
@@ -46,13 +47,33 @@ public sealed class UploadLogger : IDisposable
         }
     }
 
-    public void Info(string message) => Write($"[INFO ] {DateTime.Now:HH:mm:ss} - {message}");
-    public void Success(string message) => Write($"[ OK  ] {DateTime.Now:HH:mm:ss} - {message}");
-    public void Warning(string message) => Write($"[WARN ] {DateTime.Now:HH:mm:ss} - {message}");
-    public void Error(string message) => Write($"[ERROR] {DateTime.Now:HH:mm:ss} - {message}");
+    public void Info(string message)
+    {
+        Write($"[INFO ] {DateTime.Now:HH:mm:ss} - {message}");
+        ActivityLog.Shared.Info(message);
+    }
+
+    public void Success(string message)
+    {
+        Write($"[ OK  ] {DateTime.Now:HH:mm:ss} - {message}");
+        ActivityLog.Shared.Success(message);
+    }
+
+    public void Warning(string message)
+    {
+        Write($"[WARN ] {DateTime.Now:HH:mm:ss} - {message}");
+        ActivityLog.Shared.Warning(message);
+    }
+
+    public void Error(string message)
+    {
+        Write($"[ERROR] {DateTime.Now:HH:mm:ss} - {message}");
+        ActivityLog.Shared.Error(message);
+    }
 
     public void Error(string message, Exception ex)
     {
+        ActivityLog.Shared.Error($"{message}: {ex.Message}");
         Write($"[ERROR] {DateTime.Now:HH:mm:ss} - {message}");
         Write($"        Exception: {ex.GetType().Name}");
         Write($"        Message: {ex.Message}");
@@ -62,13 +83,19 @@ public sealed class UploadLogger : IDisposable
         Write($"        {ex.StackTrace?.Replace(Environment.NewLine, Environment.NewLine + "        ")}");
     }
 
-    public void Progress(int percentage, string message) => Write($"[{percentage,3}%] {DateTime.Now:HH:mm:ss} - {message}");
+    public void Progress(int percentage, string message)
+    {
+        Write($"[{percentage,3}%] {DateTime.Now:HH:mm:ss} - {message}");
+        ActivityLog.Shared.Info(message);
+    }
+
     public void LogMetadata(string key, string value) => Write($"  {key}: {value}");
 
     public void Section(string sectionName)
     {
         Write("");
         Write($"--- {sectionName} ---");
+        ActivityLog.Shared.Section(sectionName);
     }
 
     private void Write(string message)

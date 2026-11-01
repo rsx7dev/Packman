@@ -23,6 +23,7 @@ public class PageFrame : ContentControl
     public static readonly DependencyProperty HeaderBottomProperty = Register<object?>(nameof(HeaderBottom), null);
     public static readonly DependencyProperty FooterProperty = Register<object?>(nameof(Footer), null);
     public static readonly DependencyProperty RailProperty = Register<object?>(nameof(Rail), null);
+    public static readonly DependencyProperty HasConsoleProperty = Register(nameof(HasConsole), false);
     public static readonly DependencyProperty IsBodyScrollableProperty = Register(nameof(IsBodyScrollable), true);
     public static readonly DependencyProperty IsCompactProperty = Register(nameof(IsCompact), false);
     public static readonly DependencyProperty IsRailOpenProperty = Register(nameof(IsRailOpen), false);
@@ -47,6 +48,9 @@ public class PageFrame : ContentControl
 
     /// <summary>Inspector on the right. Hidden when null.</summary>
     public object? Rail { get => GetValue(RailProperty); set => SetValue(RailProperty, value); }
+
+    /// <summary>Shows the live console under the rail's content, pinned to the bottom of the right column.</summary>
+    public bool HasConsole { get => (bool)GetValue(HasConsoleProperty); set => SetValue(HasConsoleProperty, value); }
 
     /// <summary>False for bodies that manage their own scrolling (the script editor hosts a WebView2).</summary>
     public bool IsBodyScrollable { get => (bool)GetValue(IsBodyScrollableProperty); set => SetValue(IsBodyScrollableProperty, value); }

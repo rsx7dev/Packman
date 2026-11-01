@@ -46,6 +46,8 @@ public class PSADTGenerator
 
         // Fail on a bad template before anything on the share is touched.
         var template = ResolveTemplatePath();
+        var activity = ActivityLog.Shared;
+        activity.Info($"Package folder: {packagePath}");
 
         if (Directory.Exists(packagePath))
         {
@@ -53,6 +55,7 @@ public class PSADTGenerator
                 throw new InvalidOperationException(
                     $"Package version {appInfo.Version} already exists for {appFolderName}.");
 
+            activity.Info("Replacing the existing package version…");
             PackagePaths.DeleteInside(_baseOutputPath, packagePath);
             // Deletes on a share settle a moment after the call returns.
             await Task.Delay(200, cancellationToken);
@@ -60,14 +63,18 @@ public class PSADTGenerator
 
         try
         {
+            activity.Info($"Copying the PSADT template from {template}");
             DirectoryCopy.Copy(template, PsadtLayout.ApplicationFolder(packagePath), cancellationToken);
             // Created up front so new and upgraded packages share one layout.
             Directory.CreateDirectory(PsadtLayout.IntuneFolder(packagePath));
             foreach (var folder in PsadtLayout.OptionalFolders(_layout.IconFolder, _layout.ExtraFolders))
                 Directory.CreateDirectory(Path.Combine(packagePath, folder));
+            activity.Info("Copying the source files…");
             CopySourceFiles(appInfo.SourcesPath, packagePath, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
+            activity.Info("Writing the application details into the PSADT script…");
             var warnings = ModifyScript(packagePath, appInfo);
+            foreach (var warning in warnings) activity.Warning(warning);
 
             Debug.WriteLine($"Package created at: {packagePath}");
             return new PackageCreationResult(packagePath, warnings);
