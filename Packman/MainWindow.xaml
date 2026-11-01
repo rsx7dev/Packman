@@ -33,7 +33,8 @@
     <Window.Resources>
         <!-- Bottom menu bar item: always an icon, the label only on the current page. The icon
              geometry comes in through Tag. Checking one checks the matching left-nav button
-             (see IsChecked below), so the nav's Checked handlers still do the navigating. -->
+             (see IsChecked below), so the nav's Checked handlers still do the navigating.
+             The current item has no background of its own: MenuBarPill slides under it. -->
         <Style x:Key="MenuBarItem" TargetType="{x:Type RadioButton}">
             <Setter Property="FocusVisualStyle" Value="{StaticResource FocusVisual}"/>
             <Setter Property="GroupName" Value="MenuBar"/>
@@ -60,7 +61,7 @@
                                 <Setter Property="Foreground" Value="White"/>
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource DockActiveBrush}"/>
+                                <Setter TargetName="bd" Property="Background" Value="Transparent"/>
                                 <Setter TargetName="label" Property="Visibility" Value="Visible"/>
                                 <Setter Property="Foreground" Value="{DynamicResource DockActiveTextBrush}"/>
                             </Trigger>
@@ -407,20 +408,30 @@
         <Border Grid.Row="2" HorizontalAlignment="Center" Margin="0,0,0,12" Padding="6" CornerRadius="18"
                 Background="{DynamicResource DockBrush}"
                 Visibility="{Binding IsNavHidden, Converter={StaticResource BoolToVis}}">
-            <StackPanel Orientation="Horizontal">
-                <RadioButton Style="{StaticResource MenuBarItem}" Content="Create" Tag="{DynamicResource IconBox}"
-                             IsChecked="{Binding IsChecked, ElementName=CreatePackageNavBtn, Mode=TwoWay}"/>
-                <RadioButton Style="{StaticResource MenuBarItem}" Content="Upload" Tag="{DynamicResource IconUpload}"
-                             IsChecked="{Binding IsChecked, ElementName=UploadIntuneNavBtn, Mode=TwoWay}"/>
-                <RadioButton Style="{StaticResource MenuBarItem}" Content="Remote test" Tag="{DynamicResource IconPulse}"
-                             IsChecked="{Binding IsChecked, ElementName=RemoteTestNavBtn, Mode=TwoWay}"/>
-                <RadioButton Style="{StaticResource MenuBarItem}" Content="Applications" Tag="{DynamicResource IconLaptop}"
-                             IsChecked="{Binding IsChecked, ElementName=ApplicationsNavBtn, Mode=TwoWay}"/>
-                <RadioButton Style="{StaticResource MenuBarItem}" Content="Advanced" Tag="{DynamicResource IconList}"
-                             IsChecked="{Binding IsChecked, ElementName=AdvancedNavBtn, Mode=TwoWay}"/>
-                <RadioButton Style="{StaticResource MenuBarItem}" Content="Settings" Tag="{DynamicResource IconGear}"
-                             IsChecked="{Binding IsChecked, ElementName=SettingsNavBtn, Mode=TwoWay}"/>
-            </StackPanel>
+            <Grid>
+                <!-- The current-page highlight, moved by MovePill in code-behind. -->
+                <Border x:Name="MenuBarPill" Height="44" CornerRadius="12" HorizontalAlignment="Left"
+                        Background="{DynamicResource DockActiveBrush}" IsHitTestVisible="False">
+                    <Border.RenderTransform>
+                        <TranslateTransform x:Name="MenuBarPillShift"/>
+                    </Border.RenderTransform>
+                </Border>
+                <StackPanel x:Name="MenuBarItems" Orientation="Horizontal"
+                            RadioButton.Checked="MenuBar_Checked" IsVisibleChanged="MenuBarItems_IsVisibleChanged">
+                    <RadioButton Style="{StaticResource MenuBarItem}" Content="Create" Tag="{DynamicResource IconBox}"
+                                 IsChecked="{Binding IsChecked, ElementName=CreatePackageNavBtn, Mode=TwoWay}"/>
+                    <RadioButton Style="{StaticResource MenuBarItem}" Content="Upload" Tag="{DynamicResource IconUpload}"
+                                 IsChecked="{Binding IsChecked, ElementName=UploadIntuneNavBtn, Mode=TwoWay}"/>
+                    <RadioButton Style="{StaticResource MenuBarItem}" Content="Remote test" Tag="{DynamicResource IconPulse}"
+                                 IsChecked="{Binding IsChecked, ElementName=RemoteTestNavBtn, Mode=TwoWay}"/>
+                    <RadioButton Style="{StaticResource MenuBarItem}" Content="Applications" Tag="{DynamicResource IconLaptop}"
+                                 IsChecked="{Binding IsChecked, ElementName=ApplicationsNavBtn, Mode=TwoWay}"/>
+                    <RadioButton Style="{StaticResource MenuBarItem}" Content="Advanced" Tag="{DynamicResource IconList}"
+                                 IsChecked="{Binding IsChecked, ElementName=AdvancedNavBtn, Mode=TwoWay}"/>
+                    <RadioButton Style="{StaticResource MenuBarItem}" Content="Settings" Tag="{DynamicResource IconGear}"
+                                 IsChecked="{Binding IsChecked, ElementName=SettingsNavBtn, Mode=TwoWay}"/>
+                </StackPanel>
+            </Grid>
         </Border>
     </Grid>
 </ui:FluentWindow>

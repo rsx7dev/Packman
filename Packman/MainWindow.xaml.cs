@@ -2,6 +2,8 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
+using System.Windows.Threading;
 using Packman.Services;
 using Packman.ViewModels;
 using Wpf.Ui.Controls;
@@ -208,6 +210,64 @@ public partial class MainWindow : FluentWindow
     }
 
     private void SettingsNavBtn_Checked(object sender, RoutedEventArgs e) => ShowOnly(SettingsPage, "Settings");
+
+    // ── Bottom menu bar pill ──
+    // The highlight slides to the new page's item. Its leading edge moves faster than its
+    // trailing edge, so the pill stretches on the way and settles with a slight overshoot.
+
+    private static readonly DependencyProperty PillLeftProperty = DependencyProperty.Register(
+        "PillLeft", typeof(double), typeof(MainWindow), new PropertyMetadata(0.0, OnPillEdgeChanged));
+
+    private static readonly DependencyProperty PillRightProperty = DependencyProperty.Register(
+        "PillRight", typeof(double), typeof(MainWindow), new PropertyMetadata(0.0, OnPillEdgeChanged));
+
+    private static void OnPillEdgeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var w = (MainWindow)d;
+        var left = (double)w.GetValue(PillLeftProperty);
+        w.MenuBarPillShift.X = left;
+        w.MenuBarPill.Width = Math.Max(0, (double)w.GetValue(PillRightProperty) - left);
+    }
+
+    // Runs after layout, because the new item only gains its label width in the next pass.
+    private void MenuBar_Checked(object sender, RoutedEventArgs e)
+    {
+        if (MenuBarItems.IsVisible)
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => MovePill(animate: true)));
+    }
+
+    private void MenuBarItems_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (MenuBarItems.IsVisible)
+            Dispatcher.BeginInvoke(DispatcherPriority.Loaded, new Action(() => MovePill(animate: false)));
+    }
+
+    private void MovePill(bool animate)
+    {
+        var item = MenuBarItems.Children.OfType<System.Windows.Controls.RadioButton>().FirstOrDefault(r => r.IsChecked == true);
+        MenuBarPill.Visibility = item == null ? Visibility.Collapsed : Visibility.Visible;
+        if (item == null) return;
+
+        var left = item.TranslatePoint(new Point(0, 0), MenuBarItems).X;
+        var right = left + item.ActualWidth;
+
+        // Windows' "Animation effects" setting off means no motion.
+        if (!animate || !SystemParameters.ClientAreaAnimation)
+        {
+            BeginAnimation(PillLeftProperty, null);
+            BeginAnimation(PillRightProperty, null);
+            SetValue(PillLeftProperty, left);
+            SetValue(PillRightProperty, right);
+            return;
+        }
+
+        var ease = new BackEase { Amplitude = 0.3, EasingMode = EasingMode.EaseOut };
+        var fast = TimeSpan.FromMilliseconds(260);
+        var slow = TimeSpan.FromMilliseconds(420);
+        var movingRight = left > (double)GetValue(PillLeftProperty);
+        BeginAnimation(PillLeftProperty, new DoubleAnimation(left, movingRight ? slow : fast) { EasingFunction = ease });
+        BeginAnimation(PillRightProperty, new DoubleAnimation(right, movingRight ? fast : slow) { EasingFunction = ease });
+    }
 
     /// <summary>
     /// Separate from the wizard's tool of the same name: this one starts with no package,
