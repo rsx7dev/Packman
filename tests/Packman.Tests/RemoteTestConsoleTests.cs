@@ -31,4 +31,23 @@ public sealed class RemoteTestConsoleTests : IDisposable
         Assert.Contains(lines, l => l.Level == ActivityLevel.Error && l.Text.Contains("INSTALL FAILED"));
         Assert.DoesNotContain(lines, l => l.Text.StartsWith("===="));
     }
+
+    [Fact]
+    public async Task TheOnlineCheckShowsItsStartAndItsOutcomeInTheConsole()
+    {
+        var vm = new RemoteTestViewModel(new SettingsService(Path.Combine(_root, "appsettings.json")))
+        {
+            TargetComputer = "qa-unavailable.invalid",
+        };
+        ActivityLog.Shared.Clear();
+
+        vm.CheckOnlineCommand.Execute(null);
+        for (var i = 0; i < 100 && vm.StatusText is "checking…" or "not checked"; i++) await Task.Delay(100);
+
+        var lines = ActivityLog.Shared.Lines;
+        Assert.Equal("unreachable", vm.StatusText);
+        Assert.Equal((ActivityLevel.Info, "Checking whether qa-unavailable.invalid is online…"), (lines[0].Level, lines[0].Text));
+        Assert.Equal(ActivityLevel.Warning, lines[^1].Level);
+        Assert.Contains("unreachable", lines[^1].Text);
+    }
 }

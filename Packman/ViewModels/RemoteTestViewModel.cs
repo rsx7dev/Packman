@@ -313,6 +313,7 @@ public sealed class RemoteTestViewModel : ObservableObject
     {
         var context = CaptureDetectionContext();
         StatusText = "checking…";
+        ActivityLog.Shared.Info($"Checking whether {context.Computer} is online…");
         bool online = await Task.Run(() =>
         {
             try
@@ -326,6 +327,8 @@ public sealed class RemoteTestViewModel : ObservableObject
         if (context.Revision != _contextVersion || IsRunning) return;
         IsOnline = online;
         StatusText = online ? "online" : "unreachable";
+        if (online) ActivityLog.Shared.Success($"{context.Computer} is online");
+        else ActivityLog.Shared.Warning($"{context.Computer} is unreachable (no ping reply)");
         if (online) RememberComputer(context.Computer);
     }
 
