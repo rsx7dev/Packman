@@ -26,19 +26,31 @@ public static class DetectionRuleFactory
         Check32BitOn64System = true,
     };
 
-    public static DetectionRule RegistryKeyExists(string hive, string keyPath, string valueName) => new()
+    public static DetectionRule RegistryKeyExists(string hive, string keyPath, string valueName)
     {
-        Type = DetectionRuleType.Registry,
-        Path = RegistryHiveNames.Combine(hive, keyPath),
-        FileOrFolderName = valueName.Trim(),
-        DetectionType = "exists",
-    };
+        ArgumentException.ThrowIfNullOrWhiteSpace(hive);
+        ArgumentException.ThrowIfNullOrWhiteSpace(keyPath);
+        ArgumentNullException.ThrowIfNull(valueName);
 
-    public static DetectionRule Msi(string productCode) => new()
+        return new()
+        {
+            Type = DetectionRuleType.Registry,
+            Path = RegistryHiveNames.Combine(hive, keyPath),
+            FileOrFolderName = valueName.Trim(),
+            DetectionType = "exists",
+        };
+    }
+
+    public static DetectionRule Msi(string productCode)
     {
-        Type = DetectionRuleType.MSI,
-        Path = productCode.Trim(),
-    };
+        ArgumentException.ThrowIfNullOrWhiteSpace(productCode);
+
+        return new()
+        {
+            Type = DetectionRuleType.MSI,
+            Path = productCode.Trim(),
+        };
+    }
 
     /// <summary>
     /// The rule for one of the four <see cref="DetectionMethod"/> choices, from the fields
