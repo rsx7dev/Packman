@@ -30,7 +30,7 @@ public static class DetectionRuleFactory
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(hive);
         ArgumentException.ThrowIfNullOrWhiteSpace(keyPath);
-        ArgumentNullException.ThrowIfNull(valueName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(valueName);
 
         return new()
         {
