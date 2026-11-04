@@ -293,7 +293,6 @@ public partial class IntuneUploadService
 
     private async Task WriteSupersedenceAsync(string newAppId, IReadOnlyList<SupersedenceLink> supersedence, UploadLogger log, CancellationToken ct)
     {
-        log.Info($"Writing supersedence: this app replaces {predecessorAppId}");
         var payload = new
         {
             relationships = supersedence.Select(link => new Dictionary<string, string>
