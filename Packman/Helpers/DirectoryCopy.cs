@@ -1,5 +1,5 @@
-using System.Diagnostics;
 using System.IO;
+using Packman.Services;
 
 namespace Packman.Helpers;
 
@@ -42,8 +42,8 @@ public static class DirectoryCopy
         foreach (var file in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories))
         {
             try { total += new FileInfo(file).Length; }
-            catch (IOException ex) { Debug.WriteLine($"Could not read the size of {file}: {ex.Message}"); }
-            catch (UnauthorizedAccessException ex) { Debug.WriteLine($"Could not read the size of {file}: {ex.Message}"); }
+            catch (IOException ex) { ActivityLog.Shared.Warning($"Could not read the size of {file}: {ex.Message}"); }
+            catch (UnauthorizedAccessException ex) { ActivityLog.Shared.Warning($"Could not read the size of {file}: {ex.Message}"); }
         }
         return total;
     }
