@@ -27,6 +27,8 @@ public static class EditorLocator
     /// <summary>Opens a script in VS Code, else PowerShell ISE, else whatever the shell associates with it.</summary>
     public static void Open(string path)
     {
+        if (string.IsNullOrWhiteSpace(path)) return;
+
         var editor = FindVSCodePath() ?? FindPowerShellISEPath();
         var startInfo = editor != null
             ? new ProcessStartInfo(editor) { UseShellExecute = true, ArgumentList = { path } }
