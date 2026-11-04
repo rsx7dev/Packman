@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 
 namespace Packman.Helpers;
@@ -41,8 +42,10 @@ public static class DirectoryCopy
         foreach (var file in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories))
         {
             try { total += new FileInfo(file).Length; }
-            catch (IOException) { }
-            catch (UnauthorizedAccessException) { }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Debug.WriteLine($"Skipped {file} in size total: {ex.Message}");
+            }
         }
         return total;
     }
