@@ -16,22 +16,25 @@ public static class PackageSourceLocator
     /// </summary>
     public static string? FindLinked(string shareRoot, string appId, string? tenantId)
     {
+        if (string.IsNullOrWhiteSpace(shareRoot) || !Directory.Exists(shareRoot))
+            return null;
+
         try
         {
-            if (string.IsNullOrWhiteSpace(shareRoot) || !Directory.Exists(shareRoot))
-                return null;
-
-            return Directory.EnumerateDirectories(shareRoot)
-                .SelectMany(Directory.EnumerateDirectories)
-                .Select(folder => (folder, link: PackageMarker.Read(folder)))
-                .Where(x => x.link != null && x.link.AppId == appId && (x.link.IsLegacy || x.link.TenantId == tenantId))
-                .OrderByDescending(x => x.link!.UploadedAt, StringComparer.Ordinal)
-                .Select(x => x.folder)
-                .FirstOrDefault();
+            return LatestLinkedFolder(shareRoot, appId, tenantId);
         }
         catch
         {
             return null;   // unreachable share or no permission; the page shows "not found"
         }
     }
+
+    private static string? LatestLinkedFolder(string shareRoot, string appId, string? tenantId) =>
+        Directory.EnumerateDirectories(shareRoot)
+            .SelectMany(Directory.EnumerateDirectories)
+            .Select(folder => (folder, link: PackageMarker.Read(folder)))
+            .Where(x => x.link != null && x.link.AppId == appId && (x.link.IsLegacy || x.link.TenantId == tenantId))
+            .OrderByDescending(x => x.link!.UploadedAt, StringComparer.Ordinal)
+            .Select(x => x.folder)
+            .FirstOrDefault();
 }
