@@ -44,7 +44,13 @@ public sealed class StringMatchConverter : IValueConverter
 public sealed class CountToStarConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
-        => new GridLength(System.Convert.ToDouble(value), GridUnitType.Star);
+    {
+        var count = 0.0;
+        try { count = System.Convert.ToDouble(value, culture); }
+        catch (Exception e) when (e is FormatException or InvalidCastException or OverflowException) { }
+        // GridLength throws on negative, NaN and infinite values.
+        return new GridLength(double.IsFinite(count) && count >= 0 ? count : 0, GridUnitType.Star);
+    }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => Binding.DoNothing;
