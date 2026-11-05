@@ -58,6 +58,7 @@ public sealed class PsadtScript
 
     public static PsadtScript Load(string path)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
         var file = TextFileIO.Read(path);
         return new PsadtScript(path, file.Content, file.Encoding, file.Crlf);
     }
@@ -266,6 +267,7 @@ public sealed class PsadtScript
     /// <summary>Points every $adtSession.DirFiles reference at a new installer. Returns how many changed.</summary>
     public int ReplaceSourceFileName(string newSourceFileName)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(newSourceFileName);
         var escaped = PowerShellLiteral.DoubleQuoted(newSourceFileName);
         int count = 0;
         Content = DirFilesReference.Replace(Content, m =>

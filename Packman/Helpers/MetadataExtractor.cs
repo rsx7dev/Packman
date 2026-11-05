@@ -8,6 +8,8 @@ public static class MetadataExtractor
 {
     public static (string productName, string companyName, string version) ExtractExeMetadata(string exePath)
     {
+        if (string.IsNullOrWhiteSpace(exePath)) return ("", "", "");
+
         try
         {
             var vi = FileVersionInfo.GetVersionInfo(exePath);
@@ -60,6 +62,7 @@ public static class MetadataExtractor
     public static Dictionary<string, string> ExtractMetadataFromScript(string scriptPath)
     {
         var metadata = new Dictionary<string, string>();
+        if (string.IsNullOrWhiteSpace(scriptPath)) return metadata;
 
         try
         {
