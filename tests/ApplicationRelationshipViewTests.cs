@@ -114,9 +114,9 @@ internal static class ApplicationRelationshipViewTests
         public HttpStatusCode Status { get; set; } = HttpStatusCode.OK;
         public string Body { get; set; } = """
             {"value":[
-              {"@odata.type":"#microsoft.graph.mobileAppDependency","targetType":"child","targetId":"runtime","targetDisplayName":"Runtime","targetDisplayVersion":"8.0"},
-              {"@odata.type":"#microsoft.graph.mobileAppSupersedence","targetType":"child","targetId":"old","targetDisplayName":"Older app","targetDisplayVersion":"1.0"},
-              {"@odata.type":"#microsoft.graph.mobileAppSupersedence","targetType":"parent","targetId":"new","targetDisplayName":"Newer app","targetDisplayVersion":"3.0"}
+              {"@odata.type":"#microsoft.graph.win32LobAppDependency","targetType":"child","targetId":"runtime","targetDisplayName":"Runtime","targetDisplayVersion":"8.0"},
+              {"@odata.type":"#microsoft.graph.win32LobAppSupersedence","targetType":"child","targetId":"old","targetDisplayName":"Older app","targetDisplayVersion":"1.0"},
+              {"@odata.type":"#microsoft.graph.win32LobAppSupersedence","targetType":"parent","targetId":"new","targetDisplayName":"Newer app","targetDisplayVersion":"3.0"}
             ]}
             """;
 

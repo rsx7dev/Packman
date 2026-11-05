@@ -20,11 +20,13 @@ public sealed class ApplicationRelationshipTests : GraphStaticsFixture
         Assert.Contains(handler.Requests, r => r == ("GET", AppUrl + "/relationships"));
     }
 
-    [Fact]
-    public async Task DetailSeparatesDependenciesAndBothSupersedenceDirectionsAcrossPages()
+    [Theory]
+    [InlineData("mobileApp")]
+    [InlineData("win32LobApp")]
+    public async Task DetailSeparatesDependenciesAndBothSupersedenceDirectionsAcrossPages(string typePrefix)
     {
         var handler = AnswerRelationships(request => Fakes.Json(HttpStatusCode.OK,
-            request.RequestUri!.Query.Length == 0 ? """
+            (request.RequestUri!.Query.Length == 0 ? """
             {
               "value": [
                 {"@odata.type":"#microsoft.graph.mobileAppDependency","sourceId":"app-1","targetId":"runtime","targetDisplayName":"Runtime","targetDisplayVersion":"8.0","targetType":"child","dependencyType":"autoInstall"},
@@ -42,7 +44,7 @@ public sealed class ApplicationRelationshipTests : GraphStaticsFixture
                 {"@odata.type":"#microsoft.graph.mobileAppRelationship","targetId":"other","targetType":"child"}
               ]
             }
-            """));
+            """).Replace("#microsoft.graph.mobileApp", $"#microsoft.graph.{typePrefix}")));
 
         var detail = await _apps.GetApplicationDetailAsync("app-1");
 
