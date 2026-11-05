@@ -10,7 +10,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <VSTestTestCaseFilter>FullyQualifiedName~ApplicationRelationshipTests</VSTestTestCaseFilter>
     <!-- The offline feed has no System.Reflection.Metadata / System.Collections.Immutable:
          the test platform's dependencies on them are pruned because the shared framework
          ships both. The .NET 10 SDK default, stated so the restore never depends on it. -->
