@@ -52,5 +52,6 @@ fi
 if [ "$check_target" = tests/DeviceStatusTests.cs ]; then
     dotnet run --file tests/PackageLinkWpfTests.cs -c Release
     dotnet run --file tests/SetupTests.cs -c Release
+    dotnet run --file tests/ApplicationRelationshipViewTests.cs -c Release
     dotnet test tests/Packman.Tests/Packman.Tests.csproj -c Release
 fi
