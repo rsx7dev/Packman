@@ -151,9 +151,9 @@ public partial class IntuneService
                 // or apps it supersedes; parent supersedence targets supersede this app.
                 var list = (link.GetSafeString("@odata.type"), link.GetSafeString("targetType")) switch
                 {
-                    ("#microsoft.graph.mobileAppDependency", "child") => relationships.Dependencies,
-                    ("#microsoft.graph.mobileAppSupersedence", "child") => relationships.Supersedes,
-                    ("#microsoft.graph.mobileAppSupersedence", "parent") => relationships.SupersededBy,
+                    ("#microsoft.graph.mobileAppDependency" or "#microsoft.graph.win32LobAppDependency", "child") => relationships.Dependencies,
+                    ("#microsoft.graph.mobileAppSupersedence" or "#microsoft.graph.win32LobAppSupersedence", "child") => relationships.Supersedes,
+                    ("#microsoft.graph.mobileAppSupersedence" or "#microsoft.graph.win32LobAppSupersedence", "parent") => relationships.SupersededBy,
                     _ => null,
                 };
                 if (list == null) continue;
