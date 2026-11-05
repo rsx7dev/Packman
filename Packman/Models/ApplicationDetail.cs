@@ -23,6 +23,7 @@ public class ApplicationDetail : IntuneApplication
     public List<DetectionRule> DetectionRules { get; set; } = new();
     public List<AssignedGroup> AssignedGroups { get; set; } = new();
     public InstallationStatistics? Statistics { get; set; }
+    public ApplicationRelationships? Relationships { get; set; }
 
     // ── Display helpers ──
     public string SizeFormatted => Size switch
@@ -69,6 +70,14 @@ public class ApplicationDetail : IntuneApplication
     };
     public string MaxRunTimeText => MaxRunTimeMinutes > 0 ? $"{MaxRunTimeMinutes} min" : "—";
     public string MinDiskSpaceText => MinDiskSpaceMB > 0 ? $"{MinDiskSpaceMB} MB" : "Not specified";
+}
+
+public class ApplicationRelationships
+{
+    public List<IntuneApplication> Dependencies { get; } = new();
+    public List<IntuneApplication> Supersedes { get; } = new();
+    public List<IntuneApplication> SupersededBy { get; } = new();
+    public string Error { get; set; } = "";
 }
 
 public class AssignedGroup
