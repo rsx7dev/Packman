@@ -44,7 +44,10 @@ internal static class ApplicationRelationshipViewTests
 
             foreach (var theme in new[] { "Dark", "Light" })
             {
-                ThemeService.Apply(theme);
+                app.Resources.MergedDictionaries.Add(new ResourceDictionary
+                {
+                    Source = new Uri($"pack://application:,,,/Packman;component/Themes/{theme}Theme.xaml"),
+                });
                 var view = new ApplicationDetailView { DataContext = vm };
                 Layout(view);
                 var section = (Border)view.FindName("RelationshipsSection");
