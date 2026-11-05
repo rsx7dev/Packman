@@ -18,6 +18,8 @@ public static class TextFileIO
 
     public static TextFile Read(string path)
     {
+        ArgumentException.ThrowIfNullOrEmpty(path);
+
         var bytes = File.ReadAllBytes(path);
         var encoding = DetectEncoding(bytes, out var preambleLength);
         var content = encoding.GetString(bytes, preambleLength, bytes.Length - preambleLength);
@@ -27,6 +29,10 @@ public static class TextFileIO
     /// <summary>Writes via a temp file so a failed write can't truncate the original.</summary>
     public static void Write(string path, string content, Encoding encoding)
     {
+        ArgumentException.ThrowIfNullOrEmpty(path);
+        ArgumentNullException.ThrowIfNull(content);
+        ArgumentNullException.ThrowIfNull(encoding);
+
         var temp = path + TempSuffix;
         File.WriteAllText(temp, content, encoding);
 
