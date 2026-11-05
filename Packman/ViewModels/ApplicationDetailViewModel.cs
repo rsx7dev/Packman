@@ -49,6 +49,8 @@ public sealed class ApplicationDetailViewModel : ObservableObject
             OnPropertyChanged(nameof(CategoryText));
             OnPropertyChanged(nameof(OwnerText));
             OnPropertyChanged(nameof(StatsEmptyText));
+            OnPropertyChanged(nameof(HasRelationshipData));
+            OnPropertyChanged(nameof(RelationshipStatusText));
         }
     }
 
@@ -148,8 +150,13 @@ public sealed class ApplicationDetailViewModel : ObservableObject
         : Detail.Statistics != null ? "No devices have reported for this app yet."
         : "Deployment status has not been loaded.";
 
+    public bool HasRelationshipData => !IsLoading && Detail.Relationships is { Error.Length: 0 };
+    public string RelationshipStatusText => IsLoading ? "Loading relationships…"
+        : Detail.Relationships?.Error ?? "Relationships have not been loaded.";
+
     private bool _isLoading;
-    public bool IsLoading { get => _isLoading; private set => Set(ref _isLoading, value, [nameof(StatsEmptyText)]); }
+    public bool IsLoading { get => _isLoading; private set => Set(ref _isLoading, value,
+        [nameof(StatsEmptyText), nameof(HasRelationshipData), nameof(RelationshipStatusText)]); }
 
     private string _statusText = "";
     public string StatusText { get => _statusText; private set => Set(ref _statusText, value); }

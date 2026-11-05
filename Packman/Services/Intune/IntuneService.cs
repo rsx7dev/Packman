@@ -132,10 +132,45 @@ public partial class IntuneService
         // Independent reads; together they are the slow half of opening a detail page.
         var groups = GetAssignedGroupsAsync(id, ct);
         var stats = GetInstallationStatisticsAsync(id, ct);
-        await Task.WhenAll(groups, stats);
+        var relationships = GetApplicationRelationshipsAsync(id, ct);
+        await Task.WhenAll(groups, stats, relationships);
         detail.AssignedGroups = groups.Result;
         detail.Statistics = stats.Result;
+        detail.Relationships = relationships.Result;
         return detail;
+    }
+
+    private async Task<ApplicationRelationships> GetApplicationRelationshipsAsync(string appId, CancellationToken ct)
+    {
+        try
+        {
+            var relationships = new ApplicationRelationships();
+            await foreach (var link in _graph.GetAllPagesAsync($"{Base}/{appId}/relationships", "Read app relationships", ct))
+            {
+                // Graph returns directions relative to this app: child targets are dependencies
+                // or apps it supersedes; parent supersedence targets supersede this app.
+                var list = (link.GetSafeString("@odata.type"), link.GetSafeString("targetType")) switch
+                {
+                    ("#microsoft.graph.mobileAppDependency", "child") => relationships.Dependencies,
+                    ("#microsoft.graph.mobileAppSupersedence", "child") => relationships.Supersedes,
+                    ("#microsoft.graph.mobileAppSupersedence", "parent") => relationships.SupersededBy,
+                    _ => null,
+                };
+                if (list == null) continue;
+                var id = link.GetSafeString("targetId");
+                list.Add(new IntuneApplication
+                {
+                    Id = id,
+                    DisplayName = link.GetSafeString("targetDisplayName") is { Length: > 0 } name ? name : id,
+                    Version = link.GetSafeString("targetDisplayVersion"),
+                });
+            }
+            return relationships;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return new ApplicationRelationships { Error = $"Could not load relationships: {ex.Message}" };
+        }
     }
 
     // ── Assignments ─────────────────────────────────────
