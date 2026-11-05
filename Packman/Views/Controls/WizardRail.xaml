@@ -110,17 +110,12 @@
                            Style="{StaticResource SubText}" FontSize="12" TextWrapping="Wrap" Margin="0,10,0,0"/>
             </StackPanel>
 
-            <!-- The only place a missing output share or template shows before generating. -->
+            <!-- The only place a missing output share shows before generating. -->
             <StackPanel Margin="0,18,0,0">
                 <DockPanel Margin="0,0,0,6"
                             Visibility="{Binding OutputShareReady, Converter={StaticResource InverseBoolToVis}}">
                     <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconAlert}" Foreground="{DynamicResource WarnBrush}" VerticalAlignment="Top" Margin="0,1,10,0"/>
                     <TextBlock Text="Output share not set. Set it in Settings." TextWrapping="Wrap" FontSize="12.5" LineHeight="18"/>
-                </DockPanel>
-                <DockPanel Margin="0,0,0,6"
-                            Visibility="{Binding TemplateReady, Converter={StaticResource InverseBoolToVis}}">
-                    <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconAlert}" Foreground="{DynamicResource WarnBrush}" VerticalAlignment="Top" Margin="0,1,10,0"/>
-                    <TextBlock Text="PSADT template not set. Set it in Settings." TextWrapping="Wrap" FontSize="12.5" LineHeight="18"/>
                 </DockPanel>
             </StackPanel>
 
