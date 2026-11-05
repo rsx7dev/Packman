@@ -61,6 +61,45 @@
             <Setter Property="Margin" Value="0,4,0,0"/>
         </Style>
 
+        <Style x:Key="RelationshipList" TargetType="ItemsControl">
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Margin" Value="0,16,0,0"/>
+            <Setter Property="ItemTemplate">
+                <Setter.Value>
+                    <DataTemplate>
+                        <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1" Padding="0,10" ToolTip="{Binding Id}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="{Binding DisplayName}" FontSize="13.5" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource InkBrush}" TextWrapping="Wrap" Margin="0,0,16,0"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Version}" Style="{StaticResource SubText}"
+                                           TextWrapping="Wrap" MaxWidth="160" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </Setter.Value>
+            </Setter>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ItemsControl">
+                        <StackPanel>
+                            <TextBlock Text="{TemplateBinding Tag}" Style="{StaticResource ReqLabel}"/>
+                            <ItemsPresenter/>
+                            <TextBlock x:Name="Empty" Text="None" Style="{StaticResource SubText}" Margin="0,8,0,0" Visibility="Collapsed"/>
+                        </StackPanel>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="HasItems" Value="False">
+                                <Setter TargetName="Empty" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Mono field in the inline rule editor. -->
         <Style x:Key="RuleField" TargetType="TextBox" BasedOn="{StaticResource TextField}">
             <Setter Property="Height" Value="36"/>
@@ -313,6 +352,22 @@
                                     <TextBlock Text="Description" FontSize="13" Foreground="{DynamicResource Muted2Brush}"/>
                                     <TextBlock Text="{Binding Detail.Description}" FontSize="13" Foreground="{DynamicResource TextBrush}"
                                                TextWrapping="Wrap" Margin="0,8,0,0"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Border>
+
+                        <Border x:Name="RelationshipsSection" Style="{StaticResource SectionPanel}" Margin="0,0,0,28">
+                            <StackPanel>
+                                <controls:SectionHeader Title="Relationships" Caption="Dependencies and supersedence from Intune."/>
+                                <TextBlock Text="{Binding RelationshipStatusText}" Style="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,12,0,0"
+                                           Visibility="{Binding RelationshipStatusText, Converter={StaticResource NonEmptyToVis}}"/>
+                                <StackPanel Visibility="{Binding HasRelationshipData, Converter={StaticResource BoolToVis}}">
+                                    <ItemsControl x:Name="DependenciesList" Style="{StaticResource RelationshipList}" Tag="Dependencies"
+                                                  ItemsSource="{Binding Detail.Relationships.Dependencies}"/>
+                                    <ItemsControl x:Name="SupersedesList" Style="{StaticResource RelationshipList}" Tag="Supersedes"
+                                                  ItemsSource="{Binding Detail.Relationships.Supersedes}"/>
+                                    <ItemsControl x:Name="SupersededByList" Style="{StaticResource RelationshipList}" Tag="Superseded by"
+                                                  ItemsSource="{Binding Detail.Relationships.SupersededBy}"/>
                                 </StackPanel>
                             </StackPanel>
                         </Border>
