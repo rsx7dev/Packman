@@ -87,6 +87,7 @@ internal static class ApplicationRelationshipViewTests
 
     private static void Layout(ApplicationDetailView view)
     {
+        view.Dispatcher.Invoke(() => { }, System.Windows.Threading.DispatcherPriority.ApplicationIdle);
         view.Measure(new Size(1320, 2400));
         view.Arrange(new Rect(0, 0, 1320, 2400));
         view.UpdateLayout();
