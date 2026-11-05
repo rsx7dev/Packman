@@ -83,7 +83,7 @@ public class UpgradePackageViewModel : ObservableObject
         ExistingPackagePath = packagePath;
         HasLoadedPackage = false;
 
-        var applicationFolder = Path.Combine(packagePath, "Application");
+        var applicationFolder = PsadtLayout.ApplicationFolder(packagePath);
         var scriptPath = FolderBrowserHelper.GetPSADTScriptPath(applicationFolder)
             ?? FolderBrowserHelper.GetPSADTScriptPath(packagePath);
 
@@ -176,20 +176,23 @@ public class UpgradePackageViewModel : ObservableObject
 
         IsBusy = true;
         StatusText = $"Building version {NewVersion}…";
+        ActivityLog.Shared.Section($"Upgrading package to version {NewVersion}");
 
         try
         {
-            var service = new PackageUpgradeService(outputPath);
+            var service = new PackageUpgradeService(outputPath, settings.PackageLayout);
             var result = await service.UpgradePackageAsync(ExistingPackagePath, NewVersion.Trim(), NewSourcePath.Trim());
 
             StatusText = result.Warnings.Count == 0
                 ? $"New version {NewVersion} created."
                 : $"New version {NewVersion} created · check Files: {string.Join(" ", result.Warnings)}";
+            ActivityLog.Shared.Success($"New version created: {result.PackagePath}");
             return result.PackagePath;
         }
         catch (Exception ex)
         {
             StatusText = $"Error: {ex.Message}";
+            ActivityLog.Shared.Error(StatusText);
             return null;
         }
         finally

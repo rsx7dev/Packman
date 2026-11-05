@@ -8,8 +8,8 @@ namespace Packman.Services;
 /// <summary>
 /// Per-package log for an upload or a content update, written to
 /// %LocalAppData%\Packman\Logs\{Upload|Update}\{App}-{date}.log.
-/// Tokens and SAS URIs never go through here. Every line except metadata is also handed to the
-/// run's <see cref="IUploadProgress"/> for the publish console, with secrets removed.
+/// Tokens and SAS URIs never go through here. Every line except metadata is also shown in
+/// <see cref="ActivityLog"/> and the run's <see cref="IUploadProgress"/> console, with secrets removed.
 /// </summary>
 public sealed partial class UploadLogger : IDisposable
 {
@@ -102,7 +102,21 @@ public sealed partial class UploadLogger : IDisposable
         ToConsole(UploadLogLevel.Section, sectionName);
     }
 
-    private void ToConsole(UploadLogLevel level, string message) => _console?.Log(level, Redact(message));
+    private void ToConsole(UploadLogLevel level, string message)
+    {
+        var redacted = Redact(message);
+#if WINDOWS
+        ActivityLog.Shared.Add(level switch
+        {
+            UploadLogLevel.Success => ActivityLevel.Success,
+            UploadLogLevel.Warning => ActivityLevel.Warning,
+            UploadLogLevel.Error => ActivityLevel.Error,
+            UploadLogLevel.Section => ActivityLevel.Section,
+            _ => ActivityLevel.Info,
+        }, redacted);
+#endif
+        _console?.Log(level, redacted);
+    }
 
     // A SAS URL keeps its path but loses the query (sig, se, sp...); the rest are tokens
     // and key=value secrets that an error message could echo.

@@ -166,7 +166,7 @@ public sealed class UploadToIntuneViewModel : ObservableObject
             _architecture = script.AppArch;
             PackageMeta = string.Join(" · ", new[] { Version, _architecture, InstallContext }.Where(v => !string.IsNullOrWhiteSpace(v)));
 
-            var iconDir = Path.Combine(root, "Icon");
+            var iconDir = PsadtLayout.IconFolder(root);
             PackageIconPath = Directory.Exists(iconDir) ? Directory.EnumerateFiles(iconDir).FirstOrDefault() ?? "" : "";
 
             // A different package starts from the saved defaults, as the wizard does.
@@ -219,7 +219,7 @@ public sealed class UploadToIntuneViewModel : ObservableObject
         _msiProductCode = "";
         try
         {
-            var filesFolder = Path.Combine(root, "Application", "Files");
+            var filesFolder = PsadtLayout.FilesFolder(root);
             var msiFile = Directory.Exists(filesFolder)
                 ? Directory.GetFiles(filesFolder, "*.msi", SearchOption.TopDirectoryOnly).FirstOrDefault()
                 : null;
@@ -428,8 +428,7 @@ public sealed class UploadToIntuneViewModel : ObservableObject
     public PublishRunViewModel Publish { get; } = new();
 
     public bool UploadEnabled =>
-        IsValidated && CanAttemptPublish && !Publish.IsPublishing &&
-        !string.IsNullOrWhiteSpace(_settings.Settings.NetworkPaths.IntuneWinAppUtil);
+        IsValidated && CanAttemptPublish && !Publish.IsPublishing;
 
     private async Task UploadAsync()
     {
@@ -462,6 +461,11 @@ public sealed class UploadToIntuneViewModel : ObservableObject
                 return;
             }
         }
+        if (!await _auth.EnsureScopesAsync(IntuneAuthService.PublishScopes, IntuneAuthService.MainWindowHandle()))
+        {
+            ValidationError = IntuneAuthService.ConsentDeclinedMessage(IntuneAuthService.PublishScopes);
+            return;
+        }
         var appInfo = new ApplicationInfo
         {
             Name = AppName.Trim(),
@@ -477,7 +481,7 @@ public sealed class UploadToIntuneViewModel : ObservableObject
             ? new NativeCodeSigner(settings.CodeSigning.CertificateThumbprint, settings.CodeSigning.TimestampServer)
             : null;
 
-        var uploadService = new IntuneUploadService(_auth.CreateSessionTokenProvider(), _auth.TenantId ?? "", signer, settings.NetworkPaths.IntuneWinAppUtil);
+        var uploadService = new IntuneUploadService(_auth.CreateSessionTokenProvider(), _auth.TenantId ?? "", signer, settings.NetworkPaths.IntuneWinAppUtilInUse);
         var packageRoot = PackageRoot;
         var rules = DetectionRules.ToList();
         var groups = GroupPicker.AssignableGroups;

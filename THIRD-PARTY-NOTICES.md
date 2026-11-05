@@ -10,10 +10,11 @@ Packman's own source is distributed under [Apache 2.0](LICENSE). That license do
 | Instrument Sans, static instances | [SIL OFL 1.1](Packman/Fonts/InstrumentSans-OFL.txt) | [Instrument Sans](https://github.com/Instrument/instrument-sans) |
 | JetBrains Mono, static instances | [SIL OFL 1.1](Packman/Fonts/JetBrainsMono-OFL.txt) | [JetBrains Mono](https://github.com/JetBrains/JetBrainsMono) |
 | Martian Mono, static instances | [SIL OFL 1.1](Packman/Fonts/MartianMono-OFL.txt) | [Martian Mono](https://github.com/evilmartians/mono) |
-| PSAppDeployToolkit deploy-script template | [LGPL 3.0](Packman/PSADT/COPYING.Lesser), [incorporated GPL 3.0](Packman/PSADT/COPYING.GPL) | [PSAppDeployToolkit](https://github.com/PSAppDeployToolkit/PSAppDeployToolkit) |
+| PSAppDeployToolkit 4.1.8 template with its runtime (`Invoke-AppDeployToolkit.exe`, the `PSAppDeployToolkit` module) | [LGPL 3.0](Packman/PSADT/COPYING.Lesser), [incorporated GPL 3.0](Packman/PSADT/COPYING.GPL), [module copy](Packman/PSADT/Application/PSAppDeployToolkit/COPYING.Lesser) | [PSAppDeployToolkit_Template_v4.zip, release 4.1.8](https://github.com/PSAppDeployToolkit/PSAppDeployToolkit/releases/tag/4.1.8) |
+| Microsoft Win32 Content Prep Tool (`IntuneWinAppUtil.exe` 1.8.7, unmodified, SHA-256 `c1ba45b5cb939e84af064bb7ff4b38fb3dfe33c8dc1078fd9b157672eae671f6`) | [Microsoft license terms](Packman/IntuneWinAppUtil/Microsoft%20License%20Terms%20For%20Win32%20Content%20Prep%20Tool.pdf) | [Microsoft-Win32-Content-Prep-Tool v1.8.7](https://github.com/microsoft/Microsoft-Win32-Content-Prep-Tool/tree/v1.8.7) |
 | PSAppDeployToolkit function help (names, synopses, parameter descriptions, docs links) in the editor's function catalog | [LGPL 3.0](Packman/PSADT/COPYING.Lesser), [notice](Packman/MonacoEditor/psadt-functions-NOTICE.txt) | [PSAppDeployToolkit](https://github.com/PSAppDeployToolkit/PSAppDeployToolkit) |
 
-The font changes made for WPF are described in [Fonts/README.md](Packman/Fonts/README.md). The PSADT template is included as editable source; users must supply the complete PSADT v4 runtime and preserve its upstream notices. IntuneWinAppUtil and the installed WebView2 runtime are obtained separately and retain their own distribution terms.
+The font changes made for WPF are described in [Fonts/README.md](Packman/Fonts/README.md). The PSADT template and runtime are included as upstream released them, apart from the version numbers in `Invoke-AppDeployToolkit.ps1` and the Zero-Config MSI blocks Packman removes; preserve the upstream notices. IntuneWinAppUtil.exe is included unmodified under Microsoft's license terms, which restrict sharing and publishing the software on their own; check them before redistributing a build. The installed WebView2 runtime is obtained separately and retains its own distribution terms.
 
 ## NuGet dependencies
 
@@ -28,4 +29,4 @@ python scripts/update-third-party-notices.py
 python scripts/update-third-party-notices.py --check
 ```
 
-CI verifies the inventory. Desktop output includes the root license, this notice, the inventory and retained component notices. In the desktop archive, the asset folders (`Fonts`, `MonacoEditor` and `PSADT`) sit beside `Packman.exe`; omit the `Packman/` source-directory prefix from the links above to find those files.
+CI verifies the inventory. Desktop output includes the root license, this notice, the inventory and retained component notices. In the desktop archive, the asset folders (`Fonts`, `IntuneWinAppUtil`, `MonacoEditor` and `PSADT`) sit beside `Packman.exe`; omit the `Packman/` source-directory prefix from the links above to find those files.

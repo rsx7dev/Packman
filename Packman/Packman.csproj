@@ -28,6 +28,8 @@
   <ItemGroup>
     <!-- The Windows link harness swaps in fake Graph/Azure handlers and a test sign-in. -->
     <InternalsVisibleTo Include="PackageLinkWpfTests" />
+    <InternalsVisibleTo Include="SetupTests" />
+    <InternalsVisibleTo Include="Packman.Tests" />
   </ItemGroup>
 
   <ItemGroup>
@@ -41,8 +43,9 @@
     <None Include="..\third-party\**\*" Link="third-party\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Fonts\*-OFL.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Update="Fonts\README.md" CopyToOutputDirectory="PreserveNewest" />
-    <!-- Bundled PSADT v4 template, copied next to the executable -->
+    <!-- Bundled PSADT v4 template (script and runtime) and IntuneWinAppUtil.exe, copied next to the executable -->
     <None Include="PSADT\**\*" Exclude="PSADT\**\.gitkeep" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="IntuneWinAppUtil\**\*" CopyToOutputDirectory="PreserveNewest" />
     <!-- Monaco editor assets for the in-app script editor -->
     <None Include="MonacoEditor\**\*" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

@@ -3,7 +3,7 @@
 Serves Packman/MonacoEditor on localhost, shims window.chrome.webview, and checks completion,
 hover, signature help, the version filter, the Functions picker and its theme colours.
   python3 tests/MonacoEditorTests.py
-Chromium comes from PACKMAN_CHROMIUM, else the Orchestra VM build if it exists, else Playwright's own.
+Chromium comes from PACKMAN_CHROMIUM, else Playwright's own.
 Prints one line per check and exits non-zero when a check fails.
 """
 
@@ -24,7 +24,6 @@ ROOT = Path(__file__).resolve().parent.parent
 EDITOR_DIR = ROOT / "Packman" / "MonacoEditor"
 CATALOG = {"functions": []}
 FUNCTIONS = {}
-VM_CHROMIUM = Path("/var/lib/orchestra/qa-browsers/chromium-1248/chrome-linux64/chrome")
 SCRIPT_PATH = "/packman-tests/Invoke-AppDeployToolkit.ps1"
 DARK = "#0C1322"
 LIGHT = "#FFFFFF"
@@ -50,12 +49,7 @@ true;
 
 
 def chromium_path():
-    configured = os.environ.get("PACKMAN_CHROMIUM")
-    if configured:
-        return configured
-    if VM_CHROMIUM.exists():
-        return str(VM_CHROMIUM)
-    return None
+    return os.environ.get("PACKMAN_CHROMIUM")
 
 
 def expand_snippet(snippet):

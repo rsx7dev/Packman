@@ -86,7 +86,7 @@ public sealed class EditorSessionViewModel : ObservableObject
 
     public bool HasPackage => !string.IsNullOrEmpty(_create.CurrentPackagePath);
     public string PackageName => HasPackage ? new DirectoryInfo(_create.CurrentPackagePath).Name : "";
-    public string ApplicationFolder => Path.Combine(_create.CurrentPackagePath, "Application");
+    public string ApplicationFolder => PsadtLayout.ApplicationFolder(_create.CurrentPackagePath);
 
     /// <summary>True while any open file has unsaved edits.</summary>
     public bool HasUnsavedChanges => OpenFiles.Any(f => f.IsDirty);

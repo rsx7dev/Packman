@@ -8,6 +8,12 @@ public static class InstallContextParser
     /// <summary>"User" or "System"; defaults to "System".</summary>
     public static string ExtractFromPackage(string packagePath)
     {
+        if (string.IsNullOrWhiteSpace(packagePath))
+        {
+            Debug.WriteLine("Error extracting install context: package path is empty");
+            return "System";
+        }
+
         var scriptPath = PsadtScript.Find(packagePath);
         if (scriptPath == null)
             return "System";

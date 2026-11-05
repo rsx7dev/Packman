@@ -12,16 +12,48 @@ public class IntuneAuthService
     // virtually every tenant, so it works when no Client ID is configured.
     private const string DefaultInteractiveClientId = "14d82eec-204b-4c2f-b7e8-296a70dab67e";
 
-    private static readonly string[] InteractiveScopes =
+    // Sign-in is read-only: browsing apps. Writes ask for their scopes when first used
+    // (EnsureScopesAsync), and group and device access is asked for only when the Advanced
+    // screen opens, so the shared client never receives consent the user did not need.
+    public static readonly string[] InteractiveScopes =
     [
         "User.Read",
+        "DeviceManagementApps.Read.All",
+    ];
+
+    /// <summary>Publishing and changing Win32 apps, their content and assignments.</summary>
+    public static readonly string[] PublishScopes =
+    [
         "DeviceManagementApps.ReadWrite.All",
-        // Group search plus "create a group per package" (POST /groups needs ReadWrite).
+    ];
+
+    /// <summary>Asked for when the Advanced screen opens: group search and membership, PC and user lookup.</summary>
+    public static readonly string[] DirectoryScopes =
+    [
         "Group.ReadWrite.All",
-        // Advanced screen: PC lookup, user lookup and group membership.
+        "GroupMember.ReadWrite.All",
         "Device.Read.All",
         "User.ReadBasic.All",
+    ];
+
+    /// <summary>"Create a group per package": POST /groups needs ReadWrite, granted through Advanced.</summary>
+    public static readonly string[] GroupCreateScopes =
+    [
+        "Group.ReadWrite.All",
+    ];
+
+    /// <summary>
+    /// The application permissions an app registration needs, with admin consent. The same
+    /// access Packman asks of a signed-in user above, all of it up front since an app has no
+    /// consent prompt; the first-run setup lists and copies them.
+    /// </summary>
+    public static readonly string[] AppPermissions =
+    [
+        "DeviceManagementApps.ReadWrite.All",
+        "Group.ReadWrite.All",
         "GroupMember.ReadWrite.All",
+        "User.ReadBasic.All",
+        "Device.Read.All",
     ];
 
     private static readonly string[] AppOnlyScopes = ["https://graph.microsoft.com/.default"];
@@ -42,6 +74,8 @@ public class IntuneAuthService
         public required string User { get; init; }
         public required string TenantId { get; init; }
         public string? TestToken { get; init; }
+        // Replaced, never mutated, under _stateLock as consent widens.
+        public string[] Scopes { get; set; } = InteractiveScopes;
         public int ActiveRequests { get; set; }
         public bool Retired { get; set; }
     }
@@ -216,6 +250,81 @@ public class IntuneAuthService
 
     public bool IsSignedIn { get { lock (_stateLock) return _session != null; } }
 
+    /// <summary>
+    /// Asks the signed-in user to consent to <paramref name="extra"/> on top of what the
+    /// session already holds, silently when the tenant already granted it. Returns false
+    /// only when the user cancels or declines the consent. With no interactive session to
+    /// widen (signed out, app registration, tests) it returns true and leaves the existing
+    /// sign-in checks to fail. The session stays the same one, so running operations go on.
+    /// </summary>
+    public async Task<bool> EnsureScopesAsync(IReadOnlyList<string> extra, nint hwnd)
+    {
+        AuthSession? session;
+        IPublicClientApplication? client;
+        string[] wanted;
+        lock (_stateLock)
+        {
+            session = _session;
+            client = session?.PublicClient;
+            if (session == null || client == null) return true;
+            wanted = session.Scopes.Union(extra, StringComparer.OrdinalIgnoreCase).ToArray();
+            if (wanted.Length == session.Scopes.Length) return true;
+        }
+
+        try
+        {
+            try
+            {
+                await client.AcquireTokenSilent(wanted, session.Account).ExecuteAsync();
+            }
+            catch (MsalUiRequiredException)
+            {
+                await client.AcquireTokenInteractive(wanted)
+                    .WithAccount(session.Account)
+                    .WithParentActivityOrWindow(hwnd)
+                    .ExecuteAsync();
+            }
+        }
+        catch (MsalException ex) when (ex.ErrorCode is MsalError.AuthenticationCanceledError or "access_denied")
+        {
+            return false;
+        }
+
+        lock (_stateLock)
+        {
+            // A sign-out or another sign-in meanwhile owns the state now.
+            if (_session == session)
+                session.Scopes = session.Scopes.Union(extra, StringComparer.OrdinalIgnoreCase).ToArray();
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// True when the session already holds <paramref name="scopes"/>, or when there is no
+    /// interactive session to widen. Group and device features outside Advanced check this
+    /// instead of prompting, so their consent is only ever asked for on that screen.
+    /// </summary>
+    public bool HasScopes(IReadOnlyList<string> scopes)
+    {
+        lock (_stateLock)
+            return _session?.PublicClient == null
+                || !scopes.Except(_session.Scopes, StringComparer.OrdinalIgnoreCase).Any();
+    }
+
+    /// <summary>Shown where a group or device feature needs <see cref="DirectoryScopes"/> not yet granted.</summary>
+    public const string DirectoryAccessHint =
+        "Group and device access is granted on the Advanced screen. Open Advanced once, allow access, then try again.";
+
+    /// <summary>The message shown when <see cref="EnsureScopesAsync"/> returns false.</summary>
+    public static string ConsentDeclinedMessage(IReadOnlyList<string> scopes) =>
+        $"Permission not granted: {string.Join(", ", scopes)}. Nothing was sent to Intune.";
+
+    /// <summary>The main window, the parent of a consent prompt; zero when there is none (tests).</summary>
+    public static nint MainWindowHandle() =>
+        System.Windows.Application.Current?.MainWindow is { } window
+            ? new System.Windows.Interop.WindowInteropHelper(window).Handle
+            : 0;
+
     /// <summary>Tests only: a signed-in session with a fixed token and tenant, without MSAL.</summary>
     internal void UseTestSession(string tenantId, string accessToken)
     {
@@ -245,10 +354,12 @@ public class IntuneAuthService
     private async Task<string> GetAccessTokenAsync(long generation)
     {
         AuthSession session;
+        string[] scopes;
         lock (_stateLock)
         {
             EnsureSession(generation);
             session = _session!;
+            scopes = session.Scopes;
             session.ActiveRequests++;
         }
 
@@ -256,7 +367,7 @@ public class IntuneAuthService
         {
             var token = session.TestToken ?? (session.ConfidentialClient is { } confidential
                 ? await confidential.AcquireTokenForClient(AppOnlyScopes).ExecuteAsync()
-                : await session.PublicClient!.AcquireTokenSilent(InteractiveScopes, session.Account).ExecuteAsync()).AccessToken;
+                : await session.PublicClient!.AcquireTokenSilent(scopes, session.Account).ExecuteAsync()).AccessToken;
             lock (_stateLock) EnsureSession(generation);
             return token;
         }

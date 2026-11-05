@@ -14,6 +14,11 @@
   <ItemGroup Condition="'$(MSBuildProjectName)' == 'PackageLinkTests.cs'">
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/PackageMarker.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/PackageSourceLocator.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/PsadtLayout.cs" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'SetupUnitTests.cs'">
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/PsadtLayout.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/SetupChecks.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(MSBuildProjectName)' == 'UploadConsoleTests.cs'">
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Services/UploadLogger.cs" />
@@ -36,6 +41,8 @@
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Models/RequirementInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Models/ReturnCodeInfo.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/TextFileIO.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/BundledTools.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/PsadtLayout.cs" />
   </ItemGroup>
   <ItemGroup Condition="'$(MSBuildProjectName)' == 'ScriptEditorTests.cs'">
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/PsadtManifest.cs" />

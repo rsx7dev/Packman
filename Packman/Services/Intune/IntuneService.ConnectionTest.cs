@@ -45,16 +45,23 @@ public partial class IntuneService
             };
         }
 
+        var granted = GrantedPermissions(token);
+        // Sign-in leaves out the Advanced screen's directory scopes; it asks for them when opened.
         var checks = new List<ConnectionCheck>
         {
             await ProbeAsync("Intune apps · read access", $"{Base}?$top=1&$select=id", ct),
-            await ProbeAsync("Entra groups · read access", $"{GraphClient.Groups}?$top=1&$select=id", ct),
-            await ProbeAsync("Entra devices · read access", $"{GraphClient.Devices}?$top=1&$select=id", ct),
-            await ProbeAsync("Entra users · read access", $"{GraphClient.Users}?$top=1&$select=id", ct),
+            granted.Contains("Group.Read.All") || granted.Contains("Group.ReadWrite.All")
+                ? await ProbeAsync("Entra groups · read access", $"{GraphClient.Groups}?$top=1&$select=id", ct)
+                : Deferred("Entra groups · read access"),
+            granted.Contains("Device.Read.All")
+                ? await ProbeAsync("Entra devices · read access", $"{GraphClient.Devices}?$top=1&$select=id", ct)
+                : Deferred("Entra devices · read access"),
+            granted.Contains("User.ReadBasic.All")
+                ? await ProbeAsync("Entra users · read access", $"{GraphClient.Users}?$top=1&$select=id", ct)
+                : Deferred("Entra users · read access"),
         };
         var readOk = checks.All(c => c.Ok);
 
-        var granted = GrantedPermissions(token);
         // Creating and updating Win32 apps, their content and assignments.
         var canPublish = granted.Contains("DeviceManagementApps.ReadWrite.All");
         checks.Add(PermissionCheck("Intune apps · write permission", canPublish, "DeviceManagementApps.ReadWrite.All"));
@@ -71,7 +78,7 @@ public partial class IntuneService
             Success = ok,
             Message = !readOk ? "One or more Microsoft Graph read checks failed. Check the results below."
                 : !canPublish ? "Read only: the sign-in lacks DeviceManagementApps.ReadWrite.All, so publishing will fail."
-                : !canCreateGroups ? "Publishing is permitted, but creating a group per package needs Group.ReadWrite.All."
+                : !canCreateGroups ? "Publishing is permitted, but creating a group per package needs Group.ReadWrite.All. Open Advanced to grant it."
                 : "Read access and write permissions verified. For a signed-in user, the Entra role can still limit changes.",
             PermissionSummary = !readOk ? "Read checks failed"
                 : !canPublish ? "Read only: publishing will fail"
@@ -80,6 +87,9 @@ public partial class IntuneService
             Checks = checks,
         };
     }
+
+    private static ConnectionCheck Deferred(string name) =>
+        new() { Name = name, Ok = true, Detail = "Requested when Advanced opens" };
 
     private static ConnectionCheck PermissionCheck(string name, bool ok, string permission) =>
         new() { Name = name, Ok = ok, Detail = ok ? "Granted" : $"{permission} missing" };

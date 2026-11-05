@@ -2,7 +2,7 @@
     <Border Background="Transparent" BorderThickness="0" Padding="0">
         <StackPanel>
             <!-- Card header -->
-            <controls:SectionHeader Title="Network paths" Caption="File share locations for package output, the PSADT template and IntuneWinAppUtil." Margin="0,0,0,20"/>
+            <controls:SectionHeader Title="Network paths" Caption="Where packages are written. The PSADT template and IntuneWinAppUtil come bundled with Packman; set a path only to use your own." Margin="0,0,0,20"/>
             <!-- Intune Applications output path -->
             <TextBlock Text="Intune Applications Path" Style="{StaticResource FieldLabel}"/>
             <Grid Margin="0,7,0,0">
@@ -11,12 +11,12 @@
             <!-- PSADT Template path -->
             <TextBlock Text="PSADT Template Path" Style="{StaticResource FieldLabel}" Margin="0,16,0,0"/>
             <Grid Margin="0,7,0,0">
-                <TextBox AutomationProperties.Name="PSADT Template Path" Style="{StaticResource TextField}" Text="{Binding PSADTTemplatePath, UpdateSourceTrigger=PropertyChanged}" local:PlaceholderText.Text="\\server\share\PSADTTemplate"/>
+                <TextBox AutomationProperties.Name="PSADT Template Path" Style="{StaticResource TextField}" Text="{Binding PSADTTemplatePath, UpdateSourceTrigger=PropertyChanged}" local:PlaceholderText.Text="Bundled PSADT v4 template"/>
             </Grid>
             <!-- IntuneWinAppUtil path -->
             <TextBlock Text="IntuneWinAppUtil Path" Style="{StaticResource FieldLabel}" Margin="0,16,0,0"/>
             <Grid Margin="0,7,0,0">
-                <TextBox AutomationProperties.Name="IntuneWinAppUtil Path" Style="{StaticResource TextField}" Text="{Binding IntuneWinAppUtilPath, UpdateSourceTrigger=PropertyChanged}" local:PlaceholderText.Text="\\server\share\Tools\IntuneWinAppUtil.exe"/>
+                <TextBox AutomationProperties.Name="IntuneWinAppUtil Path" Style="{StaticResource TextField}" Text="{Binding IntuneWinAppUtilPath, UpdateSourceTrigger=PropertyChanged}" local:PlaceholderText.Text="Bundled IntuneWinAppUtil.exe"/>
             </Grid>
         </StackPanel>
     </Border>

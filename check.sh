@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Portable parser/CSV and package-link checks everywhere; Windows also builds Packman and checks WPF.
+# Portable parser/CSV, package-link and documentation checks everywhere; Windows also builds Packman, checks WPF
+# and runs tests/Packman.Tests. CI runs this script as is.
 set -euo pipefail
 cd "$(dirname "$0")"
 command -v dotnet >/dev/null || { echo "check.sh: dotnet not found; install the .NET 10 SDK." >&2; exit 1; }
@@ -19,6 +20,9 @@ dotnet run --file "$check_target" --no-build -c Release
 dotnet restore tests/PackageLinkTests.cs
 dotnet build tests/PackageLinkTests.cs --no-restore -c Release
 dotnet run --file tests/PackageLinkTests.cs --no-build -c Release
+dotnet restore tests/SetupUnitTests.cs
+dotnet build tests/SetupUnitTests.cs --no-restore -c Release
+dotnet run --file tests/SetupUnitTests.cs --no-build -c Release
 dotnet restore tests/InstallerInsightTests.cs
 dotnet build tests/InstallerInsightTests.cs --no-restore -c Release
 dotnet run --file tests/InstallerInsightTests.cs --no-build -c Release
@@ -31,14 +35,28 @@ dotnet run --file tests/SettingsTemplateTests.cs --no-build -c Release
 dotnet restore tests/ScriptEditorTests.cs
 dotnet build tests/ScriptEditorTests.cs --no-restore -c Release
 dotnet run --file tests/ScriptEditorTests.cs --no-build -c Release
-if command -v python3 >/dev/null; then
-    python3 tests/PsadtCatalogTests.py
-    if python3 -c "import playwright" 2>/dev/null; then
-        python3 tests/MonacoEditorTests.py
+# Windows usually has only "python", and may have a python3 Store stub that runs nothing.
+python=""
+for candidate in python3 python; do
+    if "$candidate" -c "import sys" >/dev/null 2>&1; then python=$candidate; break; fi
+done
+if [ -n "$python" ]; then
+    "$python" tests/PsadtCatalogTests.py
+    "$python" tests/BundledToolsTests.py
+    "$python" tests/DocsLinkTests.py
+    if "$python" -c "import playwright" 2>/dev/null; then
+        "$python" tests/MonacoEditorTests.py
     else
-        echo "check.sh: skipping tests/MonacoEditorTests.py (install with: pip install playwright && playwright install chromium)"
+        echo "check.sh: tests/MonacoEditorTests.py requires Playwright (install with: pip install playwright && playwright install chromium)" >&2
+        exit 1
     fi
 else
-    echo "check.sh: skipping PSADT catalog and Monaco tests (python3 not found)"
+    echo "check.sh: Python is required for PSADT catalog, bundled tools, documentation and Monaco tests." >&2
+    exit 1
 fi
-if [ "$check_target" = tests/DeviceStatusTests.cs ]; then dotnet run --file tests/PackageLinkWpfTests.cs -c Release; dotnet run --file tests/UploadConsoleWpfTests.cs -c Release; fi
+if [ "$check_target" = tests/DeviceStatusTests.cs ]; then
+    dotnet run --file tests/PackageLinkWpfTests.cs -c Release
+    dotnet run --file tests/SetupTests.cs -c Release
+    dotnet run --file tests/UploadConsoleWpfTests.cs -c Release
+    dotnet test tests/Packman.Tests/Packman.Tests.csproj -c Release
+fi

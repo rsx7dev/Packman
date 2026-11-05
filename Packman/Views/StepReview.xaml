@@ -49,6 +49,27 @@
                 </DockPanel>
                 <Border Style="{StaticResource SectionRule}" Margin="0,16,0,22"/>
 
+                <!-- Preflight issues: Publish stays disabled until the package is clean. -->
+                <Border Style="{StaticResource CalloutWarn}" Margin="0,0,0,22"
+                        Visibility="{Binding PackageIssue, Converter={StaticResource NonEmptyToVis}}">
+                    <DockPanel>
+                        <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconAlert}" Foreground="{DynamicResource WarnBrush}"
+                                           VerticalAlignment="Top" Margin="0,1,10,0"/>
+                        <StackPanel>
+                            <TextBlock Text="Fix the package before publishing" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                            <ItemsControl ItemsSource="{Binding PackageIssues}" Focusable="False" Margin="0,4,0,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" FontSize="13" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Button Style="{StaticResource LinkButton}" Content="Edit script" HorizontalAlignment="Left" Margin="0,6,0,0"
+                                    Command="{Binding OpenEditToolCommand}"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
                 <!-- Package -->
                 <TextBlock Text="Package" Style="{StaticResource H2}" Margin="0,0,0,12"/>
                 <controls:AppIdentity Title="{Binding Upload.ReviewName}" Subtitle="{Binding Upload.ReviewVendor}"

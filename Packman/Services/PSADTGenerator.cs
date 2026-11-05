@@ -10,11 +10,13 @@ public class PSADTGenerator
 {
     private readonly string _baseOutputPath;
     private readonly string _templatePath;
+    private readonly AppSettings.PackageLayoutConfig _layout;
 
-    public PSADTGenerator(string baseOutputPath, string templatePath)
+    public PSADTGenerator(string baseOutputPath, string templatePath, AppSettings.PackageLayoutConfig layout)
     {
         _baseOutputPath = baseOutputPath;
         _templatePath = templatePath;
+        _layout = layout;
     }
 
     public PackageValidationResult ValidatePackageCreation(ApplicationInfo appInfo)
@@ -44,6 +46,8 @@ public class PSADTGenerator
 
         // Fail on a bad template before anything on the share is touched.
         var template = ResolveTemplatePath();
+        var activity = ActivityLog.Shared;
+        activity.Info($"Package folder: {packagePath}");
 
         if (Directory.Exists(packagePath))
         {
@@ -51,6 +55,7 @@ public class PSADTGenerator
                 throw new InvalidOperationException(
                     $"Package version {appInfo.Version} already exists for {appFolderName}.");
 
+            activity.Info("Replacing the existing package version…");
             PackagePaths.DeleteInside(_baseOutputPath, packagePath);
             // Deletes on a share settle a moment after the call returns.
             await Task.Delay(200, cancellationToken);
@@ -58,13 +63,18 @@ public class PSADTGenerator
 
         try
         {
-            DirectoryCopy.Copy(template, Path.Combine(packagePath, "Application"), cancellationToken);
+            activity.Info($"Copying the PSADT template from {template}");
+            DirectoryCopy.Copy(template, PsadtLayout.ApplicationFolder(packagePath), cancellationToken);
             // Created up front so new and upgraded packages share one layout.
-            Directory.CreateDirectory(Path.Combine(packagePath, "Intune"));
-            Directory.CreateDirectory(Path.Combine(packagePath, "Icon"));
+            Directory.CreateDirectory(PsadtLayout.IntuneFolder(packagePath));
+            foreach (var folder in PsadtLayout.OptionalFolders(_layout.IconFolder, _layout.ExtraFolders))
+                Directory.CreateDirectory(Path.Combine(packagePath, folder));
+            activity.Info("Copying the source files…");
             CopySourceFiles(appInfo.SourcesPath, packagePath, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
+            activity.Info("Writing the application details into the PSADT script…");
             var warnings = ModifyScript(packagePath, appInfo);
+            foreach (var warning in warnings) activity.Warning(warning);
 
             Debug.WriteLine($"Package created at: {packagePath}");
             return new PackageCreationResult(packagePath, warnings);
@@ -100,7 +110,7 @@ public class PSADTGenerator
     {
         if (string.IsNullOrWhiteSpace(sourcesPath)) return;
 
-        var dest = Path.Combine(packagePath, "Application", "Files");
+        var dest = PsadtLayout.FilesFolder(packagePath);
         Directory.CreateDirectory(dest);
 
         if (sourcesPath.Contains(';'))
@@ -119,7 +129,7 @@ public class PSADTGenerator
 
     private static IReadOnlyList<string> ModifyScript(string packagePath, ApplicationInfo appInfo)
     {
-        var scriptPath = Path.Combine(packagePath, "Application", PsadtLayout.ScriptName);
+        var scriptPath = PsadtLayout.ScriptPath(packagePath);
         if (!File.Exists(scriptPath))
             throw new FileNotFoundException($"{PsadtLayout.ScriptName} not found in: {packagePath}");
 
@@ -147,7 +157,7 @@ public class PSADTGenerator
             warnings.Add("RequireAdmin is not in the template's $adtSession block; set it by hand.");
 
         var msi = appInfo.PackageType == "MSI";
-        var installer = ResolveInstallerName(appInfo, Path.Combine(packagePath, "Application", "Files"), msi)
+        var installer = ResolveInstallerName(appInfo, PsadtLayout.FilesFolder(packagePath), msi)
                         ?? (msi ? appInfo.Name + ".msi" : "setup.exe");
 
         if (!script.InsertAfterSection(PsadtScript.InstallSection,

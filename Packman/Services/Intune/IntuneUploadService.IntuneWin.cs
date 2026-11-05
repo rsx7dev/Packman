@@ -20,8 +20,7 @@ public partial class IntuneUploadService
             return;
         }
 
-        progress?.UpdateProgress(10, "Signing the deployment script...");
-        log.Info("Signing the deployment script...");
+        Report(progress, log, 10, "Signing the deployment script...");
         try
         {
             var scriptPath = await PackageSigningService.SignAsync(packagePath, _signer, ct);
@@ -43,9 +42,9 @@ public partial class IntuneUploadService
         if (string.IsNullOrWhiteSpace(_converterPath) || !File.Exists(_converterPath))
             throw new FileNotFoundException($"IntuneWinAppUtil.exe not found at: '{_converterPath}'. Set the IntuneWinAppUtil path on the Settings page.");
 
-        var applicationFolder = Path.Combine(packagePath, "Application");
+        var applicationFolder = PsadtLayout.ApplicationFolder(packagePath);
         var setupFile = Path.Combine(applicationFolder, PsadtLayout.SetupFileName);
-        var outputFolder = Path.Combine(packagePath, "Intune");
+        var outputFolder = PsadtLayout.IntuneFolder(packagePath);
 
         if (!Directory.Exists(applicationFolder))
             throw new DirectoryNotFoundException($"Application folder not found: {applicationFolder}");

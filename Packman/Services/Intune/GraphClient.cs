@@ -111,6 +111,9 @@ public sealed class GraphClient
     // Settable only so tests can answer Graph with a fake handler.
     internal static HttpClient Http { get; set; } = new() { Timeout = TimeSpan.FromMinutes(5) };
 
+    // Multiplies every retry wait; tests set 0 so retries take no time.
+    internal static double RetryDelayScale { get; set; } = 1;
+
     private static readonly JsonSerializerOptions BodyOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -234,14 +237,14 @@ public sealed class GraphClient
     }
 
     private static TimeSpan Backoff(int attempt)
-        => TimeSpan.FromSeconds(Math.Pow(2, attempt) + Random.Shared.NextDouble());
+        => TimeSpan.FromSeconds((Math.Pow(2, attempt) + Random.Shared.NextDouble()) * RetryDelayScale);
 
     private static TimeSpan? RetryAfter(HttpResponseMessage response)
     {
         var header = response.Headers.RetryAfter;
         TimeSpan? delay = header?.Delta ?? (header?.Date is { } date ? date - DateTimeOffset.UtcNow : null);
         if (delay is null || delay <= TimeSpan.Zero) return null;
-        return delay > MaxRetryAfter ? MaxRetryAfter : delay;
+        return (delay > MaxRetryAfter ? MaxRetryAfter : delay) * RetryDelayScale;
     }
 
     private static string? Header(HttpResponseMessage response, string name)

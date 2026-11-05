@@ -184,6 +184,14 @@ internal static class UiPreviews
 
             shell.Close();
 
+            // First-run setup, on settings in a temp folder so none of the user's paths show.
+            var setup = new OnboardingWindow(new OnboardingViewModel(
+                new SettingsService(Path.Combine(Path.GetTempPath(), "packman-preview-settings.json"))));
+            var setupRoot = (FrameworkElement)setup.Content;
+            setup.Content = null;
+            RenderShell(setupRoot, $"{theme}-00-setup", 760, 440);
+            setup.Close();
+
             var combo = new ComboBox { IsEditable = true, Text = "TEST-PC-01", Width = 240 };
             Render(combo, $"{theme}-editable-dropdown", 320, 100);
         }

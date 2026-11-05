@@ -243,6 +243,8 @@
             <ContentControl Style="{StaticResource KvRow}" Tag="Deploy mode" Content="{Binding Upload.SelectedDeployMode}"/>
             <ContentControl Style="{StaticResource KvRow}" Tag="Supersedes" Content="{Binding Upload.SupersedenceRailText}"
                             Visibility="{Binding Upload.HasSupersedence, Converter={StaticResource BoolToVis}}"/>
+
+            <controls:StatusRow Label="Package" Value="{Binding PackageState}" Detail="{Binding PackageIssue}" Kind="{Binding PackageStateKind}"/>
         </StackPanel>
 
         <!-- ═══ Step 3: Publish readiness, then publish progress ═══ -->
@@ -250,8 +252,8 @@
             <!-- Readiness until the publish starts; then the progress and console take its place. -->
             <StackPanel Visibility="{Binding Upload.Publish.IsNotPublishing, Converter={StaticResource BoolToVis}}">
                 <TextBlock Text="Publish readiness" Style="{StaticResource RailTitle}" Margin="0,0,0,8"/>
-                <controls:StatusRow Label="Package" Value="{Binding HasPackage, Converter={StaticResource BoolToText}, ConverterParameter='Ready|Not generated'}"
-                                    Kind="{Binding HasPackage, Converter={StaticResource BoolToText}, ConverterParameter='ok|bad'}"/>
+                <!-- Preflight: package files, script syntax and leftover EXE placeholders. Publish waits for Ready. -->
+                <controls:StatusRow Label="Package" Value="{Binding PackageState}" Detail="{Binding PackageIssue}" Kind="{Binding PackageStateKind}"/>
                 <controls:StatusRow Label="Commands" Value="{Binding Upload.CommandsState}"
                                     Kind="{Binding Upload.CommandsReady, Converter={StaticResource BoolToText}, ConverterParameter='ok|warn'}"/>
                 <controls:StatusRow Label="Detection" Value="{Binding Upload.DetectionState}" Detail="{Binding Upload.DetectionIssue}"

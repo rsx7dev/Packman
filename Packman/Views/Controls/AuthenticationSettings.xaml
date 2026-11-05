@@ -1,43 +1,4 @@
 <UserControl xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:local="clr-namespace:Packman" xmlns:controls="clr-namespace:Packman.Views.Controls" x:Class="Packman.Views.Controls.AuthenticationSettings">
-    <UserControl.Resources>
-        <!-- Connection method: a radio button drawn as a selectable card. -->
-        <Style x:Key="MethodCard" TargetType="{x:Type RadioButton}">
-            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusVisual}"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="{x:Type RadioButton}">
-                        <Border x:Name="bd" Background="{DynamicResource ControlBrush}" BorderBrush="{DynamicResource EdgeBrush}"
-                                BorderThickness="1" CornerRadius="8" Padding="16,14">
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
-                                </Grid.ColumnDefinitions>
-                                <Grid Width="18" Height="18" VerticalAlignment="Top" Margin="0,1,14,0">
-                                    <Ellipse x:Name="ring" Stroke="{DynamicResource Muted2Brush}" StrokeThickness="1.5" Fill="Transparent"/>
-                                    <Ellipse x:Name="dot" Width="8" Height="8" Fill="{DynamicResource PrimaryBrush}" Visibility="Collapsed"/>
-                                </Grid>
-                                <ContentPresenter Grid.Column="1" VerticalAlignment="Top"/>
-                            </Grid>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource Edge2Brush}"/>
-                            </Trigger>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentTextBrush}"/>
-                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource PrimaryFaintBrush}"/>
-                                <Setter TargetName="ring" Property="Stroke" Value="{DynamicResource PrimaryBrush}"/>
-                                <Setter TargetName="dot" Property="Visibility" Value="Visible"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-    </UserControl.Resources>
-
     <StackPanel>
         <controls:SectionHeader Title="Microsoft Intune connection"
                                 Caption="Connect to Microsoft Intune to retrieve application metadata and publish packages."/>
@@ -72,6 +33,18 @@
         <StackPanel Margin="0,20,0,0" Visibility="{Binding IsInteractive, Converter={StaticResource BoolToVis}}">
             <TextBlock Text="Tenant ID" Style="{StaticResource FieldLabel}"/>
             <TextBox AutomationProperties.Name="Tenant ID" Style="{StaticResource MonoField}" Text="{Binding TenantId, UpdateSourceTrigger=PropertyChanged}" local:PlaceholderText.Text="contoso.onmicrosoft.com or tenant GUID"/>
+            <TextBlock Text="Application (Client) ID" Style="{StaticResource FieldLabel}" Margin="0,18,0,7"/>
+            <TextBox AutomationProperties.Name="Application (Client) ID for interactive sign-in" Style="{StaticResource MonoField}"
+                     Text="{Binding ClientId, UpdateSourceTrigger=PropertyChanged}" local:PlaceholderText.Text="Optional: your own app registration"/>
+            <Border Style="{StaticResource CalloutNeutral}" Margin="0,14,0,0"
+                    Visibility="{Binding UsesSharedClient, Converter={StaticResource BoolToVis}}">
+                <DockPanel>
+                    <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconInfo}" Foreground="{DynamicResource Muted2Brush}"
+                                       VerticalAlignment="Top" Margin="0,1,10,0"/>
+                    <TextBlock FontSize="13" TextWrapping="Wrap"
+                               Text="With no Client ID, Packman signs in through Microsoft Graph Command Line Tools, a client shared with every Graph script in your tenant. Packman asks it for read access only and requests write permission when you first publish or change an app. For tighter control, create a dedicated app registration (see the README, Authentication) and enter its Client ID here."/>
+                </DockPanel>
+            </Border>
         </StackPanel>
 
         <!-- App registration: tenant, client and certificate -->

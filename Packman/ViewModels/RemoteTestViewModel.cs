@@ -54,6 +54,7 @@ public sealed class RemoteTestViewModel : ObservableObject
     private DetectionRule? _discoveredRule;
     private string _discoveredSummary = "";
     private int _contextVersion;
+    private CancellationTokenSource? _runCts;
 
     private sealed record DetectionContext(int Revision, string Computer, string AppName, string Version, string SourcePath);
 
@@ -72,6 +73,7 @@ public sealed class RemoteTestViewModel : ObservableObject
     public AsyncRelayCommand CheckOnlineCommand { get; }
     public RelayCommand ApplyDetectionCommand { get; }
     public RelayCommand ClearLogCommand { get; }
+    public RelayCommand CancelCommand { get; }
 
     /// <summary>Raised with the discovered rule when the packager applies it; the host routes it to the publish step.</summary>
     public event Action<DetectionRule>? ApplyDetectionRequested;
@@ -95,6 +97,7 @@ public sealed class RemoteTestViewModel : ObservableObject
         CheckOnlineCommand    = new AsyncRelayCommand(CheckOnlineAsync, () => !_isRunning && IsValidTarget);
         ApplyDetectionCommand = new RelayCommand(ApplyDetection, () => !_isRunning && _discoveredRule != null && _isGeneratedPackage);
         ClearLogCommand       = new RelayCommand(() => { Lines.Clear(); lock (_pending) _pending.Clear(); });
+        CancelCommand         = new RelayCommand(CancelRun, () => _isRunning && _runCts is { IsCancellationRequested: false });
         UseComputerCommand = new RelayCommand<string>(c => { if (!string.IsNullOrWhiteSpace(c)) TargetComputer = c; });
 
         // Nothing to follow on the standalone page.
@@ -171,7 +174,7 @@ public sealed class RemoteTestViewModel : ObservableObject
     public void SelectPackage(string selectedPath)
     {
         string root = FolderBrowserHelper.GetPackageRootPath(selectedPath);
-        string? scriptPath = FolderBrowserHelper.GetPSADTScriptPath(Path.Combine(root, "Application"))
+        string? scriptPath = FolderBrowserHelper.GetPSADTScriptPath(PsadtLayout.ApplicationFolder(root))
             ?? FolderBrowserHelper.GetPSADTScriptPath(root);
 
         if (scriptPath == null)
@@ -301,6 +304,7 @@ public sealed class RemoteTestViewModel : ObservableObject
         DetectCommand.RaiseCanExecuteChanged();
         CheckOnlineCommand.RaiseCanExecuteChanged();
         ApplyDetectionCommand.RaiseCanExecuteChanged();
+        CancelCommand.RaiseCanExecuteChanged();
         OnPropertyChanged(nameof(IsValidTarget));
     }
 
@@ -309,6 +313,7 @@ public sealed class RemoteTestViewModel : ObservableObject
     {
         var context = CaptureDetectionContext();
         StatusText = "checking…";
+        ActivityLog.Shared.Info($"Checking whether {context.Computer} is online…");
         bool online = await Task.Run(() =>
         {
             try
@@ -322,6 +327,8 @@ public sealed class RemoteTestViewModel : ObservableObject
         if (context.Revision != _contextVersion || IsRunning) return;
         IsOnline = online;
         StatusText = online ? "online" : "unreachable";
+        if (online) ActivityLog.Shared.Success($"{context.Computer} is online");
+        else ActivityLog.Shared.Warning($"{context.Computer} is unreachable (no ping reply)");
         if (online) RememberComputer(context.Computer);
     }
 
@@ -335,10 +342,13 @@ public sealed class RemoteTestViewModel : ObservableObject
         DiscoveredSummary = "";
         OnPropertyChanged(nameof(HasDiscoveredRule));
 
+        using var cts = new CancellationTokenSource();
+        _runCts = cts;
         IsRunning = true;
         LastRunSucceeded = null;
         LastRunSummary = "";
         StatusText = $"{deploymentType.ToLowerInvariant()} running…";
+        ActivityLog.Shared.Section($"Remote test: {deploymentType.ToLowerInvariant()} on {TargetComputer}");
         _flushTimer.Start();
         var context = CaptureDetectionContext();
 
@@ -353,9 +363,17 @@ public sealed class RemoteTestViewModel : ObservableObject
             RememberComputer(context.Computer);
             try
             {
-                exitCode = await Task.Run(() => new RemoteTestService().Deploy(
+                // Warn rather than block: a root-layout package can still be tested.
+                foreach (var issue in await Task.Run(() => PackagePreflight.Check(packagePath)))
+                    Append($"WARNING: {issue}");
+
+                exitCode = await Task.Run(() => new RemoteTestService().DeployAsync(
                     context.Computer, packagePath, deploymentType, commandLine, cleanup, runAsUser,
-                    Append, percent => CopyPercent = percent));
+                    Append, percent => CopyPercent = percent, cts.Token));
+            }
+            catch (OperationCanceledException)
+            {
+                Append("ERROR: Cancelled");
             }
             catch (PSRemotingTransportException ex)
             {
@@ -384,12 +402,13 @@ public sealed class RemoteTestViewModel : ObservableObject
                 Append("Waiting for the registry to settle…");
                 Flush();
                 await Task.Delay(3000);
-                if (context.Revision == _contextVersion)
+                if (context.Revision == _contextVersion && !cts.IsCancellationRequested)
                     await DiscoverCoreAsync(context);
             }
         }
         finally
         {
+            _runCts = null;
             CopyPercent = null;
             _flushTimer.Stop();
             Flush();
@@ -461,6 +480,13 @@ public sealed class RemoteTestViewModel : ObservableObject
         }
     }
 
+    private void CancelRun()
+    {
+        _runCts?.Cancel();
+        StatusText = "cancelling…";
+        CancelCommand.RaiseCanExecuteChanged();
+    }
+
     /// <summary>Pushes the discovered rule into the publish step's detection fields.</summary>
     private void ApplyDetection()
     {
@@ -530,6 +556,17 @@ public sealed class RemoteTestViewModel : ObservableObject
     {
         var line = new RemoteTestLine { Time = DateTime.Now.ToString("HH:mm:ss"), Text = text, Kind = Classify(text) };
         lock (_pending) _pending.Add(line);
+
+        // The same line goes to the live console; the rule-off lines are only decoration there.
+        ActivityLevel? level = line.Kind switch
+        {
+            LineKind.Good => ActivityLevel.Success,
+            LineKind.Warn => ActivityLevel.Warning,
+            LineKind.Bad => ActivityLevel.Error,
+            LineKind.Info => ActivityLevel.Info,
+            _ => null,
+        };
+        if (level is { } shown) ActivityLog.Shared.Add(shown, text);
     }
 
     private void Flush()

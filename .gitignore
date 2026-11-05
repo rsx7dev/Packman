@@ -34,12 +34,8 @@ TestResults/
 ## Desktop builds and native UI previews
 artifacts/
 
-## design-sync (Claude Design) - staged converter, build output, machine state
-.ds-sync/
-ds-bundle/
-.design-sync/.cache/
-.design-sync/learnings/
-.design-sync/node_modules
+## Generated output
+out/
 
 # Test fixtures named release/ are real files
 !tests/fixtures/psadt-catalog/release/

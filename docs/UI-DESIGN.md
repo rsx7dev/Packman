@@ -4,7 +4,7 @@ The UI centers on the working sequence: select an installer, prepare its PSADT p
 
 ## Layout (three columns)
 
-Every page is a `PageFrame` (`Views/Controls/PageFrame.cs`, template in `Themes/Styles.xaml`): a header panel (breadcrumb, optional leading tile, title, subtitle, actions, and a strip for the stepper or tabs), the body, an optional footer panel (Back, what the primary action does or doesn't do, primary action) and an optional inspector rail on the right. The frame is one white sheet on the shell colour (the "Quiet Ledger" design in `out/design/concept-1/`), with hairlines between header, body and footer. When the frame is narrower than 1000px (small or scaled screens, for example 1366×768 at 125%) the rail leaves its column and opens over the body from a "Details" button in the header.
+Every page is a `PageFrame` (`Views/Controls/PageFrame.cs`, template in `Themes/Styles.xaml`): a header panel (breadcrumb, optional leading tile, title, subtitle, actions, and a strip for the stepper or tabs), the body, an optional footer panel (Back, what the primary action does or doesn't do, primary action) and an optional inspector rail on the right. The frame is one white sheet on the shell colour, with hairlines between header, body and footer. When the frame is narrower than 1000px (small or scaled screens, for example 1366×768 at 125%) the rail leaves its column and opens over the body from a "Details" button in the header.
 
 ## Navigation
 
@@ -45,6 +45,6 @@ The existing scope limits remain: wizard detection uses one rule; standalone pub
 
 ## Verification
 
-The solution can be cross-compiled with .NET 10 and `EnableWindowsTargeting=true`. The separate test project has been removed; Windows CI retains the offline desktop build, packaged-app startup/shutdown check and standalone `scripts/RenderUiPreviews.cs` utility.
+The solution can be cross-compiled with .NET 10 and `EnableWindowsTargeting=true`. The `tests/Packman.Tests` project covers the view models and services; Windows CI also runs the offline desktop build, packaged-app startup/shutdown check and standalone `scripts/RenderUiPreviews.cs` utility.
 
 Windows CI additionally loads and renders representative views, all Settings sections, Application Detail tabs and the editable computer dropdown in both palettes. It exports PNG previews as the `ui-previews` artifact. These previews do not authenticate, upload, test a remote device or execute a deployment script. Manual Windows validation should include keyboard navigation, 125%/150% display scaling, long tenant/group names, an actual MSI/EXE package, install/uninstall on a test device, and a pilot Intune assignment.

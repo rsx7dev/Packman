@@ -11,8 +11,8 @@ public enum PackageTool { None, EditScript, RemoteTest }
 
 public sealed class MainViewModel : ObservableObject
 {
-    private readonly SettingsService _settingsService = AppServices.Settings;
-    private readonly IntuneAuthService _auth = AppServices.Auth;
+    private readonly SettingsService _settingsService;
+    private readonly IntuneAuthService _auth;
 
     public SettingsService SettingsService => _settingsService;
 
@@ -21,6 +21,9 @@ public sealed class MainViewModel : ObservableObject
     public UpgradePackageViewModel Upgrade { get; } = new();
     public UploadStepViewModel Upload { get; }
     public RemoteTestViewModel RemoteTest { get; }
+
+    /// <summary>The welcome card on the Create page: prerequisites and the EXE switches step.</summary>
+    public SetupChecklistViewModel Checklist { get; }
 
     /// <summary>State of the in-app script editor (tabs, dirty files, search).</summary>
     public EditorSessionViewModel Editor { get; }
@@ -69,6 +72,7 @@ public sealed class MainViewModel : ObservableObject
         {
             if (!Set(ref _isUpgradeMode, value)) return;
             RaiseAll(nameof(PrimaryLabel), nameof(StepHint));
+            RaisePrimaryState();
         }
     }
 
@@ -99,13 +103,14 @@ public sealed class MainViewModel : ObservableObject
             }
             if (value == UploadStep) Upload.RefreshFromPackage();
             if (value == ReviewStep) Upload.RefreshReview();
+            if (value != GenerateStep) ErrorReporter.FireAndForget(RefreshPackageIssuesAsync);
             OnPropertyChanged(nameof(PrimaryLabel));
             OnPropertyChanged(nameof(StepHint));
             OnPropertyChanged(nameof(IsLastStep));
             OnPropertyChanged(nameof(StepPosition));
             OnPropertyChanged(nameof(ShowPrimaryKeyHint));
             RefreshStepLocks();
-            PrimaryCommand.RaiseCanExecuteChanged();
+            RaisePrimaryState();
         }
     }
 
@@ -157,6 +162,9 @@ public sealed class MainViewModel : ObservableObject
         private set
         {
             if (!Set(ref _activeTool, value)) return;
+            // Edit script may have fixed, or introduced, a problem the check reports.
+            if (value == PackageTool.None && CurrentStepIndex != GenerateStep)
+                ErrorReporter.FireAndForget(RefreshPackageIssuesAsync);
             OnPropertyChanged(nameof(IsWizard));
             OnPropertyChanged(nameof(IsToolOpen));
             OnPropertyChanged(nameof(IsEditToolOpen));
@@ -231,6 +239,93 @@ public sealed class MainViewModel : ObservableObject
 
     public string StepPosition => $"step {CurrentStepIndex + 1} of {Steps.Count}";
 
+    // ── Gates on the primary button ─────────────────────────────────────
+    /// <summary>
+    /// The first input Generate still needs, or null. String checks only: CanExecute runs
+    /// often, and the paths are checked for real when the package is built.
+    /// </summary>
+    public string? GenerateLockReason
+    {
+        get
+        {
+            if (CurrentStepIndex != GenerateStep || HasPackage || IsUpgradeMode) return null;
+            var paths = _settingsService.Settings.NetworkPaths;
+            return Blank(CreatePackage.SourcesPath) ? "Choose the installer or source folder"
+                : Blank(CreatePackage.AppName) ? "Enter the application name"
+                : Blank(CreatePackage.Manufacturer) ? "Enter the manufacturer"
+                : Blank(CreatePackage.Version) ? "Enter the version"
+                : Blank(paths.IntuneApplications) ? "Set the output share in Settings"
+                : null;
+        }
+    }
+
+    public bool CanGenerate => GenerateLockReason == null;
+
+    private static bool Blank(string? value) => string.IsNullOrWhiteSpace(value);
+
+    /// <summary>Why the primary button is disabled, for its tooltip; null when it is not.</summary>
+    public string? PrimaryLockReason => CurrentStepIndex switch
+    {
+        GenerateStep => GenerateLockReason,
+        ReviewStep when !Upload.CanAttemptPublish => "Sign in to Intune on the Settings page first",
+        ReviewStep when _packageIssues == null => "Checking the package…",
+        ReviewStep when _packageIssues is { Count: > 0 } issues => issues[0],
+        _ => null,
+    };
+
+    private void RaisePrimaryState()
+    {
+        RaiseAll(nameof(GenerateLockReason), nameof(CanGenerate), nameof(PrimaryLockReason), nameof(CanPublish));
+        PrimaryCommand.RaiseCanExecuteChanged();
+    }
+
+    // ── Package readiness (checked on Configure and Review) ─────────────
+    private IReadOnlyList<string>? _packageIssues;
+    private int _packageCheckSequence;
+
+    /// <summary>What PackagePreflight found; null while the check runs.</summary>
+    public IReadOnlyList<string>? PackageIssues
+    {
+        get => _packageIssues;
+        private set
+        {
+            if (!Set(ref _packageIssues, value, [nameof(PackageReady), nameof(PackageState), nameof(PackageStateKind), nameof(PackageIssue)])) return;
+            RaisePrimaryState();
+        }
+    }
+
+    public bool PackageReady => HasPackage && _packageIssues is { Count: 0 };
+
+    public string PackageState => !HasPackage ? "Not generated"
+        : _packageIssues == null ? "Checking…"
+        : _packageIssues.Count == 0 ? "Ready"
+        : "Needs attention";
+
+    public string PackageStateKind => !HasPackage ? "bad" : _packageIssues == null ? "pending" : _packageIssues.Count == 0 ? "ok" : "bad";
+
+    /// <summary>The first issue, for the rail's status row.</summary>
+    public string PackageIssue => _packageIssues?.FirstOrDefault() ?? "";
+
+    public bool CanPublish => Upload.CanAttemptPublish && PackageReady;
+
+    /// <summary>Re-runs the package checks. It reads the script on the share, so it never runs on the UI thread.</summary>
+    private async Task RefreshPackageIssuesAsync()
+    {
+        var sequence = ++_packageCheckSequence;
+        var path = CreatePackage.CurrentPackagePath;
+        PackageIssues = null;
+        if (string.IsNullOrEmpty(path)) return;
+
+        var issues = await Task.Run(() => PackagePreflight.Check(path));
+        // A newer check, or another package, owns the result now.
+        if (sequence != _packageCheckSequence) return;
+        PackageIssues = issues;
+    }
+
+    // ── First-run card ──────────────────────────────────────────────────
+    /// <summary>Only before a package exists: afterwards the page is about that package.</summary>
+    public bool ShowSetupChecklist => Checklist.IsVisible && !HasPackage;
+
     // ── Intune connection (title bar pill and rails) ────────────────────
     public bool IsConnected => _auth.IsSignedIn;
     public string ConnectionLabel => _auth.IsSignedIn ? "Connected" : "Not connected";
@@ -241,7 +336,6 @@ public sealed class MainViewModel : ObservableObject
 
     // ── Package preview (rail beside the Package step) ──────────────────
     public bool OutputShareReady => !string.IsNullOrWhiteSpace(_settingsService.Settings.NetworkPaths.IntuneApplications);
-    public bool TemplateReady => !string.IsNullOrWhiteSpace(_settingsService.Settings.NetworkPaths.PSADTTemplate);
     public string OutputShare => OutputShareReady ? _settingsService.Settings.NetworkPaths.IntuneApplications : "Not set";
 
     /// <summary>
@@ -271,17 +365,40 @@ public sealed class MainViewModel : ObservableObject
     /// <summary>Settings saved: paths and defaults the rails summarise may have changed.</summary>
     public void RefreshFromSettings()
     {
-        RaiseAll(nameof(OutputShareReady), nameof(TemplateReady), nameof(OutputShare), nameof(PackageFolderPreview));
+        RaiseAll(nameof(OutputShareReady), nameof(OutputShare), nameof(PackageFolderPreview), nameof(PackageFolders));
         Upload.RaiseReadiness();
-        PrimaryCommand.RaiseCanExecuteChanged();
+        RaisePrimaryState();
     }
 
-    public MainViewModel()
+    /// <summary>The folders a new package gets, as listed on the Create page.</summary>
+    public IReadOnlyList<string> PackageFolders
     {
+        get
+        {
+            var layout = _settingsService.Settings.PackageLayout;
+            return new[] { PsadtLayout.ApplicationFolderName, PsadtLayout.IntuneFolderName }
+                .Concat(PsadtLayout.OptionalFolders(layout.IconFolder, layout.ExtraFolders))
+                .Select(folder => folder + "\\").ToList();
+        }
+    }
+
+    public MainViewModel() : this(AppServices.Settings, AppServices.Auth) { }
+
+    /// <summary>Tests: a settings file and sign-in of their own instead of the app's.</summary>
+    internal MainViewModel(SettingsService settingsService, IntuneAuthService auth)
+    {
+        _settingsService = settingsService;
+        _auth = auth;
         Upload = new UploadStepViewModel(CreatePackage, _settingsService, _auth);
         RemoteTest = new RemoteTestViewModel(_settingsService, CreatePackage, hasPublishStep: true);
         Editor = new EditorSessionViewModel(CreatePackage, _dialogs);
         RemoteTest.ApplyDetectionRequested += Upload.ApplyDiscoveredRule;
+        Checklist = new SetupChecklistViewModel(_settingsService, _auth);
+        Checklist.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(SetupChecklistViewModel.IsVisible))
+                OnPropertyChanged(nameof(ShowSetupChecklist));
+        };
 
         Steps = new ObservableCollection<StepViewModel>
         {
@@ -295,7 +412,8 @@ public sealed class MainViewModel : ObservableObject
 
         BackCommand     = new RelayCommand(() => CurrentStepIndex--, () => CurrentStepIndex > 0 && !IsJobRunning);
         PrimaryCommand  = new AsyncRelayCommand(OnPrimaryAsync, () => !CreatePackage.IsGenerating && !Upgrade.IsBusy && !Upload.Publish.IsPublishing
-                                                                    && (CurrentStepIndex != ReviewStep || Upload.CanAttemptPublish));
+                                                                    && (CurrentStepIndex != GenerateStep || CanGenerate)
+                                                                    && (CurrentStepIndex != ReviewStep || CanPublish));
         GoToStepCommand = new RelayCommand<int>(i => CurrentStepIndex = i, i => !IsJobRunning && (i <= CurrentStepIndex || HasPackage));
 
         OpenEditToolCommand      = new RelayCommand(() => ActiveTool = PackageTool.EditScript, () => HasPackage);
@@ -318,7 +436,7 @@ public sealed class MainViewModel : ObservableObject
         _auth.StateChanged += () =>
         {
             RaiseAll(nameof(IsConnected), nameof(ConnectionLabel), nameof(TenantName), nameof(ConnectionStatusText));
-            PrimaryCommand.RaiseCanExecuteChanged();
+            RaisePrimaryState();
         };
 
         CreatePackage.PropertyChanged += (_, e) =>
@@ -334,6 +452,9 @@ public sealed class MainViewModel : ObservableObject
             if (e.PropertyName is nameof(CreatePackageViewModel.AppName) or nameof(CreatePackageViewModel.Manufacturer)
                                 or nameof(CreatePackageViewModel.Version))
                 OnPropertyChanged(nameof(PackageFolderPreview));
+            if (e.PropertyName is nameof(CreatePackageViewModel.SourcesPath) or nameof(CreatePackageViewModel.AppName)
+                                or nameof(CreatePackageViewModel.Manufacturer) or nameof(CreatePackageViewModel.Version))
+                RaisePrimaryState();
         };
         Upgrade.PropertyChanged += (_, e) =>
         {
@@ -367,6 +488,8 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(PackageFolderPreview));
         OnPropertyChanged(nameof(PrimaryLabel));
         OnPropertyChanged(nameof(StepHint));
+        RaiseAll(nameof(ShowSetupChecklist), nameof(PackageReady), nameof(PackageState), nameof(PackageStateKind));
+        RaisePrimaryState();
         OpenEditToolCommand.RaiseCanExecuteChanged();
         OpenTestToolCommand.RaiseCanExecuteChanged();
         OpenPackageFolderCommand.RaiseCanExecuteChanged();

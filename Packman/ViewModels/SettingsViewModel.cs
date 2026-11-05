@@ -113,7 +113,7 @@ public sealed class SettingsViewModel : ObservableObject
     public bool IsInteractive
     {
         get => _isInteractive;
-        set { if (Set(ref _isInteractive, value)) OnPropertyChanged(nameof(IsAppRegistration)); }
+        set { if (Set(ref _isInteractive, value)) RaiseAll(nameof(IsAppRegistration), nameof(UsesSharedClient)); }
     }
     public bool IsAppRegistration { get => !_isInteractive; set => IsInteractive = !value; }
 
@@ -147,7 +147,10 @@ public sealed class SettingsViewModel : ObservableObject
         : string.IsNullOrWhiteSpace(TenantId) ? "Not set" : TenantId.Trim();
 
     private string _clientId = "";
-    public string ClientId { get => _clientId; set => Set(ref _clientId, value); }
+    public string ClientId { get => _clientId; set => Set(ref _clientId, value, [nameof(UsesSharedClient)]); }
+
+    /// <summary>Interactive sign-in with no Client ID borrows Microsoft's shared Graph Command Line Tools client.</summary>
+    public bool UsesSharedClient => _isInteractive && string.IsNullOrWhiteSpace(_clientId);
 
     // Auth cert source
     private bool _authUseStoreCert = true;
@@ -208,7 +211,7 @@ public sealed class SettingsViewModel : ObservableObject
     }
 
     // ── Network Paths ──────────────────────────────────────────────────
-    private static readonly string[] PathDependents = [nameof(IsConfigured), nameof(ShowFirstRunBanner)];
+    private static readonly string[] PathDependents = [nameof(IsConfigured)];
 
     private string _intuneApplicationsPath = "";
     public string IntuneApplicationsPath { get => _intuneApplicationsPath; set => Set(ref _intuneApplicationsPath, value, PathDependents); }
@@ -222,15 +225,12 @@ public sealed class SettingsViewModel : ObservableObject
     /// <summary>Where the settings file lives; shown under the page title.</summary>
     public string SettingsPath => _svc.SettingsPath;
 
-    /// <summary>The three paths every flow needs are filled in.</summary>
-    public bool IsConfigured =>
-        !string.IsNullOrWhiteSpace(_intuneApplicationsPath) &&
-        !string.IsNullOrWhiteSpace(_psadtTemplatePath) &&
-        !string.IsNullOrWhiteSpace(_intuneWinAppUtilPath);
+    /// <summary>The packages folder is set; the template and tool default to the bundled ones.</summary>
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(_intuneApplicationsPath);
 
-    private bool _firstRunDismissed;
-    public bool ShowFirstRunBanner => !_firstRunDismissed && !IsConfigured;
-    public RelayCommand DismissFirstRunCommand { get; }
+    // ── Package layout ─────────────────────────────────────────────────
+    /// <summary>Icon and extra folders for new packages; the same editor setup uses.</summary>
+    public PackageLayoutViewModel Layout { get; } = new();
 
     // ── Group Assignment ───────────────────────────────────────────────
     private bool _createGroupPerPackage;
@@ -371,7 +371,6 @@ public sealed class SettingsViewModel : ObservableObject
 
     public SettingsViewModel(SettingsService svc, IntuneAuthService auth)
     {
-        DismissFirstRunCommand = new RelayCommand(() => { _firstRunDismissed = true; OnPropertyChanged(nameof(ShowFirstRunBanner)); });
         _svc = svc;
         _auth = auth;
         SaveCommand = new RelayCommand(Save);
@@ -418,6 +417,7 @@ public sealed class SettingsViewModel : ObservableObject
         IntuneApplicationsPath = s.NetworkPaths.IntuneApplications;
         PSADTTemplatePath = s.NetworkPaths.PSADTTemplate;
         IntuneWinAppUtilPath = s.NetworkPaths.IntuneWinAppUtil;
+        Layout.Load(s.PackageLayout);
 
         CreateGroupPerPackage = s.GroupAssignment.CreateGroupPerPackage;
         GroupNameTemplate = s.GroupAssignment.GroupNameTemplate;
@@ -590,6 +590,14 @@ public sealed class SettingsViewModel : ObservableObject
                 return;
             }
 
+            // The test verifies publishing, so it asks for the scope a publish would. Group
+            // creation is granted on Advanced; the test reports whether it is there yet.
+            if (!await _auth.EnsureScopesAsync(IntuneAuthService.PublishScopes, IntuneAuthService.MainWindowHandle()))
+            {
+                ConnectionStatus = IntuneAuthService.ConsentDeclinedMessage(IntuneAuthService.PublishScopes);
+                return;
+            }
+
             ConnectionStatus = "Testing connection to Microsoft Intune…";
             // Group creation is checked against the toggles on screen, like the sign-in fields.
             var result = await AppServices.Apps.TestConnectionAsync(CreateGroupPerPackage || CreateUninstallGroupPerPackage);
@@ -664,6 +672,7 @@ public sealed class SettingsViewModel : ObservableObject
         s.NetworkPaths.IntuneApplications = IntuneApplicationsPath;
         s.NetworkPaths.PSADTTemplate = PSADTTemplatePath;
         s.NetworkPaths.IntuneWinAppUtil = IntuneWinAppUtilPath;
+        s.PackageLayout = Layout.ToConfig();
 
         s.GroupAssignment.CreateGroupPerPackage = CreateGroupPerPackage;
         s.GroupAssignment.GroupNameTemplate = GroupNameTemplate;

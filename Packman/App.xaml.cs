@@ -21,7 +21,37 @@ public partial class App : Application
         ErrorReporter.Reported += ex => Report(ex, "Something went wrong.");
 
         ThemeService.Apply(AppServices.Settings.Settings.Theme);
-        ConnectSavedAppRegistration();
+
+        if (AppServices.Settings.Settings.NetworkPaths.IsComplete)
+        {
+            ShowMainWindow();
+            ConnectSavedAppRegistration();
+        }
+        else
+        {
+            ShowSetup();
+        }
+    }
+
+    // Set as MainWindow explicitly: dialogs and the Settings sign-in take their owner from it.
+    private void ShowMainWindow()
+    {
+        var main = new Packman.MainWindow();
+        MainWindow = main;
+        main.Show();
+    }
+
+    /// <summary>First run: setup before anything else. Closing it unfinished ends the app.</summary>
+    private void ShowSetup()
+    {
+        var setup = new Views.OnboardingWindow();
+        MainWindow = setup;
+        setup.ViewModel.Completed += () =>
+        {
+            ShowMainWindow();
+            setup.Close();
+        };
+        setup.Show();
     }
 
     /// <summary>

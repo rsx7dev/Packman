@@ -5,12 +5,44 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:local="clr-namespace:Packman"
+             xmlns:vm="clr-namespace:Packman.ViewModels"
              mc:Ignorable="d"
              FontFamily="{StaticResource UIFontFamily}">
 
     <!-- Step 1 of the wizard. The rail beside it (WizardRail) shows what this form doesn't:
          the resolved package folder, installer type, product code and what's still missing. -->
     <StackPanel MaxWidth="860" HorizontalAlignment="Left">
+
+        <!-- ═══ Welcome: what Packman needs first. "Got it" hides it, but it returns while something blocks packaging. ═══ -->
+        <Border Style="{StaticResource SectionPanel}" DataContext="{Binding Checklist}"
+                Visibility="{Binding DataContext.ShowSetupChecklist, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVis}}">
+            <StackPanel>
+                <DockPanel>
+                    <Button DockPanel.Dock="Right" Style="{StaticResource GhostButton}" Content="Got it" VerticalAlignment="Top"
+                            Command="{Binding DismissCommand}"
+                            Visibility="{Binding HasMissing, Converter={StaticResource InverseBoolToVis}}"
+                            ToolTip="Hide this card. It comes back if something it lists goes missing."/>
+                    <controls:SectionHeader Title="Before your first package"
+                                            Caption="Packman builds on your share and publishes to Intune. Set these up once in Settings."/>
+                </DockPanel>
+                <ItemsControl ItemsSource="{Binding Items}" Margin="0,12,0,0" Focusable="False">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Content="Open settings"
+                                        VerticalAlignment="Center" Margin="12,0,0,0" Command="{Binding Go}"
+                                        AutomationProperties.Name="{Binding Label, StringFormat='Open settings for {0}'}"
+                                        Visibility="{Binding IsOk, Converter={StaticResource InverseBoolToVis}}"/>
+                                <controls:StatusRow Label="{Binding Label}" Kind="{Binding Kind}" Detail="{Binding Message}"/>
+                            </DockPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="Checking…" Style="{StaticResource SubText}" Margin="0,8,0,0"
+                           Visibility="{Binding IsChecking, Converter={StaticResource BoolToVis}}"/>
+                <controls:StatusRow Label="EXE installers" Kind="info" Detail="{x:Static vm:SetupChecklistViewModel.ExeSwitchesText}"/>
+            </StackPanel>
+        </Border>
 
         <!-- ═══ Generated: the optional tools, before moving on to Configure ═══ -->
         <Border Style="{StaticResource SectionPanel}" Visibility="{Binding HasPackage, Converter={StaticResource BoolToVis}}">
@@ -229,18 +261,21 @@
                         <Button Grid.Column="2" Style="{StaticResource LinkButton}" Content="Change in Settings" Margin="12,0,0,0"
                                 Click="OpenSettings_Click"/>
                     </Grid>
-                    <WrapPanel Margin="0,12,0,0">
-                        <Border Style="{StaticResource Chip}">
-                            <StackPanel Orientation="Horizontal"><controls:LineIcon Data="{DynamicResource IconFolder}" Width="13" Height="13"/><TextBlock Text="Application\" Margin="6,0,0,0"/></StackPanel>
-                        </Border>
-                        <Border Style="{StaticResource Chip}">
-                            <StackPanel Orientation="Horizontal"><controls:LineIcon Data="{DynamicResource IconFolder}" Width="13" Height="13"/><TextBlock Text="Intune\" Margin="6,0,0,0"/></StackPanel>
-                        </Border>
-                        <Border Style="{StaticResource Chip}">
-                            <StackPanel Orientation="Horizontal"><controls:LineIcon Data="{DynamicResource IconFolder}" Width="13" Height="13"/><TextBlock Text="Icon\" Margin="6,0,0,0"/></StackPanel>
-                        </Border>
-                        <TextBlock Text="are created inside the package folder." Style="{StaticResource SubText}" FontSize="12.5" VerticalAlignment="Center"/>
-                    </WrapPanel>
+                    <ItemsControl ItemsSource="{Binding PackageFolders}" Margin="0,12,0,0" Focusable="False">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Style="{StaticResource Chip}">
+                                    <StackPanel Orientation="Horizontal"><controls:LineIcon Data="{DynamicResource IconFolder}" Width="13" Height="13"/><TextBlock Text="{Binding}" Margin="6,0,0,0"/></StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="are created inside each new package folder, as set in Settings &gt; Package layout." Style="{StaticResource SubText}" FontSize="12.5" Margin="0,4,0,0" TextWrapping="Wrap"/>
                 </StackPanel>
 
                 <!-- ═══ UPGRADE EXISTING ═══ -->

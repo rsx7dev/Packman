@@ -466,7 +466,7 @@ public class UploadStepViewModel : ObservableObject
 
         try
         {
-            var filesFolder = Path.Combine(_create.CurrentPackagePath, "Application", "Files");
+            var filesFolder = PsadtLayout.FilesFolder(_create.CurrentPackagePath);
             if (!Directory.Exists(filesFolder)) return "";
             var msi = Directory.GetFiles(filesFolder, "*.msi", SearchOption.TopDirectoryOnly).FirstOrDefault();
             return msi == null ? "" : MsiInfoService.ExtractMsiInfo(msi).ProductCode;
@@ -476,7 +476,7 @@ public class UploadStepViewModel : ObservableObject
 
     private static long GetSourceSizeBytes(string packagePath)
     {
-        try { return DirectoryCopy.TotalSize(Path.Combine(packagePath, "Application", "Files")); }
+        try { return DirectoryCopy.TotalSize(PsadtLayout.FilesFolder(packagePath)); }
         catch { return 0; }
     }
 
@@ -509,9 +509,16 @@ public class UploadStepViewModel : ObservableObject
         }
 
         var settings = _settingsService.Settings;
-        if (string.IsNullOrWhiteSpace(settings.NetworkPaths.IntuneWinAppUtil))
+        // Group creation is granted on the Advanced screen, never prompted for here.
+        if ((settings.GroupAssignment.CreateGroupPerPackage || settings.GroupAssignment.CreateUninstallGroupPerPackage)
+            && !_auth.HasScopes(IntuneAuthService.GroupCreateScopes))
         {
-            StatusText = "Set the IntuneWinAppUtil path on the Settings page first.";
+            StatusText = IntuneAuthService.DirectoryAccessHint;
+            return;
+        }
+        if (!await _auth.EnsureScopesAsync(IntuneAuthService.PublishScopes, IntuneAuthService.MainWindowHandle()))
+        {
+            StatusText = IntuneAuthService.ConsentDeclinedMessage(IntuneAuthService.PublishScopes);
             return;
         }
 
@@ -557,7 +564,7 @@ public class UploadStepViewModel : ObservableObject
             ? new NativeCodeSigner(settings.CodeSigning.CertificateThumbprint, settings.CodeSigning.TimestampServer)
             : null;
 
-        var uploadService = new IntuneUploadService(_auth.CreateSessionTokenProvider(), _auth.TenantId ?? "", signer, settings.NetworkPaths.IntuneWinAppUtil);
+        var uploadService = new IntuneUploadService(_auth.CreateSessionTokenProvider(), _auth.TenantId ?? "", signer, settings.NetworkPaths.IntuneWinAppUtilInUse);
 
         await Publish.RunAsync(
             $"Publishing {appInfo.Manufacturer} {appInfo.Name}…".Trim(),

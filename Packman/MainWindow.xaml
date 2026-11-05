@@ -33,7 +33,8 @@
     <Window.Resources>
         <!-- Bottom menu bar item: always an icon, the label only on the current page. The icon
              geometry comes in through Tag. Checking one checks the matching left-nav button
-             (see IsChecked below), so the nav's Checked handlers still do the navigating. -->
+             (see IsChecked below), so the nav's Checked handlers still do the navigating.
+             The current item has no background of its own: MenuBarPill slides under it. -->
         <Style x:Key="MenuBarItem" TargetType="{x:Type RadioButton}">
             <Setter Property="FocusVisualStyle" Value="{StaticResource FocusVisual}"/>
             <Setter Property="GroupName" Value="MenuBar"/>
@@ -60,7 +61,7 @@
                                 <Setter Property="Foreground" Value="White"/>
                             </Trigger>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="bd" Property="Background" Value="{DynamicResource DockActiveBrush}"/>
+                                <Setter TargetName="bd" Property="Background" Value="Transparent"/>
                                 <Setter TargetName="label" Property="Visibility" Value="Visible"/>
                                 <Setter Property="Foreground" Value="{DynamicResource DockActiveTextBrush}"/>
                             </Trigger>
@@ -219,85 +220,18 @@
                 <Grid x:Name="CreatePackagePage">
                     <!-- The wizard. Each step scrolls on its own so switching steps
                          doesn't inherit the previous step's scroll position. -->
-                    <controls:PageFrame x:Name="CreateFrame" Title="Create package"
+                    <controls:PageFrame x:Name="CreateFrame" Title="Create package" HasConsole="True"
                                         Subtitle="Prepare, test and publish a PSADT application to Microsoft Intune"
                                         IsBodyScrollable="False"
                                         Visibility="{Binding IsWizard, Converter={StaticResource BoolToVis}}">
                         <controls:PageFrame.HeaderBottom>
                             <!-- Stepper: numbered discs joined by a rule that fills as steps complete. -->
-                            <ItemsControl ItemsSource="{Binding Steps}" Margin="0,14" Focusable="False">
+                            <ItemsControl ItemsSource="{Binding Steps}" ItemTemplate="{StaticResource StepperItem}" Margin="0,14" Focusable="False">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <UniformGrid Rows="1"/>
                                     </ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate DataType="{x:Type vm:StepViewModel}">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                            </Grid.ColumnDefinitions>
-                                            <!-- CommandParameter comes first so the first CanExecute sees the step index. -->
-                                            <Button FocusVisualStyle="{StaticResource FocusVisual}" Cursor="Hand"
-                                                    AutomationProperties.Name="{Binding Title}"
-                                                    AutomationProperties.HelpText="{Binding LockReason}"
-                                                    ToolTip="{Binding LockReason}" ToolTipService.ShowOnDisabled="True"
-                                                    CommandParameter="{Binding Index}"
-                                                    Command="{Binding DataContext.GoToStepCommand, RelativeSource={RelativeSource AncestorType={x:Type ItemsControl}}}">
-                                                <Button.Template>
-                                                    <ControlTemplate TargetType="Button">
-                                                        <Border x:Name="bd" Background="Transparent">
-                                                            <ContentPresenter/>
-                                                        </Border>
-                                                        <ControlTemplate.Triggers>
-                                                            <Trigger Property="IsEnabled" Value="False">
-                                                                <Setter TargetName="bd" Property="Opacity" Value="0.55"/>
-                                                            </Trigger>
-                                                        </ControlTemplate.Triggers>
-                                                    </ControlTemplate>
-                                                </Button.Template>
-                                                <StackPanel Orientation="Horizontal">
-                                                    <Grid Width="30" Height="30">
-                                                        <Ellipse x:Name="disc" Fill="{DynamicResource ControlBrush}"
-                                                                 Stroke="{DynamicResource ControlStrokeBrush}" StrokeThickness="1"/>
-                                                        <TextBlock x:Name="num" Text="{Binding Number}" FontSize="13" FontWeight="SemiBold"
-                                                                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                                   Foreground="{DynamicResource Muted2Brush}"/>
-                                                        <Path x:Name="tick" Data="M9.5 15.2l3.6 3.6 7.4-7.6" StrokeThickness="2"
-                                                              Stroke="{DynamicResource PrimaryFgBrush}" Visibility="Collapsed"
-                                                              StrokeLineJoin="Round" StrokeStartLineCap="Round" StrokeEndLineCap="Round"/>
-                                                    </Grid>
-                                                    <TextBlock x:Name="title" Text="{Binding Title}" Margin="12,0,0,0" FontSize="14"
-                                                               VerticalAlignment="Center" Foreground="{DynamicResource Muted2Brush}"/>
-                                                </StackPanel>
-                                            </Button>
-                                            <Border x:Name="line" Grid.Column="1" Height="2" CornerRadius="1" Margin="18,0"
-                                                    VerticalAlignment="Center" Background="{DynamicResource EdgeBrush}"/>
-                                        </Grid>
-                                        <DataTemplate.Triggers>
-                                            <DataTrigger Binding="{Binding IsDone}" Value="True">
-                                                <Setter TargetName="disc" Property="Fill" Value="{DynamicResource PrimaryBrush}"/>
-                                                <Setter TargetName="disc" Property="Stroke" Value="{DynamicResource PrimaryBrush}"/>
-                                                <Setter TargetName="num" Property="Visibility" Value="Collapsed"/>
-                                                <Setter TargetName="tick" Property="Visibility" Value="Visible"/>
-                                                <Setter TargetName="line" Property="Background" Value="{DynamicResource PrimaryBrush}"/>
-                                                <Setter TargetName="title" Property="Foreground" Value="{DynamicResource Text2Brush}"/>
-                                            </DataTrigger>
-                                            <DataTrigger Binding="{Binding IsCurrent}" Value="True">
-                                                <Setter TargetName="disc" Property="Fill" Value="{DynamicResource PrimaryBrush}"/>
-                                                <Setter TargetName="disc" Property="Stroke" Value="{DynamicResource PrimaryBrush}"/>
-                                                <Setter TargetName="num" Property="Foreground" Value="{DynamicResource PrimaryFgBrush}"/>
-                                                <Setter TargetName="title" Property="Foreground" Value="{DynamicResource InkBrush}"/>
-                                                <Setter TargetName="title" Property="FontWeight" Value="SemiBold"/>
-                                            </DataTrigger>
-                                            <!-- The last step has nothing to join. -->
-                                            <DataTrigger Binding="{Binding IsLast}" Value="True">
-                                                <Setter TargetName="line" Property="Visibility" Value="Collapsed"/>
-                                            </DataTrigger>
-                                        </DataTemplate.Triggers>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </controls:PageFrame.HeaderBottom>
 
@@ -333,7 +267,9 @@
                                             </Style>
                                         </TextBlock.Style>
                                     </TextBlock>
-                                    <Button Grid.Column="2" Command="{Binding PrimaryCommand}" MinWidth="180" Style="{StaticResource PrimaryButton}">
+                                    <Button Grid.Column="2" Command="{Binding PrimaryCommand}" MinWidth="180" Style="{StaticResource PrimaryButton}"
+                                            AutomationProperties.HelpText="{Binding PrimaryLockReason}"
+                                            ToolTip="{Binding PrimaryLockReason}" ToolTipService.ShowOnDisabled="True">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="{Binding PrimaryLabel}" VerticalAlignment="Center"/>
                                             <controls:LineIcon Data="{DynamicResource IconArrowR}" Width="15" Height="15" Margin="10,0,0,0"/>
@@ -413,7 +349,7 @@
                     </controls:PageFrame>
 
                     <!-- Remote test from inside the wizard: the package is the one just generated. -->
-                    <controls:PageFrame Title="{Binding ToolTitle}" Subtitle="{Binding ToolSubtitle}"
+                    <controls:PageFrame Title="{Binding ToolTitle}" Subtitle="{Binding ToolSubtitle}" HasConsole="True"
                                         Visibility="{Binding IsTestToolOpen, Converter={StaticResource BoolToVis}}">
                         <controls:PageFrame.Breadcrumb>
                             <StackPanel Orientation="Horizontal">
@@ -466,20 +402,30 @@
         <Border Grid.Row="2" HorizontalAlignment="Center" Margin="0,0,0,12" Padding="6" CornerRadius="18"
                 Background="{DynamicResource DockBrush}"
                 Visibility="{Binding IsNavHidden, Converter={StaticResource BoolToVis}}">
-            <StackPanel Orientation="Horizontal">
-                <RadioButton Style="{StaticResource MenuBarItem}" Content="Create" Tag="{DynamicResource IconBox}"
-                             IsChecked="{Binding IsChecked, ElementName=CreatePackageNavBtn, Mode=TwoWay}"/>
-                <RadioButton Style="{StaticResource MenuBarItem}" Content="Upload" Tag="{DynamicResource IconUpload}"
-                             IsChecked="{Binding IsChecked, ElementName=UploadIntuneNavBtn, Mode=TwoWay}"/>
-                <RadioButton Style="{StaticResource MenuBarItem}" Content="Remote test" Tag="{DynamicResource IconPulse}"
-                             IsChecked="{Binding IsChecked, ElementName=RemoteTestNavBtn, Mode=TwoWay}"/>
-                <RadioButton Style="{StaticResource MenuBarItem}" Content="Applications" Tag="{DynamicResource IconLaptop}"
-                             IsChecked="{Binding IsChecked, ElementName=ApplicationsNavBtn, Mode=TwoWay}"/>
-                <RadioButton Style="{StaticResource MenuBarItem}" Content="Advanced" Tag="{DynamicResource IconList}"
-                             IsChecked="{Binding IsChecked, ElementName=AdvancedNavBtn, Mode=TwoWay}"/>
-                <RadioButton Style="{StaticResource MenuBarItem}" Content="Settings" Tag="{DynamicResource IconGear}"
-                             IsChecked="{Binding IsChecked, ElementName=SettingsNavBtn, Mode=TwoWay}"/>
-            </StackPanel>
+            <Grid>
+                <!-- The current-page highlight, moved by MovePill in code-behind. -->
+                <Border x:Name="MenuBarPill" Height="44" CornerRadius="12" HorizontalAlignment="Left"
+                        Background="{DynamicResource DockActiveBrush}" IsHitTestVisible="False">
+                    <Border.RenderTransform>
+                        <TranslateTransform x:Name="MenuBarPillShift"/>
+                    </Border.RenderTransform>
+                </Border>
+                <StackPanel x:Name="MenuBarItems" Orientation="Horizontal"
+                            RadioButton.Checked="MenuBar_Checked" IsVisibleChanged="MenuBarItems_IsVisibleChanged">
+                    <RadioButton Style="{StaticResource MenuBarItem}" Content="Create" Tag="{DynamicResource IconBox}"
+                                 IsChecked="{Binding IsChecked, ElementName=CreatePackageNavBtn, Mode=TwoWay}"/>
+                    <RadioButton Style="{StaticResource MenuBarItem}" Content="Upload" Tag="{DynamicResource IconUpload}"
+                                 IsChecked="{Binding IsChecked, ElementName=UploadIntuneNavBtn, Mode=TwoWay}"/>
+                    <RadioButton Style="{StaticResource MenuBarItem}" Content="Remote test" Tag="{DynamicResource IconPulse}"
+                                 IsChecked="{Binding IsChecked, ElementName=RemoteTestNavBtn, Mode=TwoWay}"/>
+                    <RadioButton Style="{StaticResource MenuBarItem}" Content="Applications" Tag="{DynamicResource IconLaptop}"
+                                 IsChecked="{Binding IsChecked, ElementName=ApplicationsNavBtn, Mode=TwoWay}"/>
+                    <RadioButton Style="{StaticResource MenuBarItem}" Content="Advanced" Tag="{DynamicResource IconList}"
+                                 IsChecked="{Binding IsChecked, ElementName=AdvancedNavBtn, Mode=TwoWay}"/>
+                    <RadioButton Style="{StaticResource MenuBarItem}" Content="Settings" Tag="{DynamicResource IconGear}"
+                                 IsChecked="{Binding IsChecked, ElementName=SettingsNavBtn, Mode=TwoWay}"/>
+                </StackPanel>
+            </Grid>
         </Border>
     </Grid>
 </ui:FluentWindow>

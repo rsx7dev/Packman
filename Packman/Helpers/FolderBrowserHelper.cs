@@ -11,7 +11,7 @@ public static class FolderBrowserHelper
         if (string.IsNullOrEmpty(packagePath) || !Directory.Exists(packagePath))
             return false;
 
-        var applicationFolder = Path.Combine(packagePath, "Application");
+        var applicationFolder = PsadtLayout.ApplicationFolder(packagePath);
         if (!Directory.Exists(applicationFolder))
             return HasPSADTExecutable(packagePath);
 
