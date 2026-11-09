@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Automation.Peers;
 using System.Windows.Controls;
 
 namespace Packman.Views.Controls;
@@ -60,6 +61,10 @@ public class PageFrame : ContentControl
 
     /// <summary>Compact mode only: the rail is showing over the body.</summary>
     public bool IsRailOpen { get => (bool)GetValue(IsRailOpenProperty); set => SetValue(IsRailOpenProperty, value); }
+
+    /// <summary>A named group, so a screen reader announces the page title and subtitle on the way in.</summary>
+    protected override AutomationPeer OnCreateAutomationPeer() => new TextAutomationPeer(this,
+        () => TextAutomationPeer.Join(". ", Title, Subtitle), AutomationControlType.Group);
 
     protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
     {

@@ -20,6 +20,7 @@ public partial class App : Application
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
         ErrorReporter.Reported += ex => Report(ex, "Something went wrong.");
 
+        Helpers.LiveRegions.Enable();
         ThemeService.Apply(AppServices.Settings.Settings.Theme);
 
         if (AppServices.Settings.Settings.NetworkPaths.IsComplete)

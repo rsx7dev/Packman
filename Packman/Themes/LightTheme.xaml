@@ -67,6 +67,9 @@
     <!-- Amber as text, an icon or a hairline. The fill above cannot carry text
          on a white panel, so this darker step does that job. -->
     <Color x:Key="AccentTextColor">#8A5508</Color>
+    <!-- Amber as a state mark: selected-row bar, tab underline, progress fill, radio dot.
+         The brand fill is 2.2:1 on white; this step holds 3:1 on every light surface. -->
+    <Color x:Key="AccentMarkColor">#A4690F</Color>
 
     <Color x:Key="CodeBgColor">#F8F8F9</Color>
     <Color x:Key="CodeTxtColor">#2A2C32</Color>
@@ -124,6 +127,7 @@
     <SolidColorBrush x:Key="PrimaryDimBrush" Color="{StaticResource PrimaryDimColor}"/>
     <SolidColorBrush x:Key="PrimaryLineBrush" Color="{StaticResource PrimaryLineColor}"/>
     <SolidColorBrush x:Key="AccentTextBrush" Color="{StaticResource AccentTextColor}"/>
+    <SolidColorBrush x:Key="AccentMarkBrush" Color="{StaticResource AccentMarkColor}"/>
 
     <SolidColorBrush x:Key="CodeBgBrush" Color="{StaticResource CodeBgColor}"/>
     <SolidColorBrush x:Key="CodeTxtBrush" Color="{StaticResource CodeTxtColor}"/>

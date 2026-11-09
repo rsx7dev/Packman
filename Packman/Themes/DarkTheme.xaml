@@ -64,6 +64,8 @@
     <!-- Amber as text, an icon or a hairline rather than a fill. Same value as
          the fill here; the light theme has to darken it to stay legible. -->
     <Color x:Key="AccentTextColor">#EDB468</Color>
+    <!-- Amber as a state mark. On dark surfaces the brand fill already clears 3:1. -->
+    <Color x:Key="AccentMarkColor">#E0A050</Color>
 
     <Color x:Key="CodeBgColor">#151618</Color>
     <Color x:Key="CodeTxtColor">#DCDDE0</Color>
@@ -121,6 +123,7 @@
     <SolidColorBrush x:Key="PrimaryDimBrush" Color="{StaticResource PrimaryDimColor}"/>
     <SolidColorBrush x:Key="PrimaryLineBrush" Color="{StaticResource PrimaryLineColor}"/>
     <SolidColorBrush x:Key="AccentTextBrush" Color="{StaticResource AccentTextColor}"/>
+    <SolidColorBrush x:Key="AccentMarkBrush" Color="{StaticResource AccentMarkColor}"/>
 
     <SolidColorBrush x:Key="CodeBgBrush" Color="{StaticResource CodeBgColor}"/>
     <SolidColorBrush x:Key="CodeTxtBrush" Color="{StaticResource CodeTxtColor}"/>

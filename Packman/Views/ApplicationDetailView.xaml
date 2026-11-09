@@ -129,7 +129,7 @@
                             </Trigger>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="rb" Property="Background" Value="{DynamicResource PrimarySoftBrush}"/>
-                                <Setter TargetName="edge" Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+                                <Setter TargetName="edge" Property="Background" Value="{DynamicResource AccentMarkBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>

@@ -7,7 +7,26 @@ All notable changes to Packman are recorded here. The format follows
 
 ## [Unreleased]
 
+### Accessibility
+
+- Status text marked as a live region is now announced by screen readers: generation and publish
+  progress, results, errors and save confirmations. WPF records the setting but raises nothing by
+  itself.
+- Readiness rows, app tiles and page headers are exposed to screen readers with a name, for example
+  "Detection: Ready, ok".
+- Windows contrast themes are honoured: surfaces, text, lines and the accent take the system's own
+  colours, and the app follows the theme being switched on or off while it runs.
+- **System** theme follows a change of the Windows light/dark setting without a restart.
+- In the light theme the selected-row bar, tab underline, progress fill and radio dot use a darker
+  amber that holds 3:1 against every surface (the brand fill was 2.2:1 on white), and the chosen
+  segment of a two-way toggle has a visible outline.
+
 ### Fixed
+
+- An indeterminate progress bar sweeps instead of drawing as a full, static bar.
+- The font stack loads as intended: Segoe UI Variable and Cascadia Mono where Windows has them, with
+  the bundled Instrument Sans and JetBrains Mono as fallbacks. A pack URI in the family list had
+  broken every name around it, so the UI always fell back to Segoe UI and Consolas.
 
 - Remote test no longer reports a failed install as succeeded when the exit code is above
   0x7FFFFFFF (HRESULT and crash codes, `exit -1`) or cannot be read. A cancelled run reads as

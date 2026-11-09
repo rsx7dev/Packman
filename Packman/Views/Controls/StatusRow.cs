@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Automation.Peers;
 using System.Windows.Controls;
 
 namespace Packman.Views.Controls;
@@ -27,4 +28,21 @@ public class StatusRow : Control
 
     /// <summary>ok, pending, warn, bad, off or info.</summary>
     public string Kind { get => (string)GetValue(KindProperty); set => SetValue(KindProperty, value); }
+
+    /// <summary>Read as "Detection: Ready, ok" with the note after it; the state mark is a shape, so its meaning is spoken.</summary>
+    protected override AutomationPeer OnCreateAutomationPeer() => new TextAutomationPeer(this,
+        () => TextAutomationPeer.Join(". ",
+            TextAutomationPeer.Join(", ", TextAutomationPeer.Join(": ", Label, Value), KindText),
+            Detail),
+        AutomationControlType.Text);
+
+    private string KindText => Kind switch
+    {
+        "ok" => "ok",
+        "warn" => "warning",
+        "bad" => "problem",
+        "pending" => "pending",
+        "off" => "off",
+        _ => "",
+    };
 }
