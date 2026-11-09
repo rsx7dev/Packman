@@ -18,7 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SELF = "tests/DocsLinkTests.py"
-OWN_REPOSITORY = "https://github.com/TechLakeRS/Packman"
+OWN_REPOSITORY = "https://github.com/rsx7dev/Packman"
 GENERIC_LINK_TEXT = {"here", "click here", "link", "this", "more", "read more"}
 # Vendored or generated trees that are not scanned for leaked references.
 REFERENCE_SKIP = ("packages/", "third-party/", "Packman/MonacoEditor/vs/")

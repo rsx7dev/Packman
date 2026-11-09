@@ -24,6 +24,15 @@ public sealed class PackagePreflightTests : IDisposable
     }
 
     [Fact]
+    public void ProductCodePlaceholderIsFlagged()
+    {
+        var package = Fakes.Package(_root, "Start-ADTMsiProcess -Action 'Uninstall' -FilePath '{PRODUCT-CODE-PLACEHOLDER}'\n");
+
+        var issue = Assert.Single(PackagePreflight.Check(package));
+        Assert.Contains("product code", issue);
+    }
+
+    [Fact]
     public void PlaceholderInACommentIsNotFlagged()
     {
         var package = Fakes.Package(_root, "# Replace '<silent flags>' and '<uninstall flags>' with the vendor's switches.\n$x = 1\n");

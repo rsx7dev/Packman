@@ -61,8 +61,21 @@ public class PackageUpgradeService
         var oldProductCode = existingScript.MsiProductCode ?? ReadProductCodeFromFiles(existingApplication);
         var newProductCode = newIsMsi ? ReadProductCode(newSourcesPath) : null;
         var newSourceFileName = Path.GetFileName(newSourcesPath);
-        var oldSourceFileName = existingScript.SourceFileName;
+        var oldSourceFileName = existingScript.InstallerFileName;
         var warnings = new List<string>();
+
+        if (newIsMsi && newProductCode == null)
+            warnings.Add("The new MSI's product code could not be read as a GUID, so the script keeps the previous one; set it by hand in Edit script.");
+
+        var referenced = existingScript.SourceFileNames;
+        if (oldSourceFileName != null && referenced.Count > 1)
+            warnings.Add($"The script uses several files under Files ({string.Join(", ", referenced)}). " +
+                $"{oldSourceFileName} was taken as the installer and replaced; the others were left as they are.");
+
+        var oldIsMsi = oldSourceFileName?.EndsWith(".msi", StringComparison.OrdinalIgnoreCase);
+        if (oldIsMsi is { } wasMsi && wasMsi != newIsMsi)
+            warnings.Add($"The installer changed from {(wasMsi ? "MSI" : "EXE")} to {(newIsMsi ? "MSI" : "EXE")}, " +
+                "but the install and uninstall commands are still written for the previous kind. Rewrite them in Edit script.");
 
         try
         {
@@ -83,8 +96,17 @@ public class PackageUpgradeService
                 warnings.Add("The script names no installer under Files, so the previous one was left next to the new installer; remove it if it is no longer needed.");
             else if (!oldSourceFileName.Equals(newSourceFileName, StringComparison.OrdinalIgnoreCase))
             {
+                // The name comes out of the script, which anyone with access to the share can
+                // edit: only a plain file name, resolved inside the new Files folder, is deleted.
                 var oldInstaller = Path.Combine(files, oldSourceFileName);
-                if (File.Exists(oldInstaller)) File.Delete(oldInstaller);
+                if (Path.GetFileName(oldSourceFileName) != oldSourceFileName ||
+                    oldSourceFileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+                    warnings.Add($"'{oldSourceFileName}' is not a plain file name, so the previous installer was not removed from Files.");
+                else
+                {
+                    PackagePaths.EnsureInside(files, oldInstaller);
+                    if (File.Exists(oldInstaller)) File.Delete(oldInstaller);
+                }
             }
 
             File.Copy(newSourcesPath, Path.Combine(files, newSourceFileName), true);
@@ -98,7 +120,7 @@ public class PackageUpgradeService
             }
             cancellationToken.ThrowIfCancellationRequested();
 
-            UpdateScript(newPackagePath, manufacturer, appName, newVersion, newSourceFileName, newIsMsi, oldProductCode, newProductCode);
+            UpdateScript(newPackagePath, manufacturer, appName, newVersion, oldSourceFileName, newSourceFileName, newIsMsi, oldProductCode, newProductCode);
             return new PackageCreationResult(newPackagePath, warnings);
         }
         catch
@@ -111,7 +133,7 @@ public class PackageUpgradeService
 
     private static void UpdateScript(
         string packagePath, string manufacturer, string appName, string version,
-        string newSourceFileName, bool newIsMsi, string? oldProductCode, string? newProductCode)
+        string? oldSourceFileName, string newSourceFileName, bool newIsMsi, string? oldProductCode, string? newProductCode)
     {
         var scriptPath = PsadtLayout.ScriptPath(packagePath);
         if (!File.Exists(scriptPath))
@@ -126,7 +148,8 @@ public class PackageUpgradeService
         script.ScriptDate = PsadtScript.TodayStamp;
         script.ScriptAuthor = Environment.UserName;
 
-        script.ReplaceSourceFileName(newSourceFileName);
+        if (oldSourceFileName != null)
+            script.ReplaceSourceFileName(oldSourceFileName, newSourceFileName);
 
         if (!string.IsNullOrEmpty(newProductCode))
         {
@@ -148,7 +171,8 @@ public class PackageUpgradeService
         try
         {
             var info = MsiInfoService.ExtractMsiInfo(msiPath);
-            return info.IsValid && !string.IsNullOrEmpty(info.ProductCode) ? info.ProductCode : null;
+            // Written into the script, so only a real product code is accepted.
+            return info.IsValid && PsadtScript.IsProductCode(info.ProductCode) ? info.ProductCode : null;
         }
         catch (Exception ex)
         {

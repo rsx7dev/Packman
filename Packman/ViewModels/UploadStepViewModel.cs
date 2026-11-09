@@ -216,6 +216,31 @@ public class UploadStepViewModel : ObservableObject
     {
         if (rule.Type != DetectionRuleType.File) return;
 
+        // Configure seeds detection the first time it sees a package, which would wipe a
+        // rule applied from Remote test before that. Remember it, so the seeding keeps it.
+        _discoveredRule = rule;
+        _discoveredFor = _create.CurrentPackagePath;
+        ApplyRuleFields(rule);
+    }
+
+    private DetectionRule? _discoveredRule;
+    private string _discoveredFor = "";
+
+    /// <summary>
+    /// The wizard has a different package, even if it sits at the same path: the next visit
+    /// to Configure seeds defaults, detection and groups again, and the last result goes.
+    /// </summary>
+    public void ForgetPackage()
+    {
+        _defaultsAppliedFor = "";
+        _groupsSeededFor = "";
+        _discoveredRule = null;
+        _discoveredFor = "";
+        StatusText = "";
+    }
+
+    private void ApplyRuleFields(DetectionRule rule)
+    {
         _detectionPath = rule.Path;
         _detectionName = rule.FileOrFolderName;
         _detectionValue = rule.DetectionValue;
@@ -529,6 +554,10 @@ public class UploadStepViewModel : ObservableObject
             return;
         }
 
+        if (!await PublishGuard.ConfirmNewAppAsync(packagePath, _auth,
+                id => AppServices.Apps.ApplicationExistsAsync(id), AppServices.Dialogs))
+            return;
+
         var invalidCode = ReturnCodes.FirstOrDefault(r => r.ToInfo() == null);
         if (invalidCode != null)
         {
@@ -557,7 +586,10 @@ public class UploadStepViewModel : ObservableObject
         var returnCodes = ReturnCodes.Select(r => r.ToInfo()).OfType<ReturnCodeInfo>().ToList();
         var installCommand = InstallCommandPreview;
         var uninstallCommand = UninstallCommandPreview;
-        var iconPath = string.IsNullOrEmpty(_create.ExtractedIconPath) ? null : _create.ExtractedIconPath;
+        // The icon in the package folder, which Create and Upgrade both write; the one read
+        // from the installer only when the folder has none.
+        var iconPath = PsadtLayout.FindIcon(_create.CurrentPackagePath)
+            ?? (string.IsNullOrEmpty(_create.ExtractedIconPath) ? null : _create.ExtractedIconPath);
         var supersedence = Supersedence.Links;
 
         NativeCodeSigner? signer = settings.CodeSigning.Enabled
@@ -584,6 +616,12 @@ public class UploadStepViewModel : ObservableObject
                 true => "Upload cancelled. The partially created app was removed from Intune.",
                 false => "Upload cancelled. The partially created app could not be removed; delete it in the Intune admin center.",
                 null => "Upload cancelled. Check Intune for any app created before cancellation; no app ID was confirmed.",
+            },
+            () => uploadService.RollbackSucceeded switch
+            {
+                true => "The partially created app was removed from Intune.",
+                false => "The partially created app could not be removed. Delete it in the Intune admin center before publishing again.",
+                null => "",
             });
     }
 
@@ -604,6 +642,16 @@ public class UploadStepViewModel : ObservableObject
         _detectionProductCode = "";
 
         var productCode = FindMsiProductCode();
+        // The product code stays known for the MSI option even when a tested rule wins.
+        if (!string.IsNullOrEmpty(productCode)) _detectionProductCode = productCode;
+
+        if (_discoveredRule != null && _discoveredFor == _create.CurrentPackagePath)
+        {
+            ApplyRuleFields(_discoveredRule);
+            return;
+        }
+        _discoveredRule = null;
+
         if (!string.IsNullOrEmpty(productCode))
         {
             _detectionProductCode = productCode;

@@ -31,7 +31,8 @@ internal static class PackageLinkTests
         ("A link from another tenant does not resolve", OtherTenantHidden),
         ("A link to another app does not resolve for this app", OtherAppHidden),
         ("A packman.id without a tenantId is no link, not a legacy one", EmptyTenantRejected),
-        ("The latest upload wins when several folders link the same app", LatestUploadWins),
+        ("Two folders linking the same app resolve to neither", TwoClaimsAreNotTrusted),
+        ("A link whose id has path or query characters is ignored", LinkWithUnsafeIdIsIgnored),
         ("Without packman.id the legacy .intune-appid.json is read as a legacy link", LegacyFallback),
         ("packman.id takes precedence over the legacy file, which is never changed", PackmanIdWinsOverLegacy),
         ("A legacy link resolves on the app id alone", LegacyResolvesOnAppId),
@@ -167,13 +168,24 @@ internal static class PackageLinkTests
         return Task.CompletedTask;
     }
 
-    private static Task LatestUploadWins()
+    // A second folder claiming the app, whatever date it carries, makes neither trusted.
+    private static Task TwoClaimsAreNotTrusted()
     {
         var older = NewPackage(out var share, "Contoso_Reader", "1.0");
         var copy = NewPackage(share, "Contoso_Reader_Copy", "1.0");
         PackageMarker.Save(older, NewLink("app-1", Tenant, "2026-10-01T00:00:00.0000000Z"));
-        PackageMarker.Save(copy, NewLink("app-1", Tenant, "2026-10-30T00:00:00.0000000Z"));
-        Equal(copy, PackageSourceLocator.FindLinked(share, "app-1", Tenant));
+        PackageMarker.Save(copy, NewLink("app-1", Tenant, "9999-12-31T00:00:00.0000000Z"));
+        Equal(null, PackageSourceLocator.FindLinked(share, "app-1", Tenant));
+        Equal(2, PackageSourceLocator.FindAllLinked(share, "app-1", Tenant).Count);
+        return Task.CompletedTask;
+    }
+
+    // Ids go into Graph URLs, so a link with path or query characters is no link.
+    private static Task LinkWithUnsafeIdIsIgnored()
+    {
+        var package = NewPackage(out _, "Contoso_Reader", "1.0");
+        PackageMarker.Save(package, NewLink("../deviceManagement?x=1", Tenant, "2026-10-01T00:00:00.0000000Z"));
+        Equal(null, PackageMarker.Read(package));
         return Task.CompletedTask;
     }
 

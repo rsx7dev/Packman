@@ -204,8 +204,8 @@ Only implemented settings are shown. Appearance saves immediately; other changes
 
 **Create** in the sidebar opens the **Create package** page, a three-step wizard — **Package**,
 **Configure** and **Review & publish** — with two optional side trips (**Edit script** and
-**Remote test**) available once the package exists. `↵` triggers the primary button; **Back**
-steps back.
+**Remote test**) available once the package exists. The primary button in the footer moves you
+on; **Back** steps back.
 
 ![Create package page on the Package step in the light theme, with the sample installer Contoso Reader 4.2.0 selected](images/create-package-light.png)
 
@@ -293,7 +293,10 @@ then rewrites `Invoke-AppDeployToolkit.ps1` — `AppVendor`, `AppName`, `AppVers
   the editor — they are literal text, not real switches.
 
 If that version folder already exists you are asked whether to replace it (**Replace package**);
-declining cancels without touching anything.
+the prompt says that the folder's script edits go, and whether it is linked to an Intune app.
+Declining cancels without touching anything. A replacement is built beside the existing folder and
+swapped in only once it is complete, so a cancel or a failed copy leaves the existing package as it
+was.
 
 Once a package exists, the **Optional before publishing** card offers three actions —
 **Edit script**, **Remote test** and **Open folder** — and the primary button becomes
@@ -407,7 +410,8 @@ every field here is pre-filled from Settings and then editable for this one pack
    | **Registry key exists** | hive + key path + optional value name | — |
 
    If you ran a remote test, **Use this rule for publishing** will have filled a file/version rule in from the
-   real install. Packman refuses to upload an incomplete rule — Intune would accept it and then
+   real install, and Configure keeps it. A **Registry key exists** rule with no value name checks
+   that the key itself exists. Packman refuses to upload an incomplete rule — Intune would accept it and then
    never detect the app, so a Required assignment would reinstall forever.
 
 3. **PSADT deploy mode** — how `Invoke-AppDeployToolkit.exe` runs on the device:
@@ -460,10 +464,16 @@ Upload does the following, with a shared five-stage progress panel:
    straight out of the `.intunewin`, and commits it.
 5. *Publishing and assigning*: publishes the app and assigns the groups listed on the Review
    step — and, if those options are on in Settings, creates (or reuses) the per-package install
-   group and uninstall group from their name templates and assigns those too.
+   group and uninstall group from their name templates and assigns those too. A per-package group
+   that already existed is reused, and the log says so: check who owns it and who is in it.
 
-Before publication, cancelling attempts to remove a known half-created app; the result line
-reports cleanup success or failure. If no app ID was confirmed, check Intune before retrying.
+If the package folder is already linked to an app in this tenant (`Intune\packman.id`), publishing
+asks first: publishing again creates a second app. To update the existing app, use **Republish
+content** on its page under Applications.
+
+When a publish is cancelled or fails before publication, Packman tries to remove the half-created
+app, and the result line says whether that worked. If no app ID was confirmed, check Intune before
+retrying.
 
 On success the status reads *Uploaded to Intune · App ID …*, `Intune\packman.id` (app ID, tenant
 ID, upload time, display name and version, `.intunewin` file name and size) is written into the
@@ -489,10 +499,14 @@ From **Create Package**, switch the mode toggle to **Upgrade existing**:
 3. Press **Upgrade package**.
 
 The old package is copied forward — keeping your script edits and everything under `Files\`
-(transforms, config and licence files stay put) — only the installer the script points at is
-replaced by the new one, the script metadata and MSI product code are refreshed, and the icon is
-carried over. If the script names no installer, the old one is left next to the new one and the
-status line says so. The wizard then continues exactly as for a new package. Nothing is superseded
+(transforms, config and licence files stay put) — only the package's installer is replaced by the
+new one: the file under the generated `## MSI Installation` / `## EXE Installation` heading, or
+else the first `.msi` or `.exe` the script runs from `Files\`. Prerequisites and helper scripts it
+also references are left alone, and the status line names them. The script metadata and MSI product
+code are refreshed, and the icon is carried over. If the script names no installer, the old one is
+left next to the new one and the status line says so. Switching between MSI and EXE leaves the
+install and uninstall commands for you to rewrite; the status line says so, and an unknown product
+code is left as `{PRODUCT-CODE-PLACEHOLDER}`, which the preflight check flags. The wizard then continues exactly as for a new package. Nothing is superseded
 automatically: if the old package was published from Packman, Configure offers a one-click
 **Supersede the previous version** suggestion (identified by `Intune\packman.id` in the old package folder).
 
@@ -557,13 +571,14 @@ that edits them).
 
 **Package** — where the app lives on your share. Packman searches the `<Vendor>_<AppName>\<Version>`
 folders under the Intune Applications path for the one whose `Intune\packman.id` links it to this app
-and runs an integrity check:
+and runs an integrity check. If more than one folder is linked to the same app, none is used —
+anyone who can write to the share can write a `packman.id`, so Packman will not guess — and the page
+lists the folders so you can delete the link from the wrong ones.
 
 | Check | Meaning |
 |---|---|
 | `Invoke-AppDeployToolkit.ps1` | deploy script present |
 | `*.intunewin` | present, and its size compared against what Intune reports (10% tolerance for encryption overhead) |
-| `detection.xml` | detection definition present |
 | `Icon\…` | icon archived with the package |
 
 From here you can **Copy** the path or **Open folder**; **Edit script** in the header opens it in VS Code / ISE.
@@ -590,7 +605,7 @@ Excel treats them as text. The report needs `DeviceManagementApps.Read.All`, whi
 
 - **Add assignment**: pick Required / Available / Uninstall, search Entra groups, press **Add group**.
 - Remove an assignment.
-- Click a group, or **View members**, to open the members panel: the first 100 members, an
+- Click a group, or **View members**, to open the members panel: every member, an
   **Add member** box that searches devices and users, and add/remove. Membership changes affect every
   app assigned to that group — the panel says so. Built-in targets (All Devices / All Users) have
   no member list.
@@ -677,7 +692,6 @@ Known limits, so you do not go looking:
   membership of a dynamic group cannot be edited by hand.
 - Group display names must resolve unambiguously — a default group name from Settings that does
   not match exactly one Entra group is skipped, with a warning in the log.
-- The group members panel shows the first 100 members only.
 - Adding or removing members needs `GroupMember.ReadWrite.All`; without it the panel reports a
   permission error rather than failing silently.
 

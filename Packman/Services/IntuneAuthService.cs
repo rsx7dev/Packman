@@ -102,6 +102,24 @@ public class IntuneAuthService
     /// <summary>Raised on sign-in state changes so screens can refresh.</summary>
     public event Action? StateChanged;
 
+    /// <summary>
+    /// Subscribers are view models that touch bound collections and commands, and a token
+    /// request made during an upload fails on a pool thread. The event is always raised on
+    /// the UI thread, so a sign-in that expires mid-publish reports itself instead of
+    /// failing inside a subscriber.
+    /// </summary>
+    private void RaiseStateChanged()
+    {
+        var handlers = StateChanged;
+        if (handlers == null) return;
+
+        var dispatcher = System.Windows.Application.Current?.Dispatcher;
+        if (dispatcher == null || dispatcher.CheckAccess())
+            handlers();
+        else
+            dispatcher.InvokeAsync(handlers);
+    }
+
     public async Task SignInAsync(AuthMode mode, AppSettings.AuthConfig cfg, nint hwnd)
     {
         long attempt;
@@ -122,7 +140,7 @@ public class IntuneAuthService
             ReplaceSession(candidate);
         }
 
-        StateChanged?.Invoke();
+        RaiseStateChanged();
     }
 
     private static async Task<AuthSession> SignInInteractiveAsync(AppSettings.AuthConfig cfg, nint hwnd)
@@ -242,7 +260,7 @@ public class IntuneAuthService
             previous = _session;
             ReplaceSession(null);
         }
-        StateChanged?.Invoke();
+        RaiseStateChanged();
 
         if (previous is { PublicClient: { } client, Account: { } account })
             await client.RemoveAsync(account);
@@ -329,7 +347,7 @@ public class IntuneAuthService
     internal void UseTestSession(string tenantId, string accessToken)
     {
         lock (_stateLock) ReplaceSession(new AuthSession { User = "test", TenantId = tenantId, TestToken = accessToken });
-        StateChanged?.Invoke();
+        RaiseStateChanged();
     }
 
     /// <summary>Graph access token for the current sign-in. Throws when not signed in.</summary>
@@ -379,7 +397,7 @@ public class IntuneAuthService
                 EnsureSession(generation);
                 ReplaceSession(null);
             }
-            StateChanged?.Invoke();
+            RaiseStateChanged();
             throw new InvalidOperationException(
                 "The Intune sign-in has expired. Sign in again on the Settings page.", ex);
         }

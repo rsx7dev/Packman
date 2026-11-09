@@ -14,7 +14,7 @@ public partial class IntuneService
     /// </summary>
     public Task<List<DeviceInstallStatus>> GetDeviceInstallStatusAsync(string appId,
         IProgress<(int Read, int Total)>? progress = null, CancellationToken ct = default)
-        => ReadDeviceInstallStatusAsync(async skip => (await _graph.PostAsync(
+        => ReadDeviceInstallStatusAsync(async skip => (await _graph.PostQueryAsync(
                 $"{GraphClient.Beta}/deviceManagement/reports/getDeviceInstallStatusReport",
                 new { filter = $"(ApplicationId eq '{OData.Literal(appId)}')", top = DeviceReportPageSize, skip },
                 "Device install status report", ct)).Json,

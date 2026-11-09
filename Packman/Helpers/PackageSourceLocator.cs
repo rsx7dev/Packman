@@ -9,32 +9,41 @@ namespace Packman.Helpers;
 public static class PackageSourceLocator
 {
     /// <summary>
-    /// Returns the version folder linked to this app in this tenant, or null when none is. A legacy
-    /// link has no tenant and matches on the app id alone: the caller has just loaded that app
-    /// from the connected tenant, which proves it exists there. When several folders are linked,
-    /// the latest upload wins.
+    /// Returns the version folder linked to this app in this tenant, or null when none is, or
+    /// when more than one is (see <see cref="FindAllLinked"/>). A legacy link has no tenant and
+    /// matches on the app id alone: the caller has just loaded that app from the connected
+    /// tenant, which proves it exists there.
     /// </summary>
     public static string? FindLinked(string shareRoot, string appId, string? tenantId)
     {
-        if (string.IsNullOrWhiteSpace(shareRoot) || !Directory.Exists(shareRoot))
-            return null;
-
-        try
-        {
-            return LatestLinkedFolder(shareRoot, appId, tenantId);
-        }
-        catch
-        {
-            return null;   // unreachable share or no permission; the page shows "not found"
-        }
+        var folders = FindAllLinked(shareRoot, appId, tenantId);
+        return folders.Count == 1 ? folders[0] : null;
     }
 
-    private static string? LatestLinkedFolder(string shareRoot, string appId, string? tenantId) =>
-        Directory.EnumerateDirectories(shareRoot)
-            .SelectMany(Directory.EnumerateDirectories)
-            .Select(folder => (folder, link: PackageMarker.Read(folder)))
-            .Where(x => x.link != null && x.link.AppId == appId && (x.link.IsLegacy || x.link.TenantId == tenantId))
-            .OrderByDescending(x => x.link!.UploadedAt, StringComparer.Ordinal)
-            .Select(x => x.folder)
-            .FirstOrDefault();
+    /// <summary>
+    /// Every version folder whose link names this app. Anyone who can write to the share can
+    /// write a packman.id, so when two folders claim one app neither is trusted: nothing in
+    /// the files can say which is real. A folder that cannot be read is skipped, so one
+    /// restricted folder does not hide every other package.
+    /// </summary>
+    public static IReadOnlyList<string> FindAllLinked(string shareRoot, string appId, string? tenantId)
+    {
+        if (string.IsNullOrWhiteSpace(shareRoot) || string.IsNullOrWhiteSpace(appId))
+            return [];
+
+        var skipUnreadable = new EnumerationOptions { IgnoreInaccessible = true, RecurseSubdirectories = false };
+        try
+        {
+            if (!Directory.Exists(shareRoot)) return [];
+            return Directory.EnumerateDirectories(shareRoot, "*", skipUnreadable)
+                .SelectMany(app => Directory.EnumerateDirectories(app, "*", skipUnreadable))
+                .Where(folder => PackageMarker.Read(folder) is { } link && link.AppId == appId &&
+                                 (link.IsLegacy || link.TenantId == tenantId))
+                .ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return [];   // unreachable share; the page shows "not found"
+        }
+    }
 }

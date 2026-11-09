@@ -206,6 +206,14 @@ public sealed class AdvancedViewModel : ObservableObject
         var names = ParseNames();
         if (group == null || names.Count == 0) return;
 
+        // Every app and policy assigned to the group, uninstalls included, reaches these PCs.
+        if (!AppServices.Dialogs.Confirm(
+                $"Add {names.Count} PC{(names.Count == 1 ? "" : "s")} to \"{group.DisplayName}\"?\n\n" +
+                "Every app and policy assigned to this group, including uninstall assignments, will apply to them. " +
+                "PCs with several Entra device records get all of them added.",
+                "Add PCs to group", "Add to group", "Cancel"))
+            return;
+
         IsBulkRunning = true;
         BulkRows.Clear();
         OnPropertyChanged(nameof(HasBulkRows));

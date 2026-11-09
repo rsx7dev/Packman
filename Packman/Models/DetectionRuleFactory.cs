@@ -30,7 +30,8 @@ public static class DetectionRuleFactory
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(hive);
         ArgumentException.ThrowIfNullOrWhiteSpace(keyPath);
-        ArgumentException.ThrowIfNullOrWhiteSpace(valueName);
+        // A blank value name is the documented "the key itself exists" check.
+        ArgumentNullException.ThrowIfNull(valueName);
 
         return new()
         {

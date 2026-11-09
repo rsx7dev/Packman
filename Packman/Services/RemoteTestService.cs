@@ -37,6 +37,20 @@ public class RemoteTestService
     /// <summary>PSADT/MSI success codes; 3010 and 1641 mean reboot required.</summary>
     public static bool IsSuccess(int exitCode) => exitCode is 0 or 3010 or 1641;
 
+    /// <summary>
+    /// The exit code the remote monitor printed. The task scheduler reports it as an unsigned
+    /// 32-bit number, so HRESULTs and crash codes arrive above int.MaxValue; they map back to
+    /// the signed value. Anything unreadable is -1, never 0: no code must not read as success.
+    /// </summary>
+    internal static int ParseExitCode(ReadOnlySpan<char> text)
+    {
+        if (!long.TryParse(text.Trim(), System.Globalization.NumberStyles.AllowLeadingSign,
+                System.Globalization.CultureInfo.InvariantCulture, out var value))
+            return -1;
+        if (value is >= int.MinValue and <= int.MaxValue) return (int)value;
+        return value <= uint.MaxValue ? unchecked((int)(uint)value) : -1;
+    }
+
     /// <summary>Computer names only: the value reaches a UNC path and a remote script.</summary>
     public static bool IsValidComputerName(string computerName) =>
         !string.IsNullOrWhiteSpace(computerName) &&
@@ -199,8 +213,8 @@ public class RemoteTestService
                 {
                     string line = rawLine.TrimEnd('\r');
                     if (line.Length == 0) continue;
-                    if (line.StartsWith(ExitCodeSentinel))
-                        int.TryParse(line.AsSpan(ExitCodeSentinel.Length), out exitCode);
+                    if (line.StartsWith(ExitCodeSentinel, StringComparison.Ordinal))
+                        exitCode = ParseExitCode(line.AsSpan(ExitCodeSentinel.Length));
                     else
                         output(line);
                 }

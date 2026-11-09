@@ -91,4 +91,25 @@ public sealed class RemoteTestServiceTests : IDisposable
         Parser.ParseInput(script, out _, out var errors);
         Assert.Empty(errors);
     }
+
+    [Theory]
+    [InlineData("0", 0)]
+    [InlineData("3010", 3010)]
+    [InlineData(" 1603 ", 1603)]
+    [InlineData("-3", -3)]
+    // The task scheduler prints the code unsigned: an HRESULT, a crash and exit -1.
+    [InlineData("2147944003", unchecked((int)0x80070643))]
+    [InlineData("3221225477", unchecked((int)0xC0000005))]
+    [InlineData("4294967295", -1)]
+    // No readable code is a failure, never 0.
+    [InlineData("", -1)]
+    [InlineData("abc", -1)]
+    [InlineData("99999999999", -1)]
+    public void ExitCodeIsReadWithoutTurningAFailureIntoSuccess(string printed, int expected)
+    {
+        var code = RemoteTestService.ParseExitCode(printed);
+
+        Assert.Equal(expected, code);
+        Assert.Equal(expected is 0 or 3010 or 1641, RemoteTestService.IsSuccess(code));
+    }
 }

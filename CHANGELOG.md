@@ -7,7 +7,47 @@ All notable changes to Packman are recorded here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Remote test no longer reports a failed install as succeeded when the exit code is above
+  0x7FFFFFFF (HRESULT and crash codes, `exit -1`) or cannot be read. A cancelled run reads as
+  cancelled, and known exit codes are explained.
+- **Replace package** builds the new package beside the existing one and swaps it in at the end; a
+  cancel or failed copy leaves the existing package and its `packman.id` untouched. The prompt says
+  what is discarded and whether the folder is linked to an Intune app.
+- A source path that does not exist fails generation instead of producing a package without an
+  installer; a path pasted with quotes is accepted, and an `.msi` whose product code cannot be read
+  is still packaged as an MSI.
+- Upgrade replaces only the package's own installer, not every file the script runs from `Files\`,
+  and warns about the others and about an MSI/EXE switch. Preflight flags
+  `{PRODUCT-CODE-PLACEHOLDER}`.
+- The detection rule applied from Remote test survives the first visit to Configure.
+- **Registry key exists** with a blank value name builds a key-exists rule instead of an error.
+- The app detail page no longer saves detection rules it failed to load, which replaced the app's
+  rules in Intune. A rule Intune rejects is put back and its editor reopened; incomplete rules are
+  refused before saving. Republish can be cancelled from the detail page.
+- Graph requests that can be replayed are retried on 408, 500 and 502 as well as 503 and 504.
+  Report queries are retried as reads, and an unavailable status report no longer fails the app
+  detail page.
+- A sign-in that expires during a publish reports itself instead of failing inside a UI update.
+- Publishing a package folder already linked to an app in the tenant asks before creating a second
+  app. A failed publish says whether the half-created app was removed.
+- All publish paths upload the package's icon; an upgraded package publishes with its own
+  architecture. A new or rebuilt package starts Configure from the defaults again.
+- Default groups from Settings are resolved by exact name; a name shared by several Entra groups is
+  skipped with a warning instead of picking one.
+- Closing Packman during a remote test or upgrade asks first, and the close no longer waits forever
+  on a job that does not stop.
+- The Application detail page's `detection.xml` check, which could never pass, is gone.
+
 ### Security
+
+- Upgrade deletes the previous installer only when its name from the script is a plain file name
+  inside the new package's `Files\`, and writes a new product code only when it is a braced GUID.
+- When more than one package folder claims the same app, none is used for Republish content or
+  Edit script; previously the newest date written in the (editable) `packman.id` won.
+  `packman.id` ids with path or query characters are ignored.
+- A per-package group that already exists is still reused, and the log now says so.
 
 - Remote test stages packages in `C:\ProgramData\Packman` instead of `C:\Temp\Packman`. Before the
   copy the folder is made owner Administrators, inheritance off, SYSTEM and Administrators only; a

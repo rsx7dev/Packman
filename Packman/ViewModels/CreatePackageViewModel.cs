@@ -373,7 +373,8 @@ public class CreatePackageViewModel : ObservableObject
             Name = AppName.Trim(),
             Manufacturer = string.IsNullOrWhiteSpace(Manufacturer) ? "Unknown" : Manufacturer.Trim(),
             Version = string.IsNullOrWhiteSpace(Version) ? "1.0.0" : Version.Trim(),
-            SourcesPath = SourcesPath.Trim(),
+            // Explorer's "Copy as path" wraps the path in quotes.
+            SourcesPath = SourcesPath.Trim().Trim('"').Trim(),
             InstallContext = installContext,
             Architecture = string.IsNullOrWhiteSpace(Architecture) ? "x64" : Architecture.Trim(),
             InstallArguments = InstallArguments.Trim(),
@@ -459,7 +460,7 @@ public class CreatePackageViewModel : ObservableObject
         catch (OperationCanceledException)
         {
             WasCancelled = true;
-            StatusText = "Generation cancelled. Nothing was left on the share.";
+            StatusText = "Generation cancelled. No half-built package was left on the share.";
             ActivityLog.Shared.Warning(StatusText);
             return null;
         }

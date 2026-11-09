@@ -11,7 +11,7 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Version>1.1.0</Version>
     <Authors>TechLakeRS</Authors>
-    <RepositoryUrl>https://github.com/TechLakeRS/Packman</RepositoryUrl>
+    <RepositoryUrl>https://github.com/rsx7dev/Packman</RepositoryUrl>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
   </PropertyGroup>
 

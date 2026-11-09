@@ -358,6 +358,7 @@ public sealed class RemoteTestViewModel : ObservableObject
         bool cleanup = CleanupAfterRun;
 
         int exitCode = -1;
+        var cancelled = false;
         try
         {
             RememberComputer(context.Computer);
@@ -373,7 +374,8 @@ public sealed class RemoteTestViewModel : ObservableObject
             }
             catch (OperationCanceledException)
             {
-                Append("ERROR: Cancelled");
+                cancelled = true;
+                Append("WARNING: Cancelled. The scheduled task was stopped; an installer it had already started may still be running or half-applied on the target.");
             }
             catch (PSRemotingTransportException ex)
             {
@@ -386,14 +388,19 @@ public sealed class RemoteTestViewModel : ObservableObject
             }
             CopyPercent = null;
 
-            bool success = RemoteTestService.IsSuccess(exitCode);
+            bool success = !cancelled && RemoteTestService.IsSuccess(exitCode);
+            var explained = cancelled ? "" : InstallErrorText.Describe(exitCode);
             Append("========================================");
-            Append(success ? $"✓ {deploymentType.ToUpperInvariant()} SUCCEEDED" : $"✗ {deploymentType.ToUpperInvariant()} FAILED");
+            Append(cancelled ? $"■ {deploymentType.ToUpperInvariant()} CANCELLED"
+                : success ? $"✓ {deploymentType.ToUpperInvariant()} SUCCEEDED" : $"✗ {deploymentType.ToUpperInvariant()} FAILED");
+            if (!string.IsNullOrEmpty(explained)) Append($"Exit code {exitCode}: {explained}");
             Append("========================================");
             Flush();
-            StatusText = success ? $"{deploymentType.ToLowerInvariant()} succeeded (exit {exitCode})" : $"{deploymentType.ToLowerInvariant()} failed (exit {exitCode})";
+            StatusText = cancelled ? $"{deploymentType.ToLowerInvariant()} cancelled"
+                : success ? $"{deploymentType.ToLowerInvariant()} succeeded (exit {exitCode})" : $"{deploymentType.ToLowerInvariant()} failed (exit {exitCode})";
             LastRunSucceeded = success;
-            LastRunSummary = success ? $"{deploymentType} succeeded" : $"{deploymentType} failed (exit {exitCode})";
+            LastRunSummary = cancelled ? $"{deploymentType} cancelled"
+                : success ? $"{deploymentType} succeeded" : $"{deploymentType} failed (exit {exitCode})";
 
             // Keep the operation busy through follow-up discovery so another action
             // cannot uninstall the app or change the target during this delay.
@@ -588,7 +595,7 @@ public sealed class RemoteTestViewModel : ObservableObject
     private static LineKind Classify(string text)
     {
         if (text.StartsWith("ERROR") || text.Contains('✗')) return LineKind.Bad;
-        if (text.StartsWith("WARNING")) return LineKind.Warn;
+        if (text.StartsWith("WARNING") || text.Contains('■')) return LineKind.Warn;
         if (text.StartsWith("[OK]") || text.Contains('✓')) return LineKind.Good;
         if (text.StartsWith("====")) return LineKind.Dim;
         return LineKind.Info;

@@ -93,8 +93,20 @@ public partial class MainWindow : FluentWindow
         if (vm.Upload.Publish.IsRunning) jobs.Add(("publish", vm.Upload.Publish.CancelCommand));
         if (UploadIntunePage.ViewModel.Publish.IsRunning) jobs.Add(("upload", UploadIntunePage.ViewModel.Publish.CancelCommand));
         if (AppDetailPage.ViewModel is { IsUpdating: true } detail) jobs.Add(("republish", detail.CancelUpdateCommand));
+        // A remote test stopped by cancel removes its scheduled task; one abandoned by
+        // closing leaves it running on the target.
+        if (vm.RemoteTest.IsRunning) jobs.Add(("remote test", vm.RemoteTest.CancelCommand));
+        if (RemoteTestPage.ViewModel.IsRunning) jobs.Add(("remote test", RemoteTestPage.ViewModel.CancelCommand));
+        // An upgrade cannot be cancelled midway; closing waits for it, so no half-built
+        // version folder is left to block the next attempt.
+        if (vm.Upgrade.IsBusy) jobs.Add(("package upgrade", WaitForIt));
         return jobs;
     }
+
+    private static readonly ICommand WaitForIt = new RelayCommand(() => { });
+
+    /// <summary>How long closing waits for cancelled jobs before it closes anyway.</summary>
+    private static readonly TimeSpan CloseWaitLimit = TimeSpan.FromMinutes(2);
 
     /// <summary>Page switches asked for from a rail, the title bar or another page.</summary>
     private void Navigate(string page)
@@ -140,7 +152,7 @@ public partial class MainWindow : FluentWindow
 
         if (jobs.Count > 0)
         {
-            var names = string.Join(" and ", jobs.Select(j => j.Name));
+            var names = string.Join(" and ", jobs.Select(j => j.Name).Distinct());
             if (!AppServices.Dialogs.Confirm(
                     $"The {names} {(jobs.Count == 1 ? "is" : "are")} still running. Closing now cancels {(jobs.Count == 1 ? "it" : "them")}.",
                     "Packman is busy", $"Cancel {names} and close", "Keep Packman open"))
@@ -155,8 +167,10 @@ public partial class MainWindow : FluentWindow
             try
             {
                 await Task.Yield();   // Close() below must not run inside this Closing event
-                // Let the job clean up (a cancelled publish removes the half-built app) first.
-                while (RunningJobs(vm).Count > 0) await Task.Delay(250);
+                // Let the job clean up (a cancelled publish removes the half-built app) first,
+                // but never hold the window open for good on a job that does not stop.
+                var waitUntil = DateTime.UtcNow + CloseWaitLimit;
+                while (RunningJobs(vm).Count > 0 && DateTime.UtcNow < waitUntil) await Task.Delay(250);
                 proceed = await vm.Editor.PromptSaveAllAsync();
             }
             catch (Exception ex)

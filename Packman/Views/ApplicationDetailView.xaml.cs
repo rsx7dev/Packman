@@ -188,8 +188,7 @@ public partial class ApplicationDetailView : UserControl
     {
         var display = RowContext<DetectionRuleDisplay>(sender);
         if (display == null || Vm == null) return;
-        display.ApplyEdit();
-        ErrorReporter.FireAndForget(Vm.SaveDetectionRulesAsync);
+        ErrorReporter.FireAndForget(() => Vm.SaveDetectionRuleAsync(display));
     }
 
     private void DeleteRule_Click(object sender, RoutedEventArgs e)

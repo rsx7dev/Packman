@@ -30,7 +30,7 @@ public sealed class PsadtScript
     // "$($adtSession.DirFiles)\setup.exe" as the generator writes it, plus the bare
     // "$adtSession.DirFiles\setup.exe" that hand-written scripts carry.
     private static readonly Regex DirFilesReference = new(
-        @"(?<prefix>\$\(\$adtSession\.DirFiles\)\\|\$adtSession\.DirFiles\\)(?<name>[^""'\\\r\n]+?\.(?:exe|msi|bat|cmd|ps1))(?=[""'\s]|$)",
+        @"(?<prefix>\$\(\$adtSession\.DirFiles\)\\|\$adtSession\.DirFiles\\)(?<name>[^""'\\/:\r\n]+?\.(?:exe|msi|bat|cmd|ps1))(?=[""'\s]|$)",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly Regex UninstallLine = new(
@@ -264,18 +264,64 @@ public sealed class PsadtScript
         }
     }
 
-    /// <summary>Points every $adtSession.DirFiles reference at a new installer. Returns how many changed.</summary>
-    public int ReplaceSourceFileName(string newSourceFileName)
+    /// <summary>Every distinct file the script reaches through $adtSession.DirFiles, in order of first use.</summary>
+    public IReadOnlyList<string> SourceFileNames =>
+        DirFilesReference.Matches(Content).Select(m => m.Groups["name"].Value)
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+    private static readonly Regex InstallHeading = new(
+        @"^[ \t]*##[ \t]+(?:MSI|EXE)[ \t]+Installation[ \t]*\r?$",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Multiline);
+
+    /// <summary>
+    /// The package's own installer among the files the script references: the one under the
+    /// heading the generator writes, else the first .msi or .exe, else the first reference.
+    /// A prerequisite or helper script named earlier in the file is not the installer.
+    /// </summary>
+    public string? InstallerFileName
     {
+        get
+        {
+            var references = DirFilesReference.Matches(Content);
+            if (references.Count == 0) return null;
+
+            var heading = InstallHeading.Match(Content);
+            if (heading.Success && references.FirstOrDefault(m => m.Index > heading.Index) is { } generated)
+                return generated.Groups["name"].Value;
+
+            var names = references.Select(m => m.Groups["name"].Value).ToList();
+            return names.FirstOrDefault(n => n.EndsWith(".msi", StringComparison.OrdinalIgnoreCase)
+                                          || n.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+                ?? names[0];
+        }
+    }
+
+    /// <summary>
+    /// Points the $adtSession.DirFiles references to <paramref name="oldSourceFileName"/> at
+    /// a new installer and leaves every other referenced file alone. Returns how many changed.
+    /// </summary>
+    public int ReplaceSourceFileName(string oldSourceFileName, string newSourceFileName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(oldSourceFileName);
         ArgumentException.ThrowIfNullOrWhiteSpace(newSourceFileName);
         var escaped = PowerShellLiteral.DoubleQuoted(newSourceFileName);
         int count = 0;
         Content = DirFilesReference.Replace(Content, m =>
         {
+            if (!m.Groups["name"].Value.Equals(oldSourceFileName, StringComparison.OrdinalIgnoreCase))
+                return m.Value;
             count++;
             return m.Groups["prefix"].Value + escaped;
         });
         return count;
+    }
+
+    /// <summary>Whether <paramref name="value"/> is exactly one braced GUID, the only form a product code takes.</summary>
+    public static bool IsProductCode(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return false;
+        var match = GuidPattern.Match(value);
+        return match.Success && match.Length == value.Length;
     }
 
     /// <summary>The product code on the MSI uninstall line, i.e. the package's own MSI. Null when there is none.</summary>
@@ -299,6 +345,10 @@ public sealed class PsadtScript
     public int ReplaceProductCode(string? oldCode, string newCode)
     {
         if (string.IsNullOrWhiteSpace(oldCode) || string.IsNullOrWhiteSpace(newCode)) return 0;
+        // The new code lands inside quoted strings in the script, and it comes from an
+        // installer's tables: nothing but a GUID or the placeholder may be written.
+        if (newCode != ProductCodePlaceholder && !IsProductCode(newCode))
+            throw new ArgumentException("A product code must be a GUID in braces.", nameof(newCode));
 
         int count = 0;
         Content = Regex.Replace(Content, Regex.Escape(oldCode), _ =>
