@@ -55,6 +55,12 @@ public class AppSettings
         /// <summary>An IntuneWinAppUtil.exe of your own; empty uses the one bundled with Packman.</summary>
         public string IntuneWinAppUtil { get; set; } = "";
 
+        /// <summary>Parent folder on Remote test targets; Packman stages in its Packman subfolder. Empty uses C:\ProgramData.</summary>
+        public string RemoteStagingFolder { get; set; } = "";
+
+        /// <summary>Where upload and update logs go, e.g. a share for an audit trail. Empty uses %LocalAppData%\Packman\Logs.</summary>
+        public string UploadLogsFolder { get; set; } = "";
+
         [JsonIgnore]
         public string PSADTTemplateInUse => string.IsNullOrWhiteSpace(PSADTTemplate) ? BundledTools.PsadtTemplate : PSADTTemplate;
 

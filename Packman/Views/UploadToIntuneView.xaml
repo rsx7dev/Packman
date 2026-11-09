@@ -11,7 +11,7 @@
 
     <!-- Publish a package built earlier. The sections match the wizard's Configure step,
          so the two forms read as one. DataContext: UploadToIntuneViewModel. -->
-    <controls:PageFrame Title="Upload to Intune" HasConsole="True"
+    <controls:PageFrame Title="Upload to Intune" HasConsole="True" ContentMaxWidth="860"
                         Subtitle="Publish an existing PSADT package to Microsoft Intune">
 
         <!-- ═══════════ FOOTER ═══════════ -->
@@ -105,7 +105,7 @@
         <!-- ═══════════ BODY ═══════════ -->
         <Grid>
             <!-- The form, until a publish starts. -->
-            <Border Style="{StaticResource SectionPanel}" MaxWidth="860" HorizontalAlignment="Left"
+            <Border Style="{StaticResource SectionPanel}" MaxWidth="860" HorizontalAlignment="Stretch"
                     Visibility="{Binding Publish.IsNotPublishing, Converter={StaticResource BoolToVis}}">
                 <StackPanel>
 

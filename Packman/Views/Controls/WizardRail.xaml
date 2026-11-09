@@ -147,11 +147,13 @@
                                       Subtitle="{Binding CreatePackage.Manufacturer}"
                                       Meta="{Binding CreatePackage.PreviewMeta}"
                                       IconPath="{Binding CreatePackage.ExtractedIconPath}"/>
-                <ContentControl Style="{StaticResource KvRow}" Tag="Type" Content="PSADT v4 · Win32"/>
-                <ContentControl Style="{StaticResource KvRow}" Tag="Installer" Content="{Binding CreatePackage.InstallerType}"/>
+                <ContentControl Style="{StaticResource KvRow}" Tag="Type" Content="{Binding CreatePackage.PackageType}"/>
                 <ContentControl Style="{StaticResource KvRowMono}" Tag="Product code" Content="{Binding CreatePackage.ProductCode}"
                                 Visibility="{Binding CreatePackage.HasProductCode, Converter={StaticResource BoolToVis}}"/>
-                <ContentControl Style="{StaticResource KvRowMono}" Tag="Package folder" Content="{Binding PackageFolderPreview}"/>
+                <ContentControl Style="{StaticResource KvRowMono}" Tag="Upgrade code" Content="{Binding CreatePackage.UpgradeCode}"
+                                Visibility="{Binding CreatePackage.HasUpgradeCode, Converter={StaticResource BoolToVis}}"/>
+                <ContentControl Style="{StaticResource KvRowMono}" Tag="Package folder" Content="{Binding PackageFolderRelative}"
+                                ToolTip="{Binding PackageFolderPreview}"/>
             </StackPanel>
 
             <!-- Upgrade existing -->
@@ -241,12 +243,27 @@
 
                     <!-- MSI -->
                     <StackPanel Visibility="{Binding CreatePackage.HasMsiInsight, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="MSI package" Style="{StaticResource H3}" Margin="0,26,0,2"/>
-                        <ItemsControl ItemsSource="{Binding CreatePackage.MsiFacts}" ItemTemplate="{StaticResource InstallerFactRow}" IsTabStop="False"/>
+                        <!-- Only where the MSI disagrees with the package's architecture or context. -->
+                        <Border Style="{StaticResource CalloutWarn}" Margin="0,20,0,0"
+                                Visibility="{Binding CreatePackage.HasMsiWarnings, Converter={StaticResource BoolToVis}}">
+                            <DockPanel>
+                                <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconAlert}" Foreground="{DynamicResource WarnBrush}"
+                                                   VerticalAlignment="Top" Margin="0,1,10,0"/>
+                                <ItemsControl ItemsSource="{Binding CreatePackage.MsiWarnings}" IsTabStop="False">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="12.5" LineHeight="18" Margin="0,0,0,4"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </DockPanel>
+                        </Border>
 
-                        <TextBlock Text="MSI properties" Style="{StaticResource H3}" Margin="0,22,0,2"/>
-                        <ItemsControl ItemsSource="{Binding CreatePackage.MsiKeyProperties}"
-                                      ItemTemplate="{StaticResource MsiPropertyRow}" IsTabStop="False"/>
+                        <StackPanel Visibility="{Binding CreatePackage.HasMsiKeyProperties, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="Key properties" Style="{StaticResource H3}" Margin="0,22,0,2"/>
+                            <ItemsControl ItemsSource="{Binding CreatePackage.MsiKeyProperties}"
+                                          ItemTemplate="{StaticResource MsiPropertyRow}" IsTabStop="False"/>
+                        </StackPanel>
 
                         <StackPanel Visibility="{Binding CreatePackage.HasMsiOptions, Converter={StaticResource BoolToVis}}">
                             <TextBlock Text="Installer options" Style="{StaticResource H3}" Margin="0,22,0,2"/>

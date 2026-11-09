@@ -16,7 +16,7 @@
 
     <!-- Step 3 of the wizard: everything that will be sent, with routes back to change it.
          The rail beside it (WizardRail) shows publish readiness and the tenant. -->
-    <StackPanel MaxWidth="860" HorizontalAlignment="Left">
+    <StackPanel MaxWidth="860" HorizontalAlignment="Stretch">
         <Border Style="{StaticResource SectionPanel}"
                 Visibility="{Binding Upload.Publish.IsNotPublishing, Converter={StaticResource BoolToVis}}">
             <StackPanel>

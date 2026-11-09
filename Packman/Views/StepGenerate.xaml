@@ -11,7 +11,7 @@
 
     <!-- Step 1 of the wizard. The rail beside it (WizardRail) shows what this form doesn't:
          the resolved package folder, installer type, product code and what's still missing. -->
-    <StackPanel MaxWidth="860" HorizontalAlignment="Left">
+    <StackPanel MaxWidth="860" HorizontalAlignment="Stretch">
 
         <!-- ═══ Welcome: what Packman needs first. "Got it" hides it, but it returns while something blocks packaging. ═══ -->
         <Border Style="{StaticResource SectionPanel}" DataContext="{Binding Checklist}"

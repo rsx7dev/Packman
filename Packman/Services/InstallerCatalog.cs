@@ -1,3 +1,5 @@
+using Packman.Helpers;
+
 namespace Packman.Services;
 
 public enum Confidence { Low, Medium, High }
@@ -25,7 +27,14 @@ public record InstallerKind(string Name, Marker[] Markers, InstallerSwitch[] Swi
 /// </summary>
 public static class InstallerCatalog
 {
-    private const string LogFolder = @"C:\Windows\Logs\Software";
+    // PSADT's default; WithLogFolder swaps in the template's own LogPath when it differs.
+    private const string LogFolder = PsadtConfig.DefaultLogFolder;
+
+    /// <summary><paramref name="sw"/> with the PSADT log folder in its text replaced by <paramref name="logFolder"/>.</summary>
+    public static InstallerSwitch WithLogFolder(InstallerSwitch sw, string logFolder) =>
+        string.IsNullOrEmpty(logFolder) || logFolder.Equals(LogFolder, StringComparison.OrdinalIgnoreCase) || !sw.Text.Contains(LogFolder, StringComparison.Ordinal)
+            ? sw
+            : sw with { Text = sw.Text.Replace(LogFolder, logFolder, StringComparison.Ordinal) };
     private const string SfxNote = "Usually wraps an MSI or setup.exe. Packaging the inner MSI is more reliable.";
 
     /// <summary>No marker matched. It lists no switches: Packman shows what a type documents, never a guess.</summary>

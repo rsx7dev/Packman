@@ -1243,7 +1243,7 @@
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type controls:PageFrame}">
                     <!-- One white sheet: header, body and footer inside it, separated by hairlines,
-                         with the inspector rail as a tinted 312px column on its right edge. -->
+                         with the inspector rail as a tinted column (312-480px, see RailWidth) on its right edge. -->
                     <Border Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource LineBrush}"
                             BorderThickness="1" CornerRadius="10">
                         <Grid>
@@ -1259,7 +1259,9 @@
 
                             <!-- Header -->
                             <StackPanel Grid.Row="0">
-                                <Grid Margin="32,22,32,0">
+                                <!-- Header, stepper, body and footer share ContentMaxWidth; a Stretch
+                                     element held under its MaxWidth is centred by WPF. -->
+                                <Grid Margin="32,22,32,0" MaxWidth="{TemplateBinding ContentMaxWidth}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto"/>
                                         <ColumnDefinition Width="*"/>
@@ -1303,7 +1305,7 @@
                                         </ToggleButton>
                                     </StackPanel>
                                 </Grid>
-                                <Border x:Name="bottom" Margin="32,16,32,0" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1">
+                                <Border x:Name="bottom" Margin="32,16,32,0" MaxWidth="{TemplateBinding ContentMaxWidth}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1">
                                     <ContentPresenter Content="{TemplateBinding HeaderBottom}"/>
                                 </Border>
                             </StackPanel>
@@ -1313,17 +1315,18 @@
                             <ScrollViewer x:Name="scroll" Grid.Row="1" Focusable="False"
                                           VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                 <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
-                                                  Margin="32,24,32,28"/>
+                                                  Margin="32,24,32,28" MaxWidth="{TemplateBinding ContentMaxWidth}"/>
                             </ScrollViewer>
 
                             <!-- Footer -->
                             <Border x:Name="footer" Grid.Row="2" Padding="32,14" MinHeight="62"
                                     BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,1,0,0">
-                                <ContentPresenter Content="{TemplateBinding Footer}" VerticalAlignment="Center"/>
+                                <ContentPresenter Content="{TemplateBinding Footer}" VerticalAlignment="Center"
+                                                  MaxWidth="{TemplateBinding ContentMaxWidth}"/>
                             </Border>
 
                             <!-- Rail -->
-                            <Border x:Name="rail" Grid.Column="1" Grid.RowSpan="3" Width="312" Background="{DynamicResource RailBrush}"
+                            <Border x:Name="rail" Grid.Column="1" Grid.RowSpan="3" Width="{TemplateBinding RailWidth}" Background="{DynamicResource RailBrush}"
                                     BorderBrush="{DynamicResource LineBrush}" BorderThickness="1,0,0,0" CornerRadius="0,9,9,0">
                                 <Grid>
                                     <Grid.RowDefinitions>

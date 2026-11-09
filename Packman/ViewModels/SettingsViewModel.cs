@@ -3,6 +3,8 @@ using Packman.Helpers;
 using Packman.Models;
 using Packman.Services;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
 using System.Security.Cryptography.X509Certificates;
 
 namespace Packman.ViewModels;
@@ -210,14 +212,56 @@ public sealed class SettingsViewModel : ObservableObject
         set { if (Set(ref _selectedCodeSignCert, value, [nameof(CodeSignCertDisplay)]) && value != null) CodeSignThumbprint = value.Thumbprint; }
     }
 
-    // ── Network Paths ──────────────────────────────────────────────────
+    // ── Paths ──────────────────────────────────────────────────────────
     private static readonly string[] PathDependents = [nameof(IsConfigured)];
 
     private string _intuneApplicationsPath = "";
     public string IntuneApplicationsPath { get => _intuneApplicationsPath; set => Set(ref _intuneApplicationsPath, value, PathDependents); }
 
     private string _psadtTemplatePath = "";
-    public string PSADTTemplatePath { get => _psadtTemplatePath; set => Set(ref _psadtTemplatePath, value, PathDependents); }
+    public string PSADTTemplatePath
+    {
+        get => _psadtTemplatePath;
+        set => Set(ref _psadtTemplatePath, value, [nameof(IsConfigured), nameof(PsadtLogFolder)]);
+    }
+
+    /// <summary>Toolkit.LogPath of the template in use; read-only, PSADT decides it.</summary>
+    public string PsadtLogFolder =>
+        PsadtConfig.LogFolder(string.IsNullOrWhiteSpace(_psadtTemplatePath) ? BundledTools.PsadtTemplate : _psadtTemplatePath);
+
+    private string _remoteStagingFolder = "";
+    public string RemoteStagingFolder
+    {
+        get => _remoteStagingFolder;
+        set => Set(ref _remoteStagingFolder, value, [nameof(RemoteStagingProblem), nameof(HasRemoteStagingProblem), nameof(RemoteStagingPreview)]);
+    }
+
+    public string RemoteStagingProblem => RemoteStaging.Problem(_remoteStagingFolder) ?? "";
+    public bool HasRemoteStagingProblem => RemoteStagingProblem.Length > 0;
+
+    /// <summary>The folder a test actually stages in, so the Packman subfolder is never a surprise.</summary>
+    public string RemoteStagingPreview => HasRemoteStagingProblem ? "" : $"Packages are staged in {RemoteStaging.BasePath(_remoteStagingFolder)} on the target.";
+
+    private string _uploadLogsFolder = "";
+    public string UploadLogsFolder { get => _uploadLogsFolder; set => Set(ref _uploadLogsFolder, value); }
+
+    /// <summary>Opens the folder upload logs go to (as typed, not yet saved), creating it if needed.</summary>
+    public RelayCommand OpenLogsFolderCommand { get; }
+
+    private void OpenLogsFolder()
+    {
+        var folder = UploadLogger.FolderFor(_uploadLogsFolder);
+        try
+        {
+            Directory.CreateDirectory(folder);
+            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{folder}\"") { UseShellExecute = true });
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or System.ComponentModel.Win32Exception)
+        {
+            SaveStatusKind = "warn";
+            SaveStatus = $"Could not open {folder}: {ex.Message}";
+        }
+    }
 
     private string _intuneWinAppUtilPath = "";
     public string IntuneWinAppUtilPath { get => _intuneWinAppUtilPath; set => Set(ref _intuneWinAppUtilPath, value, PathDependents); }
@@ -375,6 +419,7 @@ public sealed class SettingsViewModel : ObservableObject
         _auth = auth;
         SaveCommand = new RelayCommand(Save);
         ResetCommand = new RelayCommand(Reset);
+        OpenLogsFolderCommand = new RelayCommand(OpenLogsFolder);
         SignInCommand = new AsyncRelayCommand(SignInAsync);
         SignOutCommand = new AsyncRelayCommand(SignOutAsync);
         TestConnectionCommand = new AsyncRelayCommand(TestConnectionAsync, () => !IsTesting);
@@ -417,6 +462,8 @@ public sealed class SettingsViewModel : ObservableObject
         IntuneApplicationsPath = s.NetworkPaths.IntuneApplications;
         PSADTTemplatePath = s.NetworkPaths.PSADTTemplate;
         IntuneWinAppUtilPath = s.NetworkPaths.IntuneWinAppUtil;
+        RemoteStagingFolder = s.NetworkPaths.RemoteStagingFolder;
+        UploadLogsFolder = s.NetworkPaths.UploadLogsFolder;
         Layout.Load(s.PackageLayout);
 
         CreateGroupPerPackage = s.GroupAssignment.CreateGroupPerPackage;
@@ -656,6 +703,12 @@ public sealed class SettingsViewModel : ObservableObject
             SaveStatus = $"Return code '{invalidCode.Code}' is not a number. Nothing was saved.";
             return;
         }
+        if (HasRemoteStagingProblem)
+        {
+            SaveStatusKind = "warn";
+            SaveStatus = $"Remote test staging folder: {RemoteStagingProblem} Nothing was saved.";
+            return;
+        }
 
         var s = _svc.Settings;
         s.AuthMode = IsInteractive ? AuthMode.Interactive : AuthMode.AppRegistration;
@@ -672,6 +725,8 @@ public sealed class SettingsViewModel : ObservableObject
         s.NetworkPaths.IntuneApplications = IntuneApplicationsPath;
         s.NetworkPaths.PSADTTemplate = PSADTTemplatePath;
         s.NetworkPaths.IntuneWinAppUtil = IntuneWinAppUtilPath;
+        s.NetworkPaths.RemoteStagingFolder = RemoteStagingFolder.Trim();
+        s.NetworkPaths.UploadLogsFolder = UploadLogsFolder.Trim();
         s.PackageLayout = Layout.ToConfig();
 
         s.GroupAssignment.CreateGroupPerPackage = CreateGroupPerPackage;

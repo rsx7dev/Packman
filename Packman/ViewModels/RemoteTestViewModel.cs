@@ -368,9 +368,10 @@ public sealed class RemoteTestViewModel : ObservableObject
                 foreach (var issue in await Task.Run(() => PackagePreflight.Check(packagePath)))
                     Append($"WARNING: {issue}");
 
+                var stagingParent = _settingsService.Settings.NetworkPaths.RemoteStagingFolder;
                 exitCode = await Task.Run(() => new RemoteTestService().DeployAsync(
                     context.Computer, packagePath, deploymentType, commandLine, cleanup, runAsUser,
-                    Append, percent => CopyPercent = percent, cts.Token));
+                    Append, percent => CopyPercent = percent, cts.Token, stagingParent));
             }
             catch (OperationCanceledException)
             {

@@ -7,7 +7,7 @@ namespace Packman.Views.Controls;
 /// <summary>
 /// The layout every page shares: one page sheet holding a header (breadcrumb, title, actions and
 /// an optional strip below such as the stepper or tabs), the body, an optional footer bar and an
-/// optional 312px inspector rail on the right. The template lives in Themes/Styles.xaml.
+/// optional inspector rail on the right, 312px wide that grows to 480px on wide windows. The template lives in Themes/Styles.xaml.
 /// Below <see cref="CompactWidth"/> the rail stops taking a column and opens over the body
 /// from a header button instead, so the form keeps its width on small or scaled screens.
 /// </summary>
@@ -28,6 +28,17 @@ public class PageFrame : ContentControl
     public static readonly DependencyProperty IsBodyScrollableProperty = Register(nameof(IsBodyScrollable), true);
     public static readonly DependencyProperty IsCompactProperty = Register(nameof(IsCompact), false);
     public static readonly DependencyProperty IsRailOpenProperty = Register(nameof(IsRailOpen), false);
+    public static readonly DependencyProperty RailWidthProperty = Register(nameof(RailWidth), MinRailWidth);
+    public static readonly DependencyProperty ContentMaxWidthProperty = Register(nameof(ContentMaxWidth), double.PositiveInfinity);
+
+    /// <summary>Rail width at and below <see cref="CompactWidth"/>-ish frames; it grows from here.</summary>
+    public const double MinRailWidth = 312;
+
+    /// <summary>Widest the rail gets on a maximized window.</summary>
+    public const double MaxRailWidth = 480;
+
+    /// <summary>Share of the frame the rail takes between its min and max width.</summary>
+    private const double RailShare = 0.24;
 
     public string Title { get => (string)GetValue(TitleProperty); set => SetValue(TitleProperty, value); }
     public string Subtitle { get => (string)GetValue(SubtitleProperty); set => SetValue(SubtitleProperty, value); }
@@ -62,13 +73,20 @@ public class PageFrame : ContentControl
     /// <summary>Compact mode only: the rail is showing over the body.</summary>
     public bool IsRailOpen { get => (bool)GetValue(IsRailOpenProperty); set => SetValue(IsRailOpenProperty, value); }
 
-    /// <summary>A named group, so a screen reader announces the page title and subtitle on the way in.</summary>
-    protected override AutomationPeer OnCreateAutomationPeer() => new TextAutomationPeer(this,
-        () => TextAutomationPeer.Join(". ", Title, Subtitle), AutomationControlType.Group);
+    /// <summary>Set by the frame from its own width: wider windows give the preview and console more room.</summary>
+    public double RailWidth { get => (double)GetValue(RailWidthProperty); set => SetValue(RailWidthProperty, value); }
+
+    /// <summary>
+    /// Caps the header, body and footer at this width and centres them, so a form page keeps a
+    /// readable width on a maximized window instead of hugging the left edge. Unset for pages
+    /// whose body should fill the sheet (tables, the script editor).
+    /// </summary>
+    public double ContentMaxWidth { get => (double)GetValue(ContentMaxWidthProperty); set => SetValue(ContentMaxWidthProperty, value); }
 
     protected override void OnRenderSizeChanged(SizeChangedInfo sizeInfo)
     {
         base.OnRenderSizeChanged(sizeInfo);
+        RailWidth = Math.Round(Math.Clamp(sizeInfo.NewSize.Width * RailShare, MinRailWidth, MaxRailWidth));
         var compact = sizeInfo.NewSize.Width < CompactWidth;
         if (compact == IsCompact) return;
         IsCompact = compact;

@@ -22,8 +22,9 @@ namespace Packman.Services;
 /// </summary>
 public class RemoteTestService
 {
-    // Literal, not %ProgramData%: the admin-share path below must name the same folder.
-    internal const string RemoteBasePath = @"C:\ProgramData\Packman";
+    // The default staging folder. Literal, not %ProgramData%: the admin-share path must name the
+    // same folder. Settings ▸ Paths can move it; see RemoteStaging.
+    internal const string RemoteBasePath = RemoteStaging.DefaultParent + @"\" + RemoteStaging.FolderName;
     private const string TaskName = "Packman_RemoteTest";
     private const string ExitCodeSentinel = "PACKMAN_EXIT_CODE:";
 
@@ -63,15 +64,19 @@ public class RemoteTestService
     /// only labels the run.
     /// <paramref name="runAsUser"/>: false runs as SYSTEM (what Intune does), true runs in
     /// the logged-on user's session. <paramref name="copyProgress"/> reports 0-100, then null.
+    /// <paramref name="stagingParent"/> is the Settings ▸ Paths value; empty stages in C:\ProgramData\Packman.
     /// Throws PSRemotingTransportException when WinRM is unreachable, and
     /// OperationCanceledException when <paramref name="ct"/> stops the run.
     /// </summary>
     public async Task<int> DeployAsync(string computerName, string sourcePath, string deploymentType, string commandLine,
         bool cleanupAfterDeploy, bool runAsUser, Action<string> output,
-        Action<int?>? copyProgress = null, CancellationToken ct = default)
+        Action<int?>? copyProgress = null, CancellationToken ct = default, string? stagingParent = null)
     {
         if (!IsValidComputerName(computerName))
             throw new ArgumentException($"'{computerName}' is not a valid computer name", nameof(computerName));
+
+        // Checked before anything touches the target.
+        var basePath = RemoteStaging.BasePath(stagingParent);
 
         if (!DeploymentTypes.Contains(deploymentType))
             throw new ArgumentException($"'{deploymentType}' is not a valid deployment type", nameof(deploymentType));
@@ -160,20 +165,20 @@ public class RemoteTestService
         string packageName = SanitiseFolderName(sourceDir.Parent?.Parent != null
             ? $"{sourceDir.Parent.Name}_{sourceDir.Name}"
             : sourceDir.Name);
-        string remotePackagePath = $@"{RemoteBasePath}\{packageName}";
-        string targetUnc = $@"\\{computerName}\C$\ProgramData\Packman\{packageName}";
+        string remotePackagePath = $@"{basePath}\{packageName}";
+        string targetUnc = RemoteStaging.AdminShare(computerName, remotePackagePath);
 
         // The package runs as SYSTEM, so only SYSTEM and Administrators may write where it is staged.
         ct.ThrowIfCancellationRequested();
-        output($"Securing {RemoteBasePath} on target...");
+        output($"Securing {basePath} on target...");
         using (var secure = PowerShell.Create())
         {
             secure.Runspace = runspace;
-            secure.AddScript(BuildSecureStagingScript(RemoteBasePath));
+            secure.AddScript(BuildSecureStagingScript(basePath));
             foreach (var line in secure.Invoke())
                 output(line.ToString());
             if (secure.HadErrors)
-                throw new InvalidOperationException($"Could not secure {RemoteBasePath} on {computerName}: {secure.Streams.Error.FirstOrDefault()}");
+                throw new InvalidOperationException($"Could not secure {basePath} on {computerName}: {secure.Streams.Error.FirstOrDefault()}");
         }
 
         output($"Copying files to {targetUnc}...");
@@ -253,6 +258,7 @@ public class RemoteTestService
             output("Cleaning up...");
             try
             {
+                Packman.Helpers.DirectoryCopy.ClearReadOnlyRecursive(targetUnc);
                 Directory.Delete(targetUnc, true);
                 output("[OK] Cleanup completed");
             }
