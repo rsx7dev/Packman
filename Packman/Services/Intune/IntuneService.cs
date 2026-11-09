@@ -248,10 +248,20 @@ public partial class IntuneService
     /// <summary>Device install rollup. Zeros when the report is unavailable.</summary>
     public async Task<InstallationStatistics> GetInstallationStatisticsAsync(string appId, CancellationToken ct = default)
     {
-        var response = await _graph.PostAsync(
-            $"{GraphClient.Beta}/deviceManagement/reports/getAppStatusOverviewReport",
-            new { filter = $"(ApplicationId eq '{OData.Literal(appId)}')" },
-            "App status report", ct, throwOnError: false);
+        GraphResponse response;
+        try
+        {
+            response = await _graph.PostQueryAsync(
+                $"{GraphClient.Beta}/deviceManagement/reports/getAppStatusOverviewReport",
+                new { filter = $"(ApplicationId eq '{OData.Literal(appId)}')" },
+                "App status report", ct, throwOnError: false);
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            // The rollup is one panel; a report that cannot be reached must not fail the page.
+            Debug.WriteLine($"App status report unavailable for {appId}: {ex.Message}");
+            return new InstallationStatistics();
+        }
         if (!response.IsSuccess)
         {
             Debug.WriteLine($"App status report unavailable for {appId}: HTTP {response.StatusCode}");

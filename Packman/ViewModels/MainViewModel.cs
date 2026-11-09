@@ -505,6 +505,7 @@ public sealed class MainViewModel : ObservableObject
         CreatePackage.Reset();
         Upgrade.Reset();
         Upload.Supersedence.Reset();
+        Upload.ForgetPackage();
         CurrentStepIndex = GenerateStep;
         RaisePackageDependents();
     }
@@ -547,14 +548,27 @@ public sealed class MainViewModel : ObservableObject
         var overwrite = false;
         if (existing != null)
         {
-            if (!_dialogs.Confirm($"A package for this version already exists:\n\n{existing}\n\nReplace it?", "Package already exists", "Replace package", "Keep existing"))
+            // Say what goes: script edits, anything added to the folder and, for a published
+            // package, the link that lets Packman republish it.
+            var link = PackageMarker.Read(existing);
+            var linked = link == null ? "" :
+                $"\n\nIt is linked to the Intune app \"{(string.IsNullOrWhiteSpace(link.DisplayName) ? link.AppId : link.DisplayName)}\". " +
+                "Replacing it removes that link, so Republish content will no longer find this folder.";
+            if (!_dialogs.Confirm(
+                    $"A package for this version already exists:\n\n{existing}\n\n" +
+                    $"Replacing it discards its script edits and everything else in that folder.{linked}\n\nReplace it?",
+                    "Package already exists", "Replace package", "Keep existing"))
                 return;
             overwrite = true;
         }
 
         var packagePath = await CreatePackage.GenerateAsync(_settingsService.Settings, overwrite);
         if (!string.IsNullOrEmpty(packagePath))
+        {
+            // A rebuilt package at the same path is a new package: Configure starts over.
+            Upload.ForgetPackage();
             RaisePackageDependents();
+        }
         else if (!CreatePackage.WasCancelled && !string.IsNullOrEmpty(CreatePackage.StatusText))
             _dialogs.Warn(CreatePackage.StatusText, "Package Generation");
     }
@@ -579,7 +593,14 @@ public sealed class MainViewModel : ObservableObject
         }
         CreatePackage.Version = Upgrade.NewVersion;
         CreatePackage.SourcesPath = Upgrade.NewSourcePath;
+        // An icon read from a file picked earlier in Create mode is not this package's.
+        CreatePackage.ExtractedIconPath = "";
+        // The architecture is the package's own, not the Create form's default.
+        if (PsadtScript.Find(newPackagePath) is { } upgradedScript &&
+            PsadtScript.Load(upgradedScript).AppArch is { Length: > 0 } arch)
+            CreatePackage.Architecture = arch;
         CreatePackage.CurrentPackagePath = newPackagePath;
+        Upload.ForgetPackage();
 
         // Supersedence is opt-in: the linked previous version is only offered on Configure.
         Upload.Supersedence.Reset();

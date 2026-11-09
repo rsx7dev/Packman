@@ -24,6 +24,24 @@ public static class PsadtLayout
 
     public static string IconFolder(string packagePath) => Path.Combine(packagePath, IconFolderName);
 
+    private static readonly string[] IconExtensions = [".png", ".jpg", ".jpeg"];
+
+    /// <summary>The package's icon in Icon\, or null. Every publish path uploads this one file.</summary>
+    public static string? FindIcon(string packagePath)
+    {
+        try
+        {
+            var folder = IconFolder(packagePath);
+            return Directory.Exists(folder)
+                ? Directory.EnumerateFiles(folder).FirstOrDefault(f => IconExtensions.Contains(Path.GetExtension(f), StringComparer.OrdinalIgnoreCase))
+                : null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
     public static string ScriptPath(string packagePath) => Path.Combine(ApplicationFolder(packagePath), ScriptName);
 
     /// <summary>The folders a new package gets beyond Application and Intune: Icon when on, then the extras in order.</summary>

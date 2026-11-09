@@ -93,7 +93,8 @@ public sealed class ApplicationDetailViewModel : ObservableObject
     public bool HasUninstall => !string.IsNullOrWhiteSpace(Detail.UninstallCommand);
 
     public ObservableCollection<DetectionRuleDisplay> DetectionDisplays { get; } = new();
-    public bool HasDetectionRules => Detail.DetectionRules.Count > 0;
+    /// <summary>Rows to show, counting a new rule that is still being written.</summary>
+    public bool HasDetectionRules => DetectionDisplays.Count > 0;
     public bool HasAssignments => Detail.AssignedGroups.Count > 0;
     public string DetectionRulesHint => Detail.DetectionRules.Count switch
     {
@@ -168,6 +169,7 @@ public sealed class ApplicationDetailViewModel : ObservableObject
         try
         {
             Detail = await _apps.GetApplicationDetailAsync(Detail.Id);
+            _rulesLoaded = true;
             _loadedAt = DateTime.Now;
             OnPropertyChanged(nameof(LastSyncedText));
             RebuildDetection();
@@ -226,6 +228,7 @@ public sealed class ApplicationDetailViewModel : ObservableObject
             if (!Set(ref _isUpdating, value)) return;
             OnPropertyChanged(nameof(CanUpdatePackage));
             OnPropertyChanged(nameof(CanRepublish));
+            CancelUpdateCommand.RaiseCanExecuteChanged();
         }
     }
 
@@ -361,22 +364,40 @@ public sealed class ApplicationDetailViewModel : ObservableObject
 
     private void RebuildDetection()
     {
+        // Rules still being written are not in Detail yet and must survive the rebuild.
+        var unsaved = DetectionDisplays.Where(d => d.IsNew).ToList();
         DetectionDisplays.Clear();
         foreach (var r in Detail.DetectionRules)
             DetectionDisplays.Add(DetectionRuleDisplay.From(r));
+        foreach (var display in unsaved)
+            DetectionDisplays.Add(display);
     }
 
     // ── Detection rule editing (the whole array is PATCHed on save) ──
 
-    public DetectionRuleDisplay AddDetectionRule(DetectionRuleType type)
+    /// <summary>
+    /// Whether the rules on screen are the app's own. Until a load succeeds the list is the
+    /// empty seed, and saving it would replace every rule the app has in Intune.
+    /// </summary>
+    private bool _rulesLoaded;
+
+    private const string RulesNotLoadedMessage =
+        "This app's detection rules have not loaded, so they can't be changed yet. Open the app again once Intune is reachable.";
+
+    /// <summary>Starts a new rule. It joins the app's rules only when it is saved. Null before the rules have loaded.</summary>
+    public DetectionRuleDisplay? AddDetectionRule(DetectionRuleType type)
     {
+        if (!_rulesLoaded)
+        {
+            StatusText = RulesNotLoadedMessage;
+            return null;
+        }
+
         var rule = new DetectionRule { Type = type, DetectionType = "exists" };
-        Detail.DetectionRules.Add(rule);
         var display = DetectionRuleDisplay.From(rule, isNew: true);
         DetectionDisplays.Add(display);
         display.BeginEdit();
         OnPropertyChanged(nameof(HasDetectionRules));
-        OnPropertyChanged(nameof(DetectionRulesHint));
         return display;
     }
 
@@ -389,8 +410,39 @@ public sealed class ApplicationDetailViewModel : ObservableObject
         OnPropertyChanged(nameof(DetectionRulesHint));
     }
 
+    /// <summary>
+    /// Saves one edited or new rule. A rule Intune did not take goes back to what it was,
+    /// with the editor still open on what was typed.
+    /// </summary>
+    public async Task<bool> SaveDetectionRuleAsync(DetectionRuleDisplay display)
+    {
+        if (display.EditProblem is { } problem)
+        {
+            StatusText = problem;
+            return false;
+        }
+
+        var wasNew = display.IsNew;
+        var before = display.Snapshot();
+        display.ApplyEdit();
+        if (wasNew) Detail.DetectionRules.Add(display.Rule);
+
+        if (await SaveDetectionRulesAsync()) return true;
+
+        if (wasNew) Detail.DetectionRules.Remove(display.Rule);
+        display.ReopenEdit(before, wasNew);
+        OnPropertyChanged(nameof(HasDetectionRules));
+        OnPropertyChanged(nameof(DetectionRulesHint));
+        return false;
+    }
+
     public async Task<bool> SaveDetectionRulesAsync()
     {
+        if (!_rulesLoaded)
+        {
+            StatusText = RulesNotLoadedMessage;
+            return false;
+        }
         if (!await ConsentAsync(IntuneAuthService.PublishScopes, m => StatusText = m)) return false;
         try
         {
@@ -416,6 +468,8 @@ public sealed class ApplicationDetailViewModel : ObservableObject
             // PATCH failed; put the rule back so the UI matches Intune.
             Detail.DetectionRules.Add(display.Rule);
             RebuildDetection();
+            OnPropertyChanged(nameof(HasDetectionRules));
+            OnPropertyChanged(nameof(DetectionRulesHint));
         }
     }
 
@@ -627,13 +681,19 @@ public sealed class ApplicationDetailViewModel : ObservableObject
         var tenantId = AppServices.Auth.TenantId;
         var d = Detail;
 
-        var (path, script, checks) = await Task.Run(() =>
+        var (path, script, checks, claims) = await Task.Run(() =>
         {
-            var p = PackageSourceLocator.FindLinked(root, d.Id, tenantId);
+            var linked = PackageSourceLocator.FindAllLinked(root, d.Id, tenantId);
+            var p = linked.Count == 1 ? linked[0] : null;
             return p == null
-                ? ((string?)null, (string?)null, new List<SourceCheck>())
-                : (p, FindScript(p), BuildChecks(p, d.Size, d.SizeFormatted));
+                ? ((string?)null, (string?)null, new List<SourceCheck>(), linked)
+                : (p, FindScript(p), BuildChecks(p, d.Size, d.SizeFormatted), linked);
         });
+
+        // Two folders claiming one app: republishing either could ship the wrong content.
+        if (claims.Count > 1)
+            StatusText = "More than one package folder is linked to this app, so none is used for Republish content or Edit script:\n" +
+                string.Join("\n", claims) + "\nDelete Intune\\packman.id from the folders that are not this app's package.";
 
         SourceScriptPath = script;
         SourceChecks.Clear();
@@ -669,10 +729,6 @@ public sealed class ApplicationDetailViewModel : ObservableObject
                 ? $"{ByteSize.Format(size)} — matches the Intune upload"
                 : $"{ByteSize.Format(size)} on share vs {intuneSizeText} in Intune — re-upload?", ok: matches));
         }
-
-        checks.Add(File.Exists(Path.Combine(intuneDir, "detection.xml"))
-            ? new SourceCheck("detection.xml", "detection definition present", ok: true)
-            : new SourceCheck("detection.xml", "not found", ok: false));
 
         // Packages made with the Icon folder off have none, which is not a defect.
         var iconDir = PsadtLayout.IconFolder(packagePath);
@@ -791,6 +847,47 @@ public sealed class DetectionRuleDisplay : ObservableObject
     }
 
     public void CancelEdit() => IsEditing = false;
+
+    /// <summary>Why the fields being edited can't make a rule Intune can evaluate, or null when they can.</summary>
+    public string? EditProblem
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(EditPath))
+                return IsMsi ? "The rule needs an MSI product code." : IsRegistry ? "The rule needs a registry key path." : "The rule needs a folder path.";
+            if (IsFile && string.IsNullOrWhiteSpace(EditName))
+                return "The rule needs a file or folder name.";
+            if (EditNeedsValue && string.IsNullOrWhiteSpace(EditValue))
+                return "The rule needs a value to compare against.";
+            return null;
+        }
+    }
+
+    /// <summary>The rule's saved fields, to put back when a save is refused.</summary>
+    public DetectionRule Snapshot() => new()
+    {
+        Type = Rule.Type,
+        Path = Rule.Path,
+        FileOrFolderName = Rule.FileOrFolderName,
+        CheckVersion = Rule.CheckVersion,
+        Operator = Rule.Operator,
+        DetectionType = Rule.DetectionType,
+        DetectionValue = Rule.DetectionValue,
+    };
+
+    /// <summary>Undoes <see cref="ApplyEdit"/> after a failed save; the edit fields keep what was typed.</summary>
+    public void ReopenEdit(DetectionRule before, bool wasNew)
+    {
+        Rule.Path = before.Path;
+        Rule.FileOrFolderName = before.FileOrFolderName;
+        Rule.CheckVersion = before.CheckVersion;
+        Rule.Operator = before.Operator;
+        Rule.DetectionType = before.DetectionType;
+        Rule.DetectionValue = before.DetectionValue;
+        IsNew = wasNew;
+        IsEditing = true;
+        OnPropertyChanged(nameof(Summary));
+    }
 
     public void ApplyEdit()
     {

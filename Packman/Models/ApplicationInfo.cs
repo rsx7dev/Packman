@@ -35,8 +35,10 @@ public class ApplicationInfo
             if (IsMsiPackage) return "MSI";
             if (!string.IsNullOrEmpty(SourcesPath))
             {
-                var ext = System.IO.Path.GetExtension(SourcesPath).ToLower();
-                if (ext == ".exe") return "EXE";
+                // By extension too: an MSI whose product code could not be read is still an MSI.
+                var ext = System.IO.Path.GetExtension(SourcesPath);
+                if (ext.Equals(".msi", StringComparison.OrdinalIgnoreCase)) return "MSI";
+                if (ext.Equals(".exe", StringComparison.OrdinalIgnoreCase)) return "EXE";
             }
             return "Unknown";
         }

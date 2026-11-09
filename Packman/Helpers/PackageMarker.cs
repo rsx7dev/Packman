@@ -40,6 +40,10 @@ public static class PackageMarker
         public string IntuneAppId { get; set; } = "";
     }
 
+    /// <summary>An Intune or Entra id: letters, digits and hyphens only, as a GUID is.</summary>
+    internal static bool IsId(string? value) =>
+        !string.IsNullOrEmpty(value) && value.Length <= 64 && value.All(c => char.IsAsciiLetterOrDigit(c) || c == '-');
+
     /// <summary>Path of the link file for a package folder.</summary>
     public static string PathFor(string packagePath) => Path.Combine(PsadtLayout.IntuneFolder(packagePath), FileName);
 
@@ -74,12 +78,13 @@ public static class PackageMarker
             if (File.Exists(path))
             {
                 var link = JsonSerializer.Deserialize<Link>(File.ReadAllText(path), JsonOptions);
-                return link is { AppId.Length: > 0, TenantId.Length: > 0 } ? link : null;
+                // The ids end up in Graph URLs: one with a path or query character is not a link.
+                return link != null && IsId(link.AppId) && IsId(link.TenantId) ? link : null;
             }
 
             var legacy = Path.Combine(packagePath, LegacyFileName);
             var appId = File.Exists(legacy) ? JsonSerializer.Deserialize<LegacyMarker>(File.ReadAllText(legacy), JsonOptions)?.IntuneAppId : null;
-            return string.IsNullOrEmpty(appId) ? null : new Link { AppId = appId, IsLegacy = true };
+            return IsId(appId) ? new Link { AppId = appId!, IsLegacy = true } : null;
         }
         catch (Exception ex)
         {

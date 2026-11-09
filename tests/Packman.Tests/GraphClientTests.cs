@@ -86,6 +86,43 @@ public sealed class GraphClientTests : GraphStaticsFixture
         Assert.All(handler.Requests, r => Assert.Equal("PATCH", r.Method));
     }
 
+    [Theory]
+    [InlineData(HttpStatusCode.InternalServerError)]
+    [InlineData(HttpStatusCode.BadGateway)]
+    [InlineData(HttpStatusCode.RequestTimeout)]
+    public async Task GetTransientServerErrorIsRetried(HttpStatusCode transient)
+    {
+        var handler = Answer(call => Fakes.Json(call == 1 ? transient : HttpStatusCode.OK));
+
+        var response = await Graph.GetAsync(Url, "Poll upload state");
+
+        Assert.Equal(2, handler.Calls);
+        Assert.True(response.IsSuccess);
+    }
+
+    [Fact]
+    public async Task ReadOnlyPostIsRetriedLikeAGet()
+    {
+        var handler = Answer(call => Fakes.Json(call == 1 ? HttpStatusCode.ServiceUnavailable : HttpStatusCode.OK));
+
+        var response = await Graph.PostQueryAsync(Url, new { filter = "x" }, "Status report");
+
+        Assert.Equal(2, handler.Calls);
+        Assert.True(response.IsSuccess);
+        Assert.All(handler.Requests, r => Assert.Equal("POST", r.Method));
+    }
+
+    [Fact]
+    public async Task ReadOnlyPostThatKeepsFailingIsAnOrdinaryError()
+    {
+        var handler = Answer(_ => Fakes.Json(HttpStatusCode.ServiceUnavailable));
+
+        var response = await Graph.PostQueryAsync(Url, null, "Status report", throwOnError: false);
+
+        Assert.False(response.IsSuccess);
+        Assert.Equal(5, handler.Calls);
+    }
+
     [Fact]
     public async Task Post503IsUncertainAndNotRetried()
     {

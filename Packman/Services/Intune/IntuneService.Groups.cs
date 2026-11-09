@@ -30,15 +30,21 @@ public partial class IntuneService
         return results.OrderBy(g => g.DisplayName, StringComparer.OrdinalIgnoreCase).ToList();
     }
 
-    /// <summary>The id of the group with exactly this display name, or null.</summary>
-    public async Task<string?> FindGroupIdAsync(string displayName, CancellationToken ct = default)
+    /// <summary>
+    /// Looks up the group with exactly this display name. Its id when exactly one group has
+    /// the name; otherwise null, with <c>Matches</c> 0 (none) or 2 (more than one, which a
+    /// name alone cannot pick between).
+    /// </summary>
+    public async Task<(string? Id, int Matches)> FindGroupIdAsync(string displayName, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(displayName)) return null;
+        if (string.IsNullOrWhiteSpace(displayName)) return (null, 0);
 
         var filter = Uri.EscapeDataString($"displayName eq '{OData.Literal(displayName.Trim())}'");
-        var page = (await _graph.GetAsync($"{GraphClient.Groups}?$filter={filter}&$select=id", "Group lookup", ct)).Json;
-        if (page.TryGetProperty("value", out var arr) && arr.ValueKind == JsonValueKind.Array && arr.GetArrayLength() > 0)
-            return arr[0].GetSafeString("id") is { Length: > 0 } id ? id : null;
-        return null;
+        var page = (await _graph.GetAsync($"{GraphClient.Groups}?$filter={filter}&$select=id&$top=2", "Group lookup", ct)).Json;
+        if (page.ValueKind != JsonValueKind.Object || !page.TryGetProperty("value", out var arr) || arr.ValueKind != JsonValueKind.Array)
+            return (null, 0);
+        if (arr.GetArrayLength() > 1) return (null, 2);
+        if (arr.GetArrayLength() == 1 && arr[0].GetSafeString("id") is { Length: > 0 } id) return (id, 1);
+        return (null, 0);
     }
 }

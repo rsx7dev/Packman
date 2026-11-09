@@ -35,6 +35,12 @@ public static class PackagePreflight
                  literal.Value.Equals("<uninstall flags>", StringComparison.OrdinalIgnoreCase)), searchNestedScriptBlocks: true);
             if (placeholders.Any())
                 issues.Add("Replace the EXE install/uninstall flag placeholders in Edit script with the vendor's silent switches, then save the script.");
+
+            // Written when the MSI's product code is not known; uninstall cannot work with it.
+            var productCode = ast.FindAll(node => node is StringConstantExpressionAst literal &&
+                literal.Value.Contains(PsadtScript.ProductCodePlaceholder, StringComparison.OrdinalIgnoreCase), searchNestedScriptBlocks: true);
+            if (productCode.Any())
+                issues.Add($"Replace {PsadtScript.ProductCodePlaceholder} in Edit script with the MSI's product code, then save the script.");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

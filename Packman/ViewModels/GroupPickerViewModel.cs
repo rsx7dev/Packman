@@ -123,24 +123,30 @@ public sealed class GroupPickerViewModel : ObservableObject
         }
 
         var unresolved = new List<string>();
+        var ambiguous = new List<string>();
         foreach (var existing in config.ExistingGroups)
         {
             var name = existing.GroupName.Trim();
             if (string.IsNullOrEmpty(name)) continue;
             if (SelectedGroups.Any(g => string.Equals(g.GroupName, name, StringComparison.OrdinalIgnoreCase))) continue;
 
+            // An exact-name lookup: a prefix search returns only twenty groups, and two
+            // groups with one name must not be told apart by whichever Graph lists first.
             string id = "";
+            var matches = 0;
             try
             {
-                var matches = await _apps.SearchGroupsAsync(name);
-                id = matches.FirstOrDefault(m => string.Equals(m.DisplayName, name, StringComparison.OrdinalIgnoreCase))?.Id ?? "";
+                var found = await _apps.FindGroupIdAsync(name);
+                id = found.Id ?? "";
+                matches = found.Matches;
             }
             catch { /* leave unresolved */ }
 
             // A newer seed started while this one was awaiting; it owns the list now.
             if (seq != _seedSeq) return false;
 
-            if (string.IsNullOrEmpty(id)) unresolved.Add(name);
+            if (matches > 1) ambiguous.Add(name);
+            else if (string.IsNullOrEmpty(id)) unresolved.Add(name);
 
             SelectedGroups.Add(new AssignedGroup
             {
@@ -150,9 +156,10 @@ public sealed class GroupPickerViewModel : ObservableObject
             });
         }
 
-        GroupSearchHint = unresolved.Count == 0
-            ? ""
-            : $"Not found in Entra, will be skipped: {string.Join(", ", unresolved)}";
+        var hints = new List<string>();
+        if (unresolved.Count > 0) hints.Add($"Not found in Entra, will be skipped: {string.Join(", ", unresolved)}");
+        if (ambiguous.Count > 0) hints.Add($"More than one Entra group has this name, so it will be skipped; pick the right one below: {string.Join(", ", ambiguous)}");
+        GroupSearchHint = string.Join(" ", hints);
         return true;
     }
 

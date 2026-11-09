@@ -35,9 +35,9 @@ public class PSADTGenerator
 
     public Task<PackageCreationResult> CreatePackageAsync(ApplicationInfo appInfo,
         bool overwriteExisting = false, CancellationToken cancellationToken = default)
-        => Task.Run(() => CreatePackageCoreAsync(appInfo, overwriteExisting, cancellationToken), cancellationToken);
+        => Task.Run(() => CreatePackageCore(appInfo, overwriteExisting, cancellationToken), cancellationToken);
 
-    private async Task<PackageCreationResult> CreatePackageCoreAsync(ApplicationInfo appInfo,
+    private PackageCreationResult CreatePackageCore(ApplicationInfo appInfo,
         bool overwriteExisting, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -49,31 +49,40 @@ public class PSADTGenerator
         var activity = ActivityLog.Shared;
         activity.Info($"Package folder: {packagePath}");
 
-        if (Directory.Exists(packagePath))
-        {
-            if (!overwriteExisting)
-                throw new InvalidOperationException(
-                    $"Package version {appInfo.Version} already exists for {appFolderName}.");
+        var replacing = Directory.Exists(packagePath);
+        if (replacing && !overwriteExisting)
+            throw new InvalidOperationException(
+                $"Package version {appInfo.Version} already exists for {appFolderName}.");
 
-            activity.Info("Replacing the existing package version…");
-            PackagePaths.DeleteInside(_baseOutputPath, packagePath);
-            // Deletes on a share settle a moment after the call returns.
-            await Task.Delay(200, cancellationToken);
+        // A replacement is built beside the existing package and swapped in at the end, so
+        // a cancel or a failed copy leaves the existing package exactly as it was.
+        var buildPath = replacing ? packagePath + ReplacementSuffix : packagePath;
+        if (replacing)
+        {
+            activity.Info("Building the replacement beside the existing package version…");
+            PackagePaths.DeleteInside(_baseOutputPath, buildPath);   // left by an interrupted run
         }
 
         try
         {
             activity.Info($"Copying the PSADT template from {template}");
-            DirectoryCopy.Copy(template, PsadtLayout.ApplicationFolder(packagePath), cancellationToken);
+            DirectoryCopy.Copy(template, PsadtLayout.ApplicationFolder(buildPath), cancellationToken);
             // Created up front so new and upgraded packages share one layout.
-            Directory.CreateDirectory(PsadtLayout.IntuneFolder(packagePath));
+            Directory.CreateDirectory(PsadtLayout.IntuneFolder(buildPath));
             foreach (var folder in PsadtLayout.OptionalFolders(_layout.IconFolder, _layout.ExtraFolders))
-                Directory.CreateDirectory(Path.Combine(packagePath, folder));
+                Directory.CreateDirectory(Path.Combine(buildPath, folder));
             activity.Info("Copying the source files…");
-            CopySourceFiles(appInfo.SourcesPath, packagePath, cancellationToken);
+            CopySourceFiles(appInfo.SourcesPath, buildPath, cancellationToken);
             cancellationToken.ThrowIfCancellationRequested();
             activity.Info("Writing the application details into the PSADT script…");
-            var warnings = ModifyScript(packagePath, appInfo);
+            var warnings = ModifyScript(buildPath, appInfo).ToList();
+
+            // Past this point the new package is complete; the swap is not cancelled halfway.
+            if (replacing)
+            {
+                activity.Info("Replacing the existing package version…");
+                if (SwapIn(buildPath, packagePath) is { } leftover) warnings.Add(leftover);
+            }
             foreach (var warning in warnings) activity.Warning(warning);
 
             Debug.WriteLine($"Package created at: {packagePath}");
@@ -82,9 +91,44 @@ public class PSADTGenerator
         catch
         {
             // Never leave a half-built version folder behind; it would block the next attempt.
-            try { PackagePaths.DeleteInside(_baseOutputPath, packagePath); }
+            try { PackagePaths.DeleteInside(_baseOutputPath, buildPath); }
             catch (Exception cleanup) { Debug.WriteLine($"Could not remove the half-built package: {cleanup.Message}"); }
             throw;
+        }
+    }
+
+    private const string ReplacementSuffix = ".packman-new";
+    private const string ReplacedSuffix = ".packman-old";
+
+    /// <summary>
+    /// Puts the finished replacement where the existing package is. The existing one is moved
+    /// aside first and only deleted once the new one is in place; if the new one cannot be
+    /// moved in, the existing one goes back. Returns a warning when the old copy could not be
+    /// removed afterwards, or null.
+    /// </summary>
+    private string? SwapIn(string buildPath, string packagePath)
+    {
+        var replaced = packagePath + ReplacedSuffix;
+        PackagePaths.DeleteInside(_baseOutputPath, replaced);
+        Directory.Move(packagePath, replaced);
+        try
+        {
+            Directory.Move(buildPath, packagePath);
+        }
+        catch
+        {
+            Directory.Move(replaced, packagePath);
+            throw;
+        }
+
+        try
+        {
+            PackagePaths.DeleteInside(_baseOutputPath, replaced);
+            return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return $"The previous package could not be removed and is still at {replaced}: {ex.Message}";
         }
     }
 
@@ -105,7 +149,8 @@ public class PSADTGenerator
             $"Set the PSADT Template Path in Settings > Network Paths to the PSADT folder containing {PsadtLayout.ScriptName}.");
     }
 
-    // SourcesPath is a file, a ';'-separated list of files, or a folder.
+    // SourcesPath is a file, a ';'-separated list of files, or a folder. A source that is
+    // named but not there fails the build: a package without its installer is not a package.
     private static void CopySourceFiles(string sourcesPath, string packagePath, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(sourcesPath)) return;
@@ -118,14 +163,20 @@ public class PSADTGenerator
             foreach (var p in sourcesPath.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             {
                 ct.ThrowIfCancellationRequested();
-                if (File.Exists(p)) File.Copy(p, Path.Combine(dest, Path.GetFileName(p)), true);
+                if (!File.Exists(p)) throw SourceNotFound(p);
+                File.Copy(p, Path.Combine(dest, Path.GetFileName(p)), true);
             }
         }
         else if (File.Exists(sourcesPath))
             File.Copy(sourcesPath, Path.Combine(dest, Path.GetFileName(sourcesPath)), true);
         else if (Directory.Exists(sourcesPath))
             DirectoryCopy.Copy(sourcesPath, dest, ct);
+        else
+            throw SourceNotFound(sourcesPath);
     }
+
+    private static FileNotFoundException SourceNotFound(string path) =>
+        new($"The source installer was not found: {path}. Check the path, or choose the file with Browse.");
 
     private static IReadOnlyList<string> ModifyScript(string packagePath, ApplicationInfo appInfo)
     {

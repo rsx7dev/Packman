@@ -133,6 +133,13 @@ public sealed class GraphClient
     public Task<GraphResponse> PostAsync(string url, object? body, string operation, CancellationToken ct = default, bool throwOnError = true)
         => SendAsync(HttpMethod.Post, url, body ?? "{}", operation, ct, throwOnError);
 
+    /// <summary>
+    /// A POST that only reads, such as a report query. Nothing is created, so it is retried
+    /// like a GET and a failure is an ordinary error, not an uncertain change.
+    /// </summary>
+    public Task<GraphResponse> PostQueryAsync(string url, object? body, string operation, CancellationToken ct = default, bool throwOnError = true)
+        => SendAsync(HttpMethod.Post, url, body ?? "{}", operation, ct, throwOnError, replayable: true);
+
     public Task<GraphResponse> PatchAsync(string url, object body, string operation, CancellationToken ct = default, bool throwOnError = true)
         => SendAsync(HttpMethod.Patch, url, body, operation, ct, throwOnError);
 
@@ -145,12 +152,13 @@ public sealed class GraphClient
     /// <paramref name="throwOnError"/> is false because there is no confirmed result.
     /// </summary>
     public async Task<GraphResponse> SendAsync(HttpMethod method, string url, object? body, string operation,
-        CancellationToken ct = default, bool throwOnError = true)
+        CancellationToken ct = default, bool throwOnError = true, bool? replayable = null)
     {
         // These PATCH callers replace properties with fixed values. POST creates resources
         // or invokes actions, so replaying a lost response can duplicate a committed change.
-        var canReplay = method == HttpMethod.Get || method == HttpMethod.Head || method == HttpMethod.Options ||
-                        method == HttpMethod.Put || method == HttpMethod.Patch || method == HttpMethod.Delete;
+        // A caller that knows its POST only reads says so with replayable.
+        var canReplay = replayable ?? (method == HttpMethod.Get || method == HttpMethod.Head || method == HttpMethod.Options ||
+                        method == HttpMethod.Put || method == HttpMethod.Patch || method == HttpMethod.Delete);
         var json = body is null ? null : body as string ?? JsonSerializer.Serialize(body, BodyOptions);
         var hadUncertainAttempt = false;
 
@@ -200,7 +208,9 @@ public sealed class GraphClient
                     throw new GraphMutationUncertainException(operation, status, Header(response, "request-id"));
 
                 // HTTP 429 explicitly rejects the request, so it is safe to retry a POST.
-                if ((status == 429 || (canReplay && (status is 503 or 504))) && attempt < MaxAttempts)
+                // A transient server error on a request that can be replayed: one of them
+                // must not end an upload that polls Graph for twenty minutes.
+                if ((status == 429 || (canReplay && (status is 408 or 500 or 502 or 503 or 504))) && attempt < MaxAttempts)
                 {
                     if (status != 429) hadUncertainAttempt = true;
                     await Task.Delay(RetryAfter(response) ?? Backoff(attempt), ct);

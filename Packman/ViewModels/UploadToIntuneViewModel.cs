@@ -166,8 +166,7 @@ public sealed class UploadToIntuneViewModel : ObservableObject
             _architecture = script.AppArch;
             PackageMeta = string.Join(" · ", new[] { Version, _architecture, InstallContext }.Where(v => !string.IsNullOrWhiteSpace(v)));
 
-            var iconDir = PsadtLayout.IconFolder(root);
-            PackageIconPath = Directory.Exists(iconDir) ? Directory.EnumerateFiles(iconDir).FirstOrDefault() ?? "" : "";
+            PackageIconPath = PsadtLayout.FindIcon(root) ?? "";
 
             // A different package starts from the saved defaults, as the wizard does.
             if (root != PackageRoot)
@@ -466,6 +465,9 @@ public sealed class UploadToIntuneViewModel : ObservableObject
             ValidationError = IntuneAuthService.ConsentDeclinedMessage(IntuneAuthService.PublishScopes);
             return;
         }
+        if (!await PublishGuard.ConfirmNewAppAsync(PackageRoot, _auth,
+                id => AppServices.Apps.ApplicationExistsAsync(id), AppServices.Dialogs))
+            return;
         var appInfo = new ApplicationInfo
         {
             Name = AppName.Trim(),
@@ -496,7 +498,8 @@ public sealed class UploadToIntuneViewModel : ObservableObject
             (progress, ct) => uploadService.UploadWin32ApplicationAsync(
                 appInfo, packageRoot, rules,
                 installCommand, uninstallCommand,
-                appInfo.DisplayName, appInfo.InstallContext, null, progress, null, null,
+                appInfo.DisplayName, appInfo.InstallContext,
+                string.IsNullOrEmpty(PackageIconPath) ? null : PackageIconPath, progress, null, null,
                 requirements, returnCodes,
                 settings.IntuneDefaults.PrivacyUrl, settings.IntuneDefaults.InformationUrl,
                 groups, settings.IntuneDefaults.RestartBehavior, settings.IntuneDefaults.MaxRunTimeMinutes, ct),
@@ -509,6 +512,12 @@ public sealed class UploadToIntuneViewModel : ObservableObject
                 true => "Upload cancelled. The partially created app was removed from Intune.",
                 false => "Upload cancelled. The partially created app could not be removed; delete it in the Intune admin center.",
                 null => "Upload cancelled. Check Intune for any app created before cancellation; no app ID was confirmed.",
+            },
+            () => uploadService.RollbackSucceeded switch
+            {
+                true => "The partially created app was removed from Intune.",
+                false => "The partially created app could not be removed. Delete it in the Intune admin center before publishing again.",
+                null => "",
             });
     }
 

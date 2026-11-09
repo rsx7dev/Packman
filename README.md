@@ -124,7 +124,7 @@ Each area links to the part of the [manual](docs/MANUAL.md) that explains it.
 
 ### Use a CI build
 
-Successful [Windows CI runs](https://github.com/TechLakeRS/Packman/actions/workflows/build.yml)
+Successful [Windows CI runs](https://github.com/rsx7dev/Packman/actions/workflows/build.yml)
 provide a **Packman-community-windows** artifact. Extract the entire archive and launch
 `Packman.exe` after installing the runtimes listed under [Requirements](#requirements). CI artifacts
 are development builds, not a separately signed installer or stable release. Tagged versions are
@@ -134,7 +134,7 @@ only for the folder to write packages to; the PSADT template and `IntuneWinAppUt
 ### Build and run from source
 
 ```bash
-git clone https://github.com/TechLakeRS/Packman.git
+git clone https://github.com/rsx7dev/Packman.git
 cd Packman
 dotnet build Packman.sln
 dotnet run --project Packman/Packman.csproj
@@ -146,7 +146,7 @@ restores from the vendored `packages/` folder, so a fresh clone builds with no n
 
 ### Package your first app
 
-On first launch Packman opens a short setup for the connection, the paths and the package folders. Then follow
+On first launch Packman asks one question: where your package folders live. Then follow
 [HOWTO.md](HOWTO.md): set up once, generate the package, fix the script, test it on a real machine
 and publish.
 
@@ -179,8 +179,8 @@ and publish.
 
 ## Limits
 
-Packman is Windows-only and handles Win32 LOB apps packaged with PSADT v4. It does not ship the
-PSADT runtime, cannot upload a bare `.intunewin`, edits only detection rules and assignments on a
+Packman is Windows-only and handles Win32 LOB apps packaged with PSADT v4. It cannot upload a
+bare `.intunewin`, edits only detection rules and assignments on a
 published app, and has no CLI or background sync. The full list is in
 [What Packman cannot do](docs/MANUAL.md#what-packman-cannot-do).
 

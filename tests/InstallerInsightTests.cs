@@ -61,6 +61,10 @@ internal static class InstallerInsightTests
         ("ArgumentLine.MsiProperty examples", MsiPropertyExamples),
         ("PsadtScript EXE install and uninstall lines", PsadtExeLines),
         ("PsadtScript MSI lines add -AdditionalArgumentList only when arguments are given", PsadtMsiLines),
+        ("An upgrade finds the package's own installer, not a prerequisite named first", PsadtInstallerFileName),
+        ("An upgrade repoints only the installer's references", PsadtReplaceOnlyInstaller),
+        ("A referenced name with a path or drive is not a file under Files", PsadtReferenceIsPlainName),
+        ("Only a braced GUID is written as a product code", PsadtProductCodeIsGuid),
         ("MsiProperty.IsPublic and Argument examples", MsiPropertyPublicAndArgument),
         ("MsiInfo defaults and KeyProperties examples", KeyPropertyExamples),
         ("MsiInfo.Search examples", SearchExamples),
@@ -578,6 +582,71 @@ internal static class InstallerInsightTests
             PsadtScript.UninstallCommand(true, "app.msi", Guid, "REMOVE=ALL"));
     }
 
+    private const string MultiFileScript = """
+            ## <Perform Pre-Installation tasks here>
+            Start-ADTProcess -FilePath "$($adtSession.DirFiles)\vcredist_x64.exe" -ArgumentList '/quiet'
+            ## <Perform Installation tasks here>
+
+            ## MSI Installation
+            Start-ADTMsiProcess -Action 'Install' -FilePath "$($adtSession.DirFiles)\App.msi"
+            & "$($adtSession.DirFiles)\config.ps1"
+
+        """;
+
+    private static void PsadtInstallerFileName()
+    {
+        var script = PsadtScript.Parse(MultiFileScript);
+        Equal("App.msi", script.InstallerFileName);
+        Equal("vcredist_x64.exe, App.msi, config.ps1", string.Join(", ", script.SourceFileNames));
+
+        // A hand-written script without the generator's heading: the first .msi or .exe.
+        var handWritten = PsadtScript.Parse("""
+            & "$($adtSession.DirFiles)\prep.ps1"
+            Start-ADTProcess -FilePath "$adtSession.DirFiles\setup.exe"
+
+            """);
+        Equal("setup.exe", handWritten.InstallerFileName);
+        Equal<string?>(null, PsadtScript.Parse("Write-ADTLogEntry 'nothing'\n").InstallerFileName);
+    }
+
+    private static void PsadtReplaceOnlyInstaller()
+    {
+        var script = PsadtScript.Parse(MultiFileScript);
+        Equal(1, script.ReplaceSourceFileName("App.msi", "App-2.0.msi"));
+        True(script.Content.Contains("""\App-2.0.msi" """.TrimEnd()), "The installer reference was not repointed");
+        True(script.Content.Contains("""\vcredist_x64.exe" """.TrimEnd()), "The prerequisite was repointed");
+        True(script.Content.Contains("""\config.ps1" """.TrimEnd()), "The helper script was repointed");
+    }
+
+    private static void PsadtReferenceIsPlainName()
+    {
+        var script = PsadtScript.Parse("""
+            # "$($adtSession.DirFiles)\C:/Users/admin/x.ps1"
+            # "$($adtSession.DirFiles)\../../Other/setup.exe"
+
+            """);
+        Equal<string?>(null, script.InstallerFileName);
+    }
+
+    private static void PsadtProductCodeIsGuid()
+    {
+        const string Old = "{3FA85F64-5717-4562-B3FC-2C963F66AFA6}";
+        const string New = "{11111111-2222-3333-4444-555555555555}";
+        const string Injected = "{0}'; iex(evil); '";
+        True(PsadtScript.IsProductCode(New), "A braced GUID is a product code");
+        True(!PsadtScript.IsProductCode(Injected), "Script text was taken as a product code");
+        True(!PsadtScript.IsProductCode(New + "x"), "Trailing text was taken as a product code");
+
+        var script = PsadtScript.Parse($"Start-ADTMsiProcess -Action 'Uninstall' -FilePath '{Old}'\n");
+        Equal(1, script.ReplaceProductCode(Old, New));
+        True(script.Content.Contains(New), "The product code was not replaced");
+
+        var threw = false;
+        try { script.ReplaceProductCode(New, Injected); }
+        catch (ArgumentException) { threw = true; }
+        True(threw, "Script text was written in place of a product code");
+    }
+
     // ── MsiInfoService ──
 
     private static void MsiPropertyPublicAndArgument()
@@ -623,8 +692,9 @@ internal static class InstallerInsightTests
             Equal("A.mst, b.mst", string.Join(", ", MsiInfoService.FindTransforms(Path.Combine(folder, "app.msi"))));
             Equal(0, MsiInfoService.FindTransforms(Path.Combine(folder, "missing", "app.msi")).Count());
 
-            // A folder that can't be listed gives no transforms instead of throwing.
-            if (!OperatingSystem.IsWindows())
+            // A folder that can't be listed gives no transforms instead of throwing. Root
+            // lists any folder whatever its mode, so the check needs an ordinary user.
+            if (!OperatingSystem.IsWindows() && !Environment.IsPrivilegedProcess)
             {
                 File.SetUnixFileMode(folder, UnixFileMode.None);
                 Equal(0, MsiInfoService.FindTransforms(Path.Combine(folder, "app.msi")).Count());

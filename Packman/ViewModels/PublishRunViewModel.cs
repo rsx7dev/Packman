@@ -115,7 +115,8 @@ public sealed class PublishRunViewModel : ObservableObject
         string tenantName,
         Func<IUploadProgress, CancellationToken, Task<string>> work,
         Func<string, string> successText,
-        Func<string> cancelledText)
+        Func<string> cancelledText,
+        Func<string>? failedCleanupText = null)
     {
         if (IsRunning) return null;
 
@@ -168,8 +169,12 @@ public sealed class PublishRunViewModel : ObservableObject
         catch (Exception ex)
         {
             MarkWorkingStepFailed();
-            ResultText = $"Upload failed: {ex.Message}";
-            StatusText = ResultText;
+            // What was left in the tenant matters as much as why it stopped.
+            var cleanup = failedCleanupText?.Invoke();
+            ResultText = string.IsNullOrEmpty(cleanup)
+                ? $"Upload failed: {ex.Message}"
+                : $"Upload failed: {ex.Message}{Environment.NewLine}{cleanup}";
+            StatusText = $"Upload failed: {ex.Message}";
             return null;
         }
         finally

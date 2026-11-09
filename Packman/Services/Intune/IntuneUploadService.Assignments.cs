@@ -46,8 +46,16 @@ public partial class IntuneUploadService
             RecordFollowUpWarning($"Per-package group name for the {intent} assignment resolved to empty - skipped", log);
             return;
         }
-        // Reuse an existing group with this name before creating one.
-        var groupId = await ResolveGroupIdAsync(name, log, ct) ?? await CreateSecurityGroupAsync(name, log, ct);
+        // Reuse an existing group with this name before creating one. The name is built from
+        // public installer details, so a group that already exists may not be ours: say so.
+        var existing = await ResolveGroupIdAsync(name, log, ct);
+        if (existing != null)
+        {
+            var reused = $"Per-package group '{name}' already existed (id {existing}) and was reused for the {intent} assignment. Check who owns it and who is in it.";
+            log.Warning(reused);
+            ActivityLog.Shared.Warning(reused);
+        }
+        var groupId = existing ?? await CreateSecurityGroupAsync(name, log, ct);
         if (groupId != null)
             await CreateGroupAssignmentAsync(appId, groupId, intent, name, log, ct);
     }

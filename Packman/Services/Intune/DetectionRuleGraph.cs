@@ -34,7 +34,8 @@ public static class DetectionRuleGraph
         {
             ["@odata.type"] = "#microsoft.graph.win32LobAppRegistryDetection",
             ["keyPath"] = r.Path.Trim(),
-            ["valueName"] = r.FileOrFolderName.Trim(),
+            // No value name checks the key itself; Graph takes that as null.
+            ["valueName"] = string.IsNullOrWhiteSpace(r.FileOrFolderName) ? null : r.FileOrFolderName.Trim(),
             ["check32BitOn64System"] = r.Check32BitOn64System,
             ["detectionType"] = DetectionType(r),
             ["operator"] = OperatorNeedsValue(DetectionType(r)) ? DefaultOperator(r.Operator) : "notConfigured",
