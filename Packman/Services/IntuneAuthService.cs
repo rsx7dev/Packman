@@ -73,6 +73,8 @@ public class IntuneAuthService
         public X509Certificate2? Certificate { get; init; }
         public required string User { get; init; }
         public required string TenantId { get; init; }
+        /// <summary>The tenant as Settings names it, for an app registration; a domain or a directory ID.</summary>
+        public string ConfiguredTenant { get; init; } = "";
         public string? TestToken { get; init; }
         // Replaced, never mutated, under _stateLock as consent widens.
         public string[] Scopes { get; set; } = InteractiveScopes;
@@ -85,18 +87,27 @@ public class IntuneAuthService
     /// <summary>Directory (tenant) id of the current sign-in; null when signed out.</summary>
     public string? TenantId { get { lock (_stateLock) return _session?.TenantId; } }
 
-    /// <summary>Tenant label from the signed-in UPN's domain ("contoso" for user@contoso.com); "your" when unknown.</summary>
+    /// <summary>
+    /// Names the connected tenant: the domain label of the signed-in user ("contoso" for
+    /// user@contoso.com), else of the tenant domain an app registration was given, else the
+    /// directory ID. Empty when signed out.
+    /// </summary>
     public string TenantName
     {
         get
         {
-            var upn = SignedInUser ?? "";
-            var at = upn.IndexOf('@');
-            if (at < 0 || at == upn.Length - 1) return "your";
-            var domain = upn[(at + 1)..];
-            var dot = domain.IndexOf('.');
-            return dot > 0 ? domain[..dot] : domain;
+            lock (_stateLock)
+                return _session == null ? "" : TenantLabel(_session.User, _session.ConfiguredTenant, _session.TenantId);
         }
+    }
+
+    internal static string TenantLabel(string user, string configuredTenant, string tenantId)
+    {
+        var at = user.IndexOf('@');
+        var domain = at >= 0 ? user[(at + 1)..]
+            : Guid.TryParse(configuredTenant, out _) ? "" : configuredTenant.Trim();
+        var label = domain.Split('.')[0];
+        return label.Length > 0 ? label : tenantId;
     }
 
     /// <summary>Raised on sign-in state changes so screens can refresh.</summary>
@@ -188,6 +199,7 @@ public class IntuneAuthService
                 Certificate = certificate,
                 User = $"App registration {cfg.ClientId.Trim()}",
                 TenantId = TenantIdOf(result.AccessToken),
+                ConfiguredTenant = cfg.TenantId,
             };
         }
         catch

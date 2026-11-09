@@ -4,7 +4,9 @@ using System.Text;
 
 namespace Packman.Services;
 
-public record InstallerDetection(InstallerKind Kind, Confidence? Confidence, string Evidence);
+/// <param name="Architecture">What the setup program itself is built for (x86, x64, ARM64); empty when the machine type is not one of those.</param>
+/// <param name="HasSignature">The file carries an Authenticode signature. Its validity is not checked.</param>
+public record InstallerDetection(InstallerKind Kind, Confidence? Confidence, string Evidence, string Architecture = "", bool HasSignature = false);
 
 /// <summary>
 /// Names an EXE's installer technology without running it. Reads only the PE headers, the
@@ -27,13 +29,13 @@ public static class InstallerDetector
     {
         var areas = ReadAreas(stream);
 
-        InstallerDetection best = new(InstallerCatalog.Unknown, null, "");
+        InstallerDetection best = new(InstallerCatalog.Unknown, null, "", areas.Architecture, areas.HasSignature);
         foreach (var kind in InstallerCatalog.Kinds)
         {
             foreach (var marker in kind.Markers)
             {
                 if (best.Confidence >= marker.Confidence || !Matches(areas, marker)) continue;
-                best = new InstallerDetection(kind, marker.Confidence, Evidence(marker));
+                best = best with { Kind = kind, Confidence = marker.Confidence, Evidence = Evidence(marker) };
             }
         }
         return best;
@@ -42,7 +44,7 @@ public static class InstallerDetector
     private static string Evidence(Marker marker) =>
         $"{marker.Area.ToString().ToLowerInvariant()} {new string(marker.Text.Where(c => c is >= ' ' and <= '~').ToArray())}";
 
-    private sealed record Areas(List<string> SectionNames, byte[] Resources, byte[] Overlay, byte[] Tail);
+    private sealed record Areas(List<string> SectionNames, byte[] Resources, byte[] Overlay, byte[] Tail, string Architecture, bool HasSignature);
 
     private static bool Matches(Areas areas, Marker marker)
     {
@@ -73,6 +75,13 @@ public static class InstallerDetector
         if (coff.Length < 24 || coff[0] != 'P' || coff[1] != 'E' || coff[2] != 0 || coff[3] != 0)
             throw new InvalidDataException("not a Windows executable (no PE signature).");
 
+        var architecture = BinaryPrimitives.ReadUInt16LittleEndian(coff.AsSpan(4)) switch
+        {
+            0x014C => "x86",
+            0x8664 => "x64",
+            0xAA64 => "ARM64",
+            _ => "",
+        };
         int sectionCount = BinaryPrimitives.ReadUInt16LittleEndian(coff.AsSpan(6));
         int optionalSize = BinaryPrimitives.ReadUInt16LittleEndian(coff.AsSpan(20));
         var optionalStart = peOffset + 24L;
@@ -102,7 +111,7 @@ public static class InstallerDetector
         var overlay = ReadAt(stream, overlayStart, (int)Math.Min(AreaLimit, end - overlayStart));
         var tailStart = Math.Max(0, end - AreaLimit);
         var tail = ReadAt(stream, tailStart, (int)(end - tailStart));
-        return new Areas(names, resources, overlay, tail);
+        return new Areas(names, resources, overlay, tail, architecture, certificate > 0);
     }
 
     /// <summary>File offset of the Authenticode table (data directory 4), or 0 when unsigned.</summary>

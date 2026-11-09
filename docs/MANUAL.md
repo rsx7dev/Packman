@@ -130,8 +130,10 @@ For interactive sign-in through your own registration instead of the shared clie
 
 Assign it to the packaging team under *Enterprise applications ▸ Packman ▸ Properties ▸
 Assignment required* to limit who can sign in. The connection pill in the title bar turns green and
-reads *Connected* with your tenant name once signed in; hover it for *Connected to Microsoft
-Intune · you@tenant*.
+reads *Connected* with the tenant name once signed in — the domain label of the signed-in
+account (`contoso` for `you@contoso.com`), or for an app registration the tenant domain from
+Settings, else the tenant ID. Hover it for *Connected to Microsoft Intune · tenant contoso ·
+you@contoso.com*.
 
 ### Code signing (optional)
 
@@ -237,12 +239,21 @@ steps back.
    - EXE — Packman looks at the PE headers, sections, resources and the data appended to the
      file and names the technology (Inno Setup, NSIS, WiX Burn, InstallShield, Advanced Installer,
      InstallAware, Wise, Setup Factory, Squirrel/Velopack, ClickOnce, 7-Zip/WinRAR SFX, MSIX/AppX
-     bundle) with a High, Medium or Low confidence and the marker it matched. The known
-     **Install switches** and **Uninstall switches** are listed with a one-line explanation; **Add** puts a
-     switch into the **Install arguments** or **Uninstall arguments** field. If nothing matches, the
-     type is *Unknown* and the common guesses are listed, each marked *untested*. The table
-     lives in `Packman/Services/InstallerCatalog.cs`; a new installer type is a new entry there.
-   - MSI — the key **MSI properties** (`ProductName`, `ProductVersion`, `Manufacturer`,
+     bundle) with a High, Medium or Low confidence and the marker it matched, plus the setup
+     program's architecture and whether the file is signed (the signature is not verified). The
+     **Install switches** and **Uninstall switches** that type documents are listed with a one-line
+     explanation; **Add** puts a switch into the **Install arguments** or **Uninstall arguments**
+     field. If nothing matches, the type is *Unknown* and no switches are listed: Packman shows
+     only what a recognised type documents, never guesses. The table lives in
+     `Packman/Services/InstallerCatalog.cs`; a new installer type is a new entry there.
+   - MSI — **MSI package**: the tool that built it (WiX, InstallShield, Advanced Installer…),
+     platform, languages, install scope (from `ALLUSERS`), package code, the minimum Windows
+     Installer version and the creation date, all read from the summary stream and Property table.
+     **Installer options** lists the public properties the MSI's own dialogs set (check boxes,
+     choices, folders and text boxes) with their values and default; **Add** puts `NAME=value`
+     into **Install arguments**. **Features** lists the Feature table with each feature's title and
+     whether it installs by default; **Add** puts the feature into `ADDLOCAL`. Then the key
+     **MSI properties** (`ProductName`, `ProductVersion`, `Manufacturer`,
      `ProductCode`, `UpgradeCode`, `ALLUSERS`, the reboot properties and the install directories),
      then **All properties** with a **Search MSI properties** box. Public (uppercase) properties
      have an **Add** button that puts `NAME=value` into **Install arguments**. `.mst` transforms
