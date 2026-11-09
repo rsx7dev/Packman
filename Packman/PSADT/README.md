@@ -2,7 +2,7 @@
 
 This is the template folder Packman copies when creating a package. It is PSADT 4.1.8 from the
 official [PSAppDeployToolkit_Template_v4.zip](https://github.com/PSAppDeployToolkit/PSAppDeployToolkit/releases/tag/4.1.8),
-complete with its runtime, and Packman uses it while **Settings → Network Paths → PSADT Template Path**
+complete with its runtime, and Packman uses it while **Settings → Paths → PSADT Template Path**
 is empty.
 
 ## Structure

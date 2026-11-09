@@ -20,7 +20,7 @@ public static class PackagePreflight
         };
         foreach (var file in required)
             if (!File.Exists(Path.Combine(application, file)))
-                issues.Add($"Missing {PsadtLayout.ApplicationFolderName}/{file}. Use a complete PSADT v4 template in Settings → Network paths.");
+                issues.Add($"Missing {PsadtLayout.ApplicationFolderName}/{file}. Use a complete PSADT v4 template in Settings → Paths.");
 
         if (!File.Exists(scriptPath)) return issues;
         try

@@ -16,7 +16,7 @@
         <controls:PageFrame.HeaderBottom>
             <WrapPanel>
                 <RadioButton x:Name="TabAuth" Style="{StaticResource PageTab}" Content="Authentication" IsChecked="True"/>
-                <RadioButton x:Name="TabNetworkPaths" Style="{StaticResource PageTab}" Content="Network paths"/>
+                <RadioButton x:Name="TabNetworkPaths" Style="{StaticResource PageTab}" Content="Paths"/>
                 <RadioButton x:Name="TabPackageLayout" Style="{StaticResource PageTab}" Content="Package layout"/>
                 <RadioButton x:Name="TabIntuneDefaults" Style="{StaticResource PageTab}" Content="Intune defaults"/>
                 <RadioButton x:Name="TabGroupAssignment" Style="{StaticResource PageTab}" Content="Group assignment"/>
@@ -85,7 +85,7 @@
                 <controls:StatusRow Label="Authentication"
                                     Value="{Binding IsSignedIn, Converter={StaticResource BoolToText}, ConverterParameter='Connected|Not connected'}"
                                     Kind="{Binding IsSignedIn, Converter={StaticResource BoolToText}, ConverterParameter='ok|pending'}"/>
-                <controls:StatusRow Label="Network paths"
+                <controls:StatusRow Label="Paths"
                                     Value="{Binding IsConfigured, Converter={StaticResource BoolToText}, ConverterParameter='Configured|Incomplete'}"
                                     Kind="{Binding IsConfigured, Converter={StaticResource BoolToText}, ConverterParameter='ok|warn'}"/>
                 <controls:StatusRow Label="Intune defaults"

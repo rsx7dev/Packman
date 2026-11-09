@@ -32,7 +32,7 @@ missing, with a link to the setting that fixes it.
 Packman bundles Microsoft's Win32 Content Prep Tool (1.8.7, from
 [microsoft/Microsoft-Win32-Content-Prep-Tool](https://github.com/microsoft/Microsoft-Win32-Content-Prep-Tool))
 and PSADT 4.1.8. To use another build, set **IntuneWinAppUtil Path** or **PSADT Template Path** under
-**Settings ▸ Network paths**; empty uses the bundled one. Check a tool of your own before you point
+**Settings ▸ Paths**; empty uses the bundled one. Check a tool of your own before you point
 Settings at it:
 
 ```powershell

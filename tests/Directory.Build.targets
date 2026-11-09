@@ -22,6 +22,7 @@
   </ItemGroup>
   <ItemGroup Condition="'$(MSBuildProjectName)' == 'InstallerInsightTests.cs'">
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Services/InstallerCatalog.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/PsadtConfig.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Services/InstallerDetector.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Services/MsiInfoService.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)../Packman/Helpers/ArgumentLine.cs" />

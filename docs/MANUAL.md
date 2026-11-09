@@ -54,7 +54,7 @@ checks the output share, PSADT template, `IntuneWinAppUtil.exe` and Intune sign-
 (saved in settings); it comes back while the share, template or converter is missing or broken.
 
 The sections below describe the options on the Settings page. **Authentication** is needed to
-publish and **Network paths** only for the packages folder; the rest have working defaults. Press
+publish and **Paths** only for the packages folder; the rest have working defaults. Press
 **Save settings** when done — except Appearance, which applies and saves immediately.
 
 ### Authentication
@@ -143,13 +143,16 @@ is built. Pick the signing certificate from the store with **Select from store**
 no temporary PFX is written. If signing is enabled and the certificate or signing operation fails,
 publishing stops before building or uploading content.
 
-### Network paths
+### Paths
 
 | Setting | What it is |
 |---|---|
 | **Intune Applications Path** | Root folder where packages are written, typically a share. |
 | **PSADT Template Path** | Optional. Your own PSADT v4 folder — either the folder containing `Invoke-AppDeployToolkit.ps1` or the script path itself. Empty uses the bundled template. |
 | **IntuneWinAppUtil Path** | Optional. Full path to your own `IntuneWinAppUtil.exe`. Empty uses the bundled one. |
+| **PSADT Log Folder** | Read-only. `LogPath` from the template's `Config\config.psd1`. Suggested `/log` switches write here. Change it in the template. |
+| **Staging Folder on Target** | Optional. A local folder on Remote test targets, such as `D:\Staging`. Packman always stages in its own `Packman` subfolder there. Empty uses `C:\ProgramData`. Network paths and environment variables are refused. |
+| **Upload Logs Folder** | Optional. Where upload and update logs go, for example a share for a team audit trail. Each log names the user and computer. If the folder can't be written during a publish, the log goes to the local folder and the console says so. **Open logs folder** opens it. Empty uses `%LocalAppData%\Packman\Logs`. |
 
 Package generation is blocked until the Intune Applications Path is set.
 
@@ -375,7 +378,8 @@ Management Extension does, so the launcher, PowerShell edition and module isolat
    a re-run only copies what changed). The setting is remembered.
 6. **Install** first checks the package as Review does and lists anything wrong as a warning
    (a leftover EXE placeholder, say); the run still goes ahead. It then makes sure
-   `C:\ProgramData\Packman` on the target is owned by Administrators, with inheritance off and
+   the staging folder on the target (`C:\ProgramData\Packman` unless Settings ▸ Paths sets another
+   parent) is owned by Administrators, with inheritance off and
    access for SYSTEM and Administrators only. A folder there that anyone else could change is
    renamed to `Packman.untrusted-<timestamp>` and a fresh one is created; if the folder still
    can't be secured, the run stops before anything is copied. It then copies the package there over
@@ -652,13 +656,13 @@ hidden behind a **Grant access** button.
 | What | Where |
 |---|---|
 | Settings | `%LocalAppData%\Packman\appsettings.json` (a legacy copy next to the executable is read once and migrated) |
-| Upload logs | `%LocalAppData%\Packman\Logs\Upload\<App>-<date>.log` |
-| Update logs | `%LocalAppData%\Packman\Logs\Update\<App>-<date>.log` |
+| Upload logs | `<Upload Logs Folder>\Upload\<App>-<date>.log`; default `%LocalAppData%\Packman\Logs` |
+| Update logs | `<Upload Logs Folder>\Update\<App>-<date>.log` |
 | Crash / error logs | `%LocalAppData%\Packman\Logs\Errors\error-<date>.log` |
 | Editor cache | `%LocalAppData%\Packman\WebView2\` |
 | Packages | `<Intune Applications Path>\<Vendor>_<AppName>\<Version>\` |
 | `packman.id` link file | `<package>\Intune\`, next to the `.intunewin`; written on a successful upload or republish |
-| Staged test copy | `C:\ProgramData\Packman\...` on the target machine (SYSTEM and Administrators only) |
+| Staged test copy | `<Staging Folder>\Packman\...` on the target, default `C:\ProgramData\Packman` (SYSTEM and Administrators only) |
 
 ---
 
@@ -735,7 +739,7 @@ Known limits, so you do not go looking:
 
 | Symptom | Fix |
 |---|---|
-| *Set the Intune Applications Path in Settings first.* | Set it under Settings ▸ Network paths. |
+| *Set the Intune Applications Path in Settings first.* | Set it under Settings ▸ Paths. |
 | *PSADT template not found.* | The template path must be the folder containing `Invoke-AppDeployToolkit.ps1` (or that script's path). |
 | *IntuneWinAppUtil finished but produced no .intunewin file.* | A template of your own needs the full PSADT v4 runtime, not just the script. Clear **PSADT Template Path** to use the bundled one. |
 | *Package version … already exists.* | Confirm the replace prompt (create), or delete the version folder / pick another version (upgrade). |

@@ -146,7 +146,7 @@ public class PSADTGenerator
 
         throw new DirectoryNotFoundException(
             $"PSADT template not found. Searched: '{_templatePath}'. " +
-            $"Set the PSADT Template Path in Settings > Network Paths to the PSADT folder containing {PsadtLayout.ScriptName}.");
+            $"Set the PSADT Template Path in Settings > Paths to the PSADT folder containing {PsadtLayout.ScriptName}.");
     }
 
     // SourcesPath is a file, a ';'-separated list of files, or a folder. A source that is

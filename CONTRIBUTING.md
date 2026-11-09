@@ -95,7 +95,7 @@ account or VM that has never run Packman.
 | `application-deployment-dark.png` | README dark example; manual, Application detail |
 | `advanced-light.png` | Manual, Advanced — directory tools |
 | `settings-authentication-light.png` | Manual, Authentication |
-| `settings-network-paths-light.png` | Manual, Network paths |
+| `settings-network-paths-light.png` | Manual, Paths |
 
 The script editor (WebView2) is a native window that WPF cannot render, so the manual describes
 it in text.
