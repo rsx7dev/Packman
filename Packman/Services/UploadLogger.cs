@@ -6,7 +6,8 @@ namespace Packman.Services;
 
 /// <summary>
 /// Per-package log for an upload or a content update, written to
-/// %LocalAppData%\Packman\Logs\{Upload|Update}\{App}-{date}.log.
+/// {logs folder}\{Upload|Update}\{App}-{date}.log. The logs folder is Settings ▸ Paths ▸
+/// Upload logs folder (a share, for a team audit trail), else %LocalAppData%\Packman\Logs.
 /// Tokens and SAS URIs never go through here. Every line except metadata is also shown in the
 /// live console (<see cref="ActivityLog"/>).
 /// </summary>
@@ -20,24 +21,47 @@ public sealed class UploadLogger : IDisposable
 
     private readonly string _operation;
 
+    /// <summary>%LocalAppData%\Packman\Logs: used when no folder is set or the set one can't be written.</summary>
+    public static string DefaultFolder { get; } = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Packman", "Logs");
+
+    /// <summary>The Settings value; the app keeps it current. Empty uses <see cref="DefaultFolder"/>.</summary>
+    public static string ConfiguredFolder { get; set; } = "";
+
+    /// <summary>The logs folder a set value resolves to.</summary>
+    public static string FolderFor(string? configured) =>
+        string.IsNullOrWhiteSpace(configured) ? DefaultFolder : Environment.ExpandEnvironmentVariables(configured.Trim());
+
     /// <param name="operation">"Upload" or "Update": the log folder and the session label.</param>
     public UploadLogger(string applicationName, string operation = "Upload")
     {
         _operation = operation;
-        var logDirectory = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Packman", "Logs", operation);
-        Directory.CreateDirectory(logDirectory);
-
         var safeAppName = string.Join("_", applicationName.Split(Path.GetInvalidFileNameChars()));
-        LogFilePath = Path.Combine(logDirectory, $"{safeAppName}-{DateTime.Now:yyyy-MM-dd}.log");
+        var fileName = $"{safeAppName}-{DateTime.Now:yyyy-MM-dd}.log";
+
+        // A share that is offline must not stop a publish: fall back to the local folder and say so.
+        string? fallbackReason = null;
+        var logDirectory = Path.Combine(FolderFor(ConfiguredFolder), operation);
+        LogFilePath = Path.Combine(logDirectory, fileName);
+        try
+        {
+            _writer = Open(logDirectory, LogFilePath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            fallbackReason = $"Could not write to the logs folder {logDirectory} ({ex.Message}); logging locally instead.";
+            logDirectory = Path.Combine(DefaultFolder, operation);
+            LogFilePath = Path.Combine(logDirectory, fileName);
+        }
 
         try
         {
-            _writer = new StreamWriter(LogFilePath, append: true, Encoding.UTF8) { AutoFlush = true };
+            _writer ??= Open(logDirectory, LogFilePath);
             var separator = new string('=', 80);
             Write(separator);
             Write($"{_operation} Session Started: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            // A shared folder collects logs from several packagers.
+            Write($"By: {Environment.UserDomainName}\\{Environment.UserName} on {Environment.MachineName}");
             Write(separator);
             Write("");
         }
@@ -45,6 +69,14 @@ public sealed class UploadLogger : IDisposable
         {
             Debug.WriteLine($"UploadLogger: Failed to initialize log file: {ex.Message}");
         }
+
+        if (fallbackReason != null) Warning(fallbackReason);
+    }
+
+    private static StreamWriter Open(string directory, string path)
+    {
+        Directory.CreateDirectory(directory);
+        return new StreamWriter(path, append: true, Encoding.UTF8) { AutoFlush = true };
     }
 
     public void Info(string message)

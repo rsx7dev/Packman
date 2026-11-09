@@ -10,7 +10,7 @@
 
     <!-- Step 2 of the wizard: everything the Intune app needs. Nothing is sent from here;
          the rail beside it (WizardRail) tracks what is ready. -->
-    <Border Style="{StaticResource SectionPanel}" MaxWidth="860" HorizontalAlignment="Left">
+    <Border Style="{StaticResource SectionPanel}" MaxWidth="860" HorizontalAlignment="Stretch">
         <StackPanel>
             <!-- ═══ Install behavior ═══ -->
             <controls:SectionHeader Title="Install behavior" Caption="How Intune installs and uninstalls the application with PSADT."/>

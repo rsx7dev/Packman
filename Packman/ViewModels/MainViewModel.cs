@@ -362,10 +362,23 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary><see cref="PackageFolderPreview"/> relative to the output share, which is the same for every package.</summary>
+    public string PackageFolderRelative
+    {
+        get
+        {
+            var full = PackageFolderPreview;
+            if (!OutputShareReady) return full;
+            var root = _settingsService.Settings.NetworkPaths.IntuneApplications.TrimEnd('\\', '/') + "\\";
+            return full.StartsWith(root, StringComparison.OrdinalIgnoreCase) ? full[root.Length..] : full;
+        }
+    }
+
     /// <summary>Settings saved: paths and defaults the rails summarise may have changed.</summary>
     public void RefreshFromSettings()
     {
-        RaiseAll(nameof(OutputShareReady), nameof(OutputShare), nameof(PackageFolderPreview), nameof(PackageFolders));
+        RaiseAll(nameof(OutputShareReady), nameof(OutputShare), nameof(PackageFolderPreview), nameof(PackageFolderRelative), nameof(PackageFolders));
+        CreatePackage.PsadtLogFolder = PsadtConfig.LogFolder(_settingsService.Settings.NetworkPaths.PSADTTemplateInUse);
         Upload.RaiseReadiness();
         RaisePrimaryState();
     }
@@ -432,6 +445,7 @@ public sealed class MainViewModel : ObservableObject
         RefreshStepLocks();
 
         _settingsService.Saved += RefreshFromSettings;
+        CreatePackage.PsadtLogFolder = PsadtConfig.LogFolder(_settingsService.Settings.NetworkPaths.PSADTTemplateInUse);
 
         _auth.StateChanged += () =>
         {
@@ -451,7 +465,7 @@ public sealed class MainViewModel : ObservableObject
                 RaisePackageDependents();
             if (e.PropertyName is nameof(CreatePackageViewModel.AppName) or nameof(CreatePackageViewModel.Manufacturer)
                                 or nameof(CreatePackageViewModel.Version))
-                OnPropertyChanged(nameof(PackageFolderPreview));
+                RaiseAll(nameof(PackageFolderPreview), nameof(PackageFolderRelative));
             if (e.PropertyName is nameof(CreatePackageViewModel.SourcesPath) or nameof(CreatePackageViewModel.AppName)
                                 or nameof(CreatePackageViewModel.Manufacturer) or nameof(CreatePackageViewModel.Version))
                 RaisePrimaryState();
@@ -485,7 +499,7 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(CanEditPackageInputs));
         OnPropertyChanged(nameof(PackageName));
         OnPropertyChanged(nameof(PackagePathShort));
-        OnPropertyChanged(nameof(PackageFolderPreview));
+        RaiseAll(nameof(PackageFolderPreview), nameof(PackageFolderRelative));
         OnPropertyChanged(nameof(PrimaryLabel));
         OnPropertyChanged(nameof(StepHint));
         RaiseAll(nameof(ShowSetupChecklist), nameof(PackageReady), nameof(PackageState), nameof(PackageStateKind));

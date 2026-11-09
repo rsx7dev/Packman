@@ -46,7 +46,7 @@ public class CreatePackageViewModel : ObservableObject
             InstallArguments = "";
             UninstallArguments = "";
             CurrentMsiInfo = null;
-            RaiseAll(nameof(InstallerType), nameof(IsExeInstaller), nameof(HasSourceFile));
+            RaiseAll(nameof(InstallerType), nameof(PackageType), nameof(IsExeInstaller), nameof(HasSourceFile));
             RaiseInstallerState();
         }
     }
@@ -89,7 +89,7 @@ public class CreatePackageViewModel : ObservableObject
     public bool UserInstall
     {
         get => _userInstall;
-        set { if (Set(ref _userInstall, value)) RaiseAll(nameof(InstallContextHelp), nameof(PreviewMeta)); }
+        set { if (Set(ref _userInstall, value)) RaiseAll(nameof(InstallContextHelp), nameof(PreviewMeta), nameof(MsiWarnings), nameof(HasMsiWarnings)); }
     }
 
     /// <summary>One line under the SYSTEM / USER toggle.</summary>
@@ -101,7 +101,7 @@ public class CreatePackageViewModel : ObservableObject
     public string Architecture
     {
         get => _architecture;
-        set => Set(ref _architecture, value, [nameof(PreviewMeta)]);
+        set => Set(ref _architecture, value, [nameof(PreviewMeta), nameof(MsiWarnings), nameof(HasMsiWarnings)]);
     }
 
     public MsiInfoService.MsiInfo? CurrentMsiInfo
@@ -234,8 +234,21 @@ public class CreatePackageViewModel : ObservableObject
     public string InstallerConfidence => _detection?.Confidence?.ToString() ?? "";
     public string InstallerEvidence => _detection?.Evidence ?? "";
 
-    public IReadOnlyList<InstallerSwitch> InstallSwitches => ExeKind?.Switches.Where(s => !s.Uninstall).ToList() ?? [];
-    public IReadOnlyList<InstallerSwitch> UninstallSwitches => ExeKind?.Switches.Where(s => s.Uninstall).ToList() ?? [];
+    public IReadOnlyList<InstallerSwitch> InstallSwitches => Switches(uninstall: false);
+    public IReadOnlyList<InstallerSwitch> UninstallSwitches => Switches(uninstall: true);
+
+    private IReadOnlyList<InstallerSwitch> Switches(bool uninstall) =>
+        ExeKind?.Switches.Where(s => s.Uninstall == uninstall)
+            .Select(s => InstallerCatalog.WithLogFolder(s, _psadtLogFolder)).ToList() ?? [];
+
+    private string _psadtLogFolder = PsadtConfig.DefaultLogFolder;
+
+    /// <summary>The template's Toolkit.LogPath, so suggested /log switches write beside PSADT's own logs.</summary>
+    public string PsadtLogFolder
+    {
+        get => _psadtLogFolder;
+        set => Set(ref _psadtLogFolder, value, [nameof(InstallSwitches), nameof(UninstallSwitches)]);
+    }
 
     /// <summary>What the EXE's own headers say: the setup program's architecture and whether it is signed.</summary>
     public IReadOnlyList<InstallerFact> ExeFacts
@@ -258,8 +271,24 @@ public class CreatePackageViewModel : ObservableObject
     public bool HasNoSwitches => HasExeInsight && ExeKind!.Switches.Length == 0;
     public bool HasNoKnownSwitches => HasDetectedInstaller && ExeKind!.Switches.Length == 0;
 
-    public IReadOnlyList<MsiInfoService.MsiProperty> MsiKeyProperties => _currentMsiInfo?.KeyProperties ?? [];
-    public IReadOnlyList<InstallerFact> MsiFacts => _currentMsiInfo?.Facts ?? [];
+    // The identity block above the rail already shows these.
+    private static readonly HashSet<string> HeaderProperties =
+        ["ProductName", "ProductVersion", "Manufacturer", "ProductCode", "UpgradeCode"];
+
+    /// <summary>Key properties not already shown in the package header.</summary>
+    public IReadOnlyList<MsiInfoService.MsiProperty> MsiKeyProperties =>
+        _currentMsiInfo?.KeyProperties.Where(p => !HeaderProperties.Contains(p.Name)).ToList() ?? [];
+    public bool HasMsiKeyProperties => MsiKeyProperties.Count > 0;
+
+    /// <summary>Where the MSI disagrees with the chosen architecture or install context.</summary>
+    public IReadOnlyList<string> MsiWarnings => _currentMsiInfo?.Warnings(_userInstall, _architecture) ?? [];
+    public bool HasMsiWarnings => HasMsiInsight && MsiWarnings.Count > 0;
+
+    public string UpgradeCode => _currentMsiInfo?.IsValid == true ? _currentMsiInfo.UpgradeCode : "";
+    public bool HasUpgradeCode => UpgradeCode.Length > 0;
+
+    /// <summary>"PSADT v4 · Win32 · MSI"; the installer kind is left off until one is picked.</summary>
+    public string PackageType => string.IsNullOrWhiteSpace(_sourcesPath) ? "PSADT v4 · Win32" : $"PSADT v4 · Win32 · {InstallerType}";
     public IReadOnlyList<MsiInfoService.MsiFeature> MsiFeatures => _currentMsiInfo?.Features ?? [];
     public bool HasMsiFeatures => MsiFeatures.Count > 0;
     public IReadOnlyList<MsiInfoService.MsiOption> MsiOptions => _currentMsiInfo?.Options ?? [];
@@ -330,8 +359,9 @@ public class CreatePackageViewModel : ObservableObject
         nameof(InstallerKindName), nameof(IsUnknownInstaller), nameof(HasDetectedInstaller),
         nameof(InstallerConfidence), nameof(InstallerEvidence), nameof(InstallSwitches), nameof(UninstallSwitches),
         nameof(InstallerLocation), nameof(HasInstallerLocation), nameof(InstallerNote), nameof(HasInstallerNote),
-        nameof(HasNoSwitches), nameof(HasNoKnownSwitches), nameof(ExeFacts), nameof(MsiFacts), nameof(MsiFeatures),
-        nameof(HasMsiFeatures), nameof(MsiOptions), nameof(HasMsiOptions), nameof(MsiKeyProperties), nameof(MsiTransforms), nameof(HasMsiTransforms),
+        nameof(HasNoSwitches), nameof(HasNoKnownSwitches), nameof(ExeFacts), nameof(MsiWarnings), nameof(HasMsiWarnings), nameof(MsiFeatures),
+        nameof(HasMsiFeatures), nameof(MsiOptions), nameof(HasMsiOptions), nameof(MsiKeyProperties), nameof(HasMsiKeyProperties),
+        nameof(UpgradeCode), nameof(HasUpgradeCode),nameof(MsiTransforms), nameof(HasMsiTransforms),
         nameof(MsiTransformNames), nameof(MsiProperties), nameof(HasMsiMatches), nameof(HasNoMsiMatches),
         nameof(MsiCountText), nameof(MsiNoMatchText));
 

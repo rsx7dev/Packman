@@ -21,7 +21,12 @@ public static class DirectoryCopy
         foreach (var file in Directory.EnumerateFiles(source))
         {
             ct.ThrowIfCancellationRequested();
-            File.Copy(file, Path.Combine(destination, Path.GetFileName(file)), overwrite: true);
+            var target = Path.Combine(destination, Path.GetFileName(file));
+            ClearReadOnly(target);
+            File.Copy(file, target, overwrite: true);
+            // PSADT ships some files read-only; copies keep the flag, which later blocks
+            // overwrite and delete of the package. Packages are ours to edit, so drop it.
+            ClearReadOnly(target);
         }
 
         foreach (var dir in Directory.EnumerateDirectories(source))
@@ -31,6 +36,22 @@ public static class DirectoryCopy
                 continue;
             Copy(dir, Path.Combine(destination, name), ct);
         }
+    }
+
+    /// <summary>Removes the read-only attribute from <paramref name="file"/> if it exists and has it.</summary>
+    public static void ClearReadOnly(string file)
+    {
+        var info = new FileInfo(file);
+        if (info.Exists && info.IsReadOnly)
+            info.IsReadOnly = false;
+    }
+
+    /// <summary>Clears read-only on every file below <paramref name="folder"/> so it can be deleted.</summary>
+    public static void ClearReadOnlyRecursive(string folder)
+    {
+        if (!Directory.Exists(folder)) return;
+        foreach (var file in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories))
+            ClearReadOnly(file);
     }
 
     /// <summary>Total size in bytes of every file below <paramref name="folder"/>; 0 when it does not exist.</summary>

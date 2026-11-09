@@ -74,8 +74,10 @@ public static class PackagePaths
     public static void DeleteInside(string root, string folder)
     {
         EnsureInside(root, folder);
-        if (Directory.Exists(folder))
-            Directory.Delete(folder, recursive: true);
+        if (!Directory.Exists(folder)) return;
+        // Read-only files (PSADT ships several) make Directory.Delete throw "access denied".
+        DirectoryCopy.ClearReadOnlyRecursive(folder);
+        Directory.Delete(folder, recursive: true);
     }
 
     private static string Underscore(string s) => (s ?? "").Trim().Replace(' ', '_');

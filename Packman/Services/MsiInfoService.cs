@@ -38,12 +38,7 @@ public class MsiInfoService
 
     // Summary information stream property IDs.
     private const int SummaryTemplate = 7;
-    private const int SummaryPackageCode = 9;
-    private const int SummaryCreated = 12;
-    private const int SummaryPageCount = 14;
-    private const int SummaryCreatingApplication = 18;
-    private static readonly int[] SummaryIds =
-        [SummaryTemplate, SummaryPackageCode, SummaryCreated, SummaryPageCount, SummaryCreatingApplication];
+    private static readonly int[] SummaryIds = [SummaryTemplate];
 
     /// <summary>Properties the rail shows first, in this order, when the MSI has them.</summary>
     public static readonly string[] KeyPropertyNames =
@@ -77,30 +72,32 @@ public class MsiInfoService
         /// <summary>Public properties the installer's dialogs set.</summary>
         public IReadOnlyList<MsiOption> Options { get; set; } = [];
 
-        /// <summary>What the summary stream and the Property table say about the package, as rail rows.</summary>
-        public IReadOnlyList<InstallerFact> Facts
+        /// <summary>
+        /// Where the MSI disagrees with how the package is set up, one sentence each; empty when
+        /// it all lines up. Platform and scope that match, and English or neutral language, are
+        /// the normal case and say nothing.
+        /// </summary>
+        public IReadOnlyList<string> Warnings(bool userInstall, string architecture)
         {
-            get
+            var warnings = new List<string>();
+            if (Summary.TryGetValue(SummaryTemplate, out var template))
             {
-                var facts = new List<InstallerFact>();
-                void Add(string label, string value)
-                {
-                    if (!string.IsNullOrWhiteSpace(value)) facts.Add(new InstallerFact(label, value.Trim()));
-                }
+                var platform = PlatformOf(template);
+                if (!string.IsNullOrEmpty(architecture) && !platform.Equals(architecture, StringComparison.OrdinalIgnoreCase))
+                    warnings.Add($"The MSI is built for {platform}, but the package is set to {architecture}.");
 
-                string Stream(int id) => Summary.GetValueOrDefault(id, "");
-                Add("Created with", Stream(SummaryCreatingApplication));
-                if (Summary.TryGetValue(SummaryTemplate, out var template))
-                {
-                    Add("Platform", PlatformOf(template));
-                    Add("Languages", LanguagesOf(template));
-                }
-                Add("Install scope", InstallScope);
-                Add("Package code", Stream(SummaryPackageCode));
-                Add("Requires", MinimumInstallerOf(Stream(SummaryPageCount)));
-                Add("Created", Stream(SummaryCreated));
-                return facts;
+                var ids = template[(template.IndexOf(';') + 1)..]
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                if (template.Contains(';') && ids.Any(id => id is not ("0" or "1033")))
+                    warnings.Add($"MSI languages: {LanguagesOf(template)}.");
             }
+
+            var scope = InstallScope;
+            if (!userInstall && scope.StartsWith("Per user", StringComparison.Ordinal))
+                warnings.Add($"Install scope is “{scope}”, but the package installs as System. Pass ALLUSERS=1 for a per-machine install.");
+            else if (userInstall && scope == "Per machine")
+                warnings.Add("The MSI installs per machine (ALLUSERS=1), which needs elevation, but the package installs as User.");
+            return warnings;
         }
 
         /// <summary>Per machine or per user, as ALLUSERS in the Property table sets it; empty when the table was not read.</summary>
@@ -179,14 +176,6 @@ public class MsiInfoService
         {
             return id;
         }
-    }
-
-    /// <summary>"Windows Installer 5.0" for a Page Count of 500, "4.5" for 405; empty when it is not a version.</summary>
-    public static string MinimumInstallerOf(string pageCount)
-    {
-        if (!int.TryParse(pageCount, NumberStyles.None, CultureInfo.InvariantCulture, out var version) || version < 100) return "";
-        var minor = version % 100;
-        return $"Windows Installer {version / 100}.{(minor % 10 == 0 ? minor / 10 : minor)}";
     }
 
     /// <summary>

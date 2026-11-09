@@ -54,7 +54,7 @@ internal static class InstallerInsightTests
         ("Unknown lists no switches", UnknownListsNoSwitches),
         ("Detection reports the setup program's architecture and whether it is signed", ArchitectureAndSignature),
         ("MSI platform, languages and minimum Windows Installer from the summary stream", MsiSummaryExamples),
-        ("MSI facts and install scope", MsiFactsExamples),
+        ("MSI warnings and install scope", MsiFactsExamples),
         ("MSI features with their default state", MsiFeatureExamples),
         ("MSI options come from the dialogs' public properties only", MsiOptionExamples),
         ("ArgumentLine.Append examples", AppendExamples),
@@ -445,12 +445,6 @@ internal static class InstallerInsightTests
         var languages = MsiInfoService.LanguagesOf("Intel;1033,1031");
         True(languages.Contains("(1033)") && languages.Contains("(1031)") || languages == "1033, 1031",
             $"languages read as \"{languages}\"");
-
-        Equal("Windows Installer 5.0", MsiInfoService.MinimumInstallerOf("500"));
-        Equal("Windows Installer 4.5", MsiInfoService.MinimumInstallerOf("405"));
-        Equal("Windows Installer 2.0", MsiInfoService.MinimumInstallerOf("200"));
-        Equal("", MsiInfoService.MinimumInstallerOf(""));
-        Equal("", MsiInfoService.MinimumInstallerOf("abc"));
     }
 
     private static void MsiFactsExamples()
@@ -458,21 +452,31 @@ internal static class InstallerInsightTests
         var info = new MsiInfoService.MsiInfo
         {
             Properties = SampleTable(),
-            Summary = new Dictionary<int, string>
-            {
-                [7] = "x64;0",
-                [9] = "{11111111-2222-3333-4444-555555555555}",
-                [12] = "2024-05-01",
-                [14] = "500",
-                [18] = "Windows Installer XML Toolset (3.11.2.4516)",
-            },
+            Summary = new Dictionary<int, string> { [7] = "x64;0" },
         };
-        Equal("Created with, Platform, Languages, Install scope, Package code, Requires, Created",
-            string.Join(", ", info.Facts.Select(f => f.Label)));
-        Equal("x64", info.Facts.Single(f => f.Label == "Platform").Value);
         Equal("Per machine", info.InstallScope);
 
-        Equal(0, new MsiInfoService.MsiInfo().Facts.Count);
+        // Matching platform, per-machine as System, neutral language: nothing to say.
+        Equal(0, info.Warnings(userInstall: false, architecture: "x64").Count);
+        Equal(0, new MsiInfoService.MsiInfo().Warnings(false, "x64").Count);
+
+        var mismatch = info.Warnings(userInstall: true, architecture: "x86");
+        Equal(2, mismatch.Count);
+        True(mismatch[0].Contains("built for x64") && mismatch[0].Contains("set to x86"), mismatch[0]);
+        True(mismatch[1].Contains("per machine"), mismatch[1]);
+
+        var perUser = new MsiInfoService.MsiInfo
+        {
+            Properties = [new("ProductName", "x")],
+            Summary = new Dictionary<int, string> { [7] = "x64;1033" },
+        };
+        var perUserWarnings = perUser.Warnings(userInstall: false, architecture: "x64");
+        Equal(1, perUserWarnings.Count);
+        True(perUserWarnings[0].Contains("ALLUSERS=1"), perUserWarnings[0]);
+        Equal(0, perUser.Warnings(userInstall: true, architecture: "x64").Count);
+
+        var german = new MsiInfoService.MsiInfo { Summary = new Dictionary<int, string> { [7] = "x64;1031" } };
+        True(german.Warnings(false, "x64").Single().StartsWith("MSI languages:"), "non-English language warns");
         Equal("Per user unless ALLUSERS=1 is passed",
             new MsiInfoService.MsiInfo { Properties = [new("ProductName", "x")] }.InstallScope);
         Equal("Per user",
