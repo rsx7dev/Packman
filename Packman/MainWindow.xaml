@@ -128,7 +128,7 @@
                         <Button Style="{StaticResource LinkButton}" Content="Sign in" FontSize="12.5" Padding="0"
                                 Command="{x:Static services:AppNavigation.OpenSettings}"
                                 Visibility="{Binding IsConnected, Converter={StaticResource InverseBoolToVis}}"/>
-                        <TextBlock Text="{Binding TenantName}" FontSize="12.5" VerticalAlignment="Center" MaxWidth="220"
+                        <TextBlock Text="{Binding TenantName}" FontSize="12.5" VerticalAlignment="Center" MaxWidth="280"
                                    TextTrimming="CharacterEllipsis" Foreground="{DynamicResource TextBrush}"
                                    Visibility="{Binding IsConnected, Converter={StaticResource BoolToVis}}"/>
                     </StackPanel>

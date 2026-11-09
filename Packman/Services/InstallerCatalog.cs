@@ -13,6 +13,9 @@ public record Marker(MarkerArea Area, string Text, Confidence Confidence);
 
 public record InstallerSwitch(string Text, string Explanation, bool Uninstall = false, bool MustBeLast = false);
 
+/// <summary>One label and value read from the installer file, for the rail's detail rows.</summary>
+public record InstallerFact(string Label, string Value);
+
 /// <param name="UninstallerLocation">Where the vendor's own uninstaller usually lives; empty when the setup file uninstalls itself.</param>
 public record InstallerKind(string Name, Marker[] Markers, InstallerSwitch[] Switches, string UninstallerLocation, string Note = "");
 
@@ -25,20 +28,8 @@ public static class InstallerCatalog
     private const string LogFolder = @"C:\Windows\Logs\Software";
     private const string SfxNote = "Usually wraps an MSI or setup.exe. Packaging the inner MSI is more reliable.";
 
-    public static readonly InstallerKind Unknown = new("Unknown", [],
-    [
-        new("/S", "Untested: NSIS, Setup Factory, 7-Zip SFX and others use this."),
-        new("/silent", "Untested: used by Inno Setup and several custom installers."),
-        new("/VERYSILENT", "Untested: Inno Setup's fully silent mode."),
-        new("/quiet", "Untested: WiX Burn bundles and many MSI wrappers use this."),
-        new("/q", "Untested: a short quiet switch used by some wrappers."),
-        new("-s", "Untested: WinRAR SFX and some older installers use this."),
-        new("--silent", "Untested: used by Squirrel and Electron-style installers."),
-        new("/S", "Untested: the same flag is most often the uninstall switch too.", Uninstall: true),
-        new("/uninstall", "Untested: Burn bundles and some custom installers accept this.", Uninstall: true),
-        new("/quiet", "Untested: suppresses the uninstall UI for Burn bundles.", Uninstall: true),
-        new("/x", "Untested: InstallShield and Advanced Installer EXEs remove the product with this.", Uninstall: true),
-    ], "");
+    /// <summary>No marker matched. It lists no switches: Packman shows what a type documents, never a guess.</summary>
+    public static readonly InstallerKind Unknown = new("Unknown", [], [], "");
 
     public static readonly InstallerKind[] Kinds =
     [

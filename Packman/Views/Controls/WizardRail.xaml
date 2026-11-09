@@ -6,8 +6,8 @@
              xmlns:services="clr-namespace:Packman.Services"
              FontFamily="{StaticResource UIFontFamily}">
     <!-- Inspector beside the Create wizard, one panel per step. DataContext: MainViewModel.
-         It shows what the form beside it doesn't: where the package lands, what was read
-         from the installer, and what still stands between this package and Intune. -->
+         Step 1 shows where the package lands and what was read from the installer; steps 2
+         and 3 show what still stands between this package and Intune. -->
     <UserControl.Resources>
         <!-- "Sign in" under an unconnected Intune line. -->
         <DataTemplate x:Key="SignInLink">
@@ -30,6 +30,57 @@
                     </StackPanel>
                     <Button Grid.Column="1" Style="{StaticResource LinkButton}" Content="Add" Margin="12,0,0,0" VerticalAlignment="Top"
                             Visibility="{Binding IsPublic, Converter={StaticResource BoolToVis}}"
+                            Command="{Binding DataContext.CreatePackage.AddMsiPropertyCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            CommandParameter="{Binding Argument}"
+                            AutomationProperties.Name="{Binding Argument, StringFormat='Add {0} to the install command'}"
+                            ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=(AutomationProperties.Name)}"/>
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <!-- One fact read from the installer file: label left, value right. -->
+        <DataTemplate x:Key="InstallerFactRow">
+            <ContentControl Style="{StaticResource KvRow}" Tag="{Binding Label}" Content="{Binding Value}"/>
+        </DataTemplate>
+
+        <!-- One Feature-table row: the name ADDLOCAL takes, its title and default state, and Add. -->
+        <DataTemplate x:Key="MsiFeatureRow">
+            <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1" Padding="0,8">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="{Binding Name}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12.5"
+                                   Foreground="{DynamicResource InkBrush}" TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding Detail}" Style="{StaticResource SubText}" FontSize="12" LineHeight="17"
+                                   TextWrapping="Wrap" Margin="0,2,0,0"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" Style="{StaticResource LinkButton}" Content="Add" Margin="12,0,0,0" VerticalAlignment="Top"
+                            Command="{Binding DataContext.CreatePackage.AddMsiFeatureCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            CommandParameter="{Binding Name}"
+                            AutomationProperties.Name="{Binding Name, StringFormat='Add {0} to ADDLOCAL in the install command'}"
+                            ToolTip="{Binding RelativeSource={RelativeSource Self}, Path=(AutomationProperties.Name)}"/>
+                </Grid>
+            </Border>
+        </DataTemplate>
+
+        <!-- One option the installer's dialogs offer: property, what sets it, and Add. -->
+        <DataTemplate x:Key="MsiOptionRow">
+            <Border BorderBrush="{DynamicResource LineBrush}" BorderThickness="0,0,0,1" Padding="0,8">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="{Binding Name}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12.5"
+                                   Foreground="{DynamicResource InkBrush}" TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding Detail}" Style="{StaticResource SubText}" FontSize="12" LineHeight="17"
+                                   TextWrapping="Wrap" Margin="0,2,0,0"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" Style="{StaticResource LinkButton}" Content="Add" Margin="12,0,0,0" VerticalAlignment="Top"
                             Command="{Binding DataContext.CreatePackage.AddMsiPropertyCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                             CommandParameter="{Binding Argument}"
                             AutomationProperties.Name="{Binding Argument, StringFormat='Add {0} to the install command'}"
@@ -116,19 +167,6 @@
                            Style="{StaticResource SubText}" FontSize="12" TextWrapping="Wrap" Margin="0,10,0,0"/>
             </StackPanel>
 
-            <controls:StatusRow Label="Installer"
-                                Kind="{Binding CreatePackage.HasSourceFile, Converter={StaticResource BoolToText}, ConverterParameter='ok|pending'}"
-                                Value="{Binding CreatePackage.HasSourceFile, Converter={StaticResource BoolToText}, ConverterParameter='Ready|Choose a file'}"
-                                Visibility="{Binding IsUpgradeMode, Converter={StaticResource InverseBoolToVis}}"/>
-            <controls:StatusRow Label="Output share"
-                                Kind="{Binding OutputShareReady, Converter={StaticResource BoolToText}, ConverterParameter='ok|warn'}"
-                                Value="{Binding OutputShareReady, Converter={StaticResource BoolToText}, ConverterParameter='Ready|Set in Settings'}"/>
-            <controls:StatusRow Label="Intune connection" Value="{Binding ConnectionLabel}"
-                                Kind="{Binding IsConnected, Converter={StaticResource BoolToText}, ConverterParameter='ok|pending'}"
-                                Detail="{Binding IsConnected, Converter={StaticResource BoolToText}, ConverterParameter='|Needed at step 3'}"/>
-            <ContentControl ContentTemplate="{StaticResource SignInLink}" Focusable="False"
-                            Visibility="{Binding IsConnected, Converter={StaticResource InverseBoolToVis}}"/>
-
             <!-- EXE only: the generated script cannot know the vendor's silent switches. -->
             <Border Style="{StaticResource CalloutWarn}" Margin="0,20,0,0"
                     Visibility="{Binding CreatePackage.IsExeInstaller, Converter={StaticResource BoolToVis}}">
@@ -136,7 +174,7 @@
                     <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconAlert}" Foreground="{DynamicResource WarnBrush}"
                                        VerticalAlignment="Top" Margin="0,1,10,0"/>
                     <TextBlock TextWrapping="Wrap" FontSize="12.5" LineHeight="18"
-                               Text="EXE installers need their real silent switches. Add them from the installer type below, or set them in Edit script before you test."/>
+                               Text="EXE installers need their real silent switches. Add the ones listed below for this installer type, or set them in Edit script before you test."/>
                 </DockPanel>
             </Border>
 
@@ -165,6 +203,7 @@
                                         Visibility="{Binding CreatePackage.HasDetectedInstaller, Converter={StaticResource BoolToVis}}"/>
                         <ContentControl Style="{StaticResource KvRowMono}" Tag="Found in" Content="{Binding CreatePackage.InstallerEvidence}"
                                         Visibility="{Binding CreatePackage.HasDetectedInstaller, Converter={StaticResource BoolToVis}}"/>
+                        <ItemsControl ItemsSource="{Binding CreatePackage.ExeFacts}" ItemTemplate="{StaticResource InstallerFactRow}" IsTabStop="False"/>
 
                         <Border Style="{StaticResource CalloutWarn}" Margin="0,12,0,0"
                                 Visibility="{Binding CreatePackage.IsUnknownInstaller, Converter={StaticResource BoolToVis}}">
@@ -172,7 +211,7 @@
                                 <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconAlert}" Foreground="{DynamicResource WarnBrush}"
                                                    VerticalAlignment="Top" Margin="0,1,10,0"/>
                                 <TextBlock TextWrapping="Wrap" FontSize="12.5" LineHeight="18"
-                                           Text="Installer type not recognised. These are common switches, untested."/>
+                                           Text="Installer type not recognised, so no switches are listed. Check the vendor's documentation for the silent install and uninstall switches."/>
                             </DockPanel>
                         </Border>
 
@@ -181,7 +220,7 @@
                                    Visibility="{Binding CreatePackage.HasInstallerNote, Converter={StaticResource BoolToVis}}"/>
                         <TextBlock Text="This installer has no silent switches to add." Style="{StaticResource SubText}" FontSize="12.5"
                                    TextWrapping="Wrap" Margin="0,10,0,0"
-                                   Visibility="{Binding CreatePackage.HasNoSwitches, Converter={StaticResource BoolToVis}}"/>
+                                   Visibility="{Binding CreatePackage.HasNoKnownSwitches, Converter={StaticResource BoolToVis}}"/>
 
                         <StackPanel Visibility="{Binding CreatePackage.HasNoSwitches, Converter={StaticResource InverseBoolToVis}}">
                             <TextBlock Text="Install switches" Style="{StaticResource H3}" Margin="0,18,0,2"/>
@@ -202,9 +241,28 @@
 
                     <!-- MSI -->
                     <StackPanel Visibility="{Binding CreatePackage.HasMsiInsight, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="MSI properties" Style="{StaticResource H3}" Margin="0,26,0,2"/>
+                        <TextBlock Text="MSI package" Style="{StaticResource H3}" Margin="0,26,0,2"/>
+                        <ItemsControl ItemsSource="{Binding CreatePackage.MsiFacts}" ItemTemplate="{StaticResource InstallerFactRow}" IsTabStop="False"/>
+
+                        <TextBlock Text="MSI properties" Style="{StaticResource H3}" Margin="0,22,0,2"/>
                         <ItemsControl ItemsSource="{Binding CreatePackage.MsiKeyProperties}"
                                       ItemTemplate="{StaticResource MsiPropertyRow}" IsTabStop="False"/>
+
+                        <StackPanel Visibility="{Binding CreatePackage.HasMsiOptions, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="Installer options" Style="{StaticResource H3}" Margin="0,22,0,2"/>
+                            <TextBlock Text="Public properties the installer's own dialogs set." Style="{StaticResource SubText}" FontSize="12.5"
+                                       TextWrapping="Wrap" Margin="0,0,0,4"/>
+                            <ItemsControl ItemsSource="{Binding CreatePackage.MsiOptions}"
+                                          ItemTemplate="{StaticResource MsiOptionRow}" IsTabStop="False"/>
+                        </StackPanel>
+
+                        <StackPanel Visibility="{Binding CreatePackage.HasMsiFeatures, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="Features" Style="{StaticResource H3}" Margin="0,22,0,2"/>
+                            <TextBlock Text="Add puts a feature in ADDLOCAL. Without ADDLOCAL the default features install."
+                                       Style="{StaticResource SubText}" FontSize="12.5" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                            <ItemsControl ItemsSource="{Binding CreatePackage.MsiFeatures}"
+                                          ItemTemplate="{StaticResource MsiFeatureRow}" IsTabStop="False"/>
+                        </StackPanel>
 
                         <StackPanel Visibility="{Binding CreatePackage.HasMsiTransforms, Converter={StaticResource BoolToVis}}">
                             <ContentControl Style="{StaticResource KvRowMono}" Tag="Transforms" Content="{Binding CreatePackage.MsiTransformNames}"

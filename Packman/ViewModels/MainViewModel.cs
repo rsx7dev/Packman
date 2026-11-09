@@ -331,7 +331,7 @@ public sealed class MainViewModel : ObservableObject
     public string ConnectionLabel => _auth.IsSignedIn ? "Connected" : "Not connected";
     public string TenantName => _auth.IsSignedIn ? _auth.TenantName : "Not signed in";
     public string ConnectionStatusText => _auth.IsSignedIn
-        ? $"Connected to Microsoft Intune · {_auth.SignedInUser}"
+        ? $"Connected to Microsoft Intune · tenant {_auth.TenantName} · {_auth.SignedInUser}"
         : "Not connected. Sign in on the Settings page.";
 
     // ── Package preview (rail beside the Package step) ──────────────────

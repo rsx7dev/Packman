@@ -23,6 +23,15 @@ All notable changes to Packman are recorded here. The format follows
 
 ### Changed
 
+- The title bar pill names the tenant (`Connected · contoso`) instead of *Connected · your*; an
+  app registration shows its tenant domain or ID.
+- The Package step rail no longer shows the Installer / Output share / Intune connection readiness
+  rows; it shows the package preview and what was read from the installer.
+- An unrecognised EXE lists no switches instead of untested guesses. A recognised EXE also shows
+  the setup program's architecture and whether it is signed.
+- An MSI shows its package details (authoring tool, platform, languages, install scope, package
+  code, minimum Windows Installer, created date), the options its dialogs set and its features,
+  each with **Add**.
 - Loading another installer replaces the name, manufacturer and version the previous installer
   filled in, and keeps values typed by hand.
 - **Generate package** is disabled until the installer, name, manufacturer, version and output share

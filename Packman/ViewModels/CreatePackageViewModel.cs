@@ -148,6 +148,8 @@ public class CreatePackageViewModel : ObservableObject
         AddUninstallSwitchCommand = new RelayCommand<string>(text => AddSwitch(text, uninstall: true), _ => CanAddArguments);
         AddMsiPropertyCommand = new RelayCommand<string>(
             argument => InstallArguments = ArgumentLine.Append(InstallArguments, argument), _ => CanAddArguments);
+        AddMsiFeatureCommand = new RelayCommand<string>(
+            feature => InstallArguments = AddFeature(InstallArguments, feature), _ => CanAddArguments);
     }
 
     public string ExtractedIconPath
@@ -235,13 +237,33 @@ public class CreatePackageViewModel : ObservableObject
     public IReadOnlyList<InstallerSwitch> InstallSwitches => ExeKind?.Switches.Where(s => !s.Uninstall).ToList() ?? [];
     public IReadOnlyList<InstallerSwitch> UninstallSwitches => ExeKind?.Switches.Where(s => s.Uninstall).ToList() ?? [];
 
+    /// <summary>What the EXE's own headers say: the setup program's architecture and whether it is signed.</summary>
+    public IReadOnlyList<InstallerFact> ExeFacts
+    {
+        get
+        {
+            if (ExeKind == null || _detection == null) return [];
+            var facts = new List<InstallerFact>();
+            if (_detection.Architecture.Length > 0) facts.Add(new("Setup program", _detection.Architecture));
+            facts.Add(new("Signature", _detection.HasSignature ? "Signed (not verified)" : "Not signed"));
+            return facts;
+        }
+    }
+
     public string InstallerLocation => ExeKind?.UninstallerLocation ?? "";
     public bool HasInstallerLocation => InstallerLocation.Length > 0;
     public string InstallerNote => ExeKind?.Note ?? "";
     public bool HasInstallerNote => InstallerNote.Length > 0;
-    public bool HasNoSwitches => HasDetectedInstaller && ExeKind!.Switches.Length == 0;
+    /// <summary>No documented switches: a type without a silent mode, or a type Packman doesn't recognise.</summary>
+    public bool HasNoSwitches => HasExeInsight && ExeKind!.Switches.Length == 0;
+    public bool HasNoKnownSwitches => HasDetectedInstaller && ExeKind!.Switches.Length == 0;
 
     public IReadOnlyList<MsiInfoService.MsiProperty> MsiKeyProperties => _currentMsiInfo?.KeyProperties ?? [];
+    public IReadOnlyList<InstallerFact> MsiFacts => _currentMsiInfo?.Facts ?? [];
+    public IReadOnlyList<MsiInfoService.MsiFeature> MsiFeatures => _currentMsiInfo?.Features ?? [];
+    public bool HasMsiFeatures => MsiFeatures.Count > 0;
+    public IReadOnlyList<MsiInfoService.MsiOption> MsiOptions => _currentMsiInfo?.Options ?? [];
+    public bool HasMsiOptions => MsiOptions.Count > 0;
     public IReadOnlyList<string> MsiTransforms => _currentMsiInfo?.Transforms ?? [];
     public bool HasMsiTransforms => MsiTransforms.Count > 0;
     public string MsiTransformNames => string.Join(Environment.NewLine, MsiTransforms);
@@ -270,6 +292,21 @@ public class CreatePackageViewModel : ObservableObject
     public RelayCommand<string> AddInstallSwitchCommand { get; }
     public RelayCommand<string> AddUninstallSwitchCommand { get; }
     public RelayCommand<string> AddMsiPropertyCommand { get; }
+    /// <summary>Adds the feature to ADDLOCAL, creating ADDLOCAL when the line has none.</summary>
+    public RelayCommand<string> AddMsiFeatureCommand { get; }
+
+    /// <summary><paramref name="line"/> with <paramref name="feature"/> in its ADDLOCAL list.</summary>
+    public static string AddFeature(string line, string feature)
+    {
+        var pieces = line.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries).ToList();
+        var at = pieces.FindIndex(p => p.StartsWith("ADDLOCAL=", StringComparison.OrdinalIgnoreCase));
+        if (at < 0) return ArgumentLine.Append(line, $"ADDLOCAL={feature}");
+        var names = pieces[at]["ADDLOCAL=".Length..].Split(',', StringSplitOptions.RemoveEmptyEntries).ToList();
+        if (names.Contains(feature, StringComparer.Ordinal)) return line.Trim();
+        names.Add(feature);
+        pieces[at] = "ADDLOCAL=" + string.Join(',', names);
+        return string.Join(' ', pieces);
+    }
 
     private bool CanAddArguments => _currentPackagePath == "" && !_isGenerating;
 
@@ -278,6 +315,7 @@ public class CreatePackageViewModel : ObservableObject
         AddInstallSwitchCommand.RaiseCanExecuteChanged();
         AddUninstallSwitchCommand.RaiseCanExecuteChanged();
         AddMsiPropertyCommand.RaiseCanExecuteChanged();
+        AddMsiFeatureCommand.RaiseCanExecuteChanged();
     }
 
     private void AddSwitch(string text, bool uninstall)
@@ -292,7 +330,8 @@ public class CreatePackageViewModel : ObservableObject
         nameof(InstallerKindName), nameof(IsUnknownInstaller), nameof(HasDetectedInstaller),
         nameof(InstallerConfidence), nameof(InstallerEvidence), nameof(InstallSwitches), nameof(UninstallSwitches),
         nameof(InstallerLocation), nameof(HasInstallerLocation), nameof(InstallerNote), nameof(HasInstallerNote),
-        nameof(HasNoSwitches), nameof(MsiKeyProperties), nameof(MsiTransforms), nameof(HasMsiTransforms),
+        nameof(HasNoSwitches), nameof(HasNoKnownSwitches), nameof(ExeFacts), nameof(MsiFacts), nameof(MsiFeatures),
+        nameof(HasMsiFeatures), nameof(MsiOptions), nameof(HasMsiOptions), nameof(MsiKeyProperties), nameof(MsiTransforms), nameof(HasMsiTransforms),
         nameof(MsiTransformNames), nameof(MsiProperties), nameof(HasMsiMatches), nameof(HasNoMsiMatches),
         nameof(MsiCountText), nameof(MsiNoMatchText));
 

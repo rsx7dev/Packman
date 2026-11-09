@@ -51,7 +51,12 @@ internal static class InstallerInsightTests
         ("InstallShield MSI-based and InstallScript switches and locations", InstallShieldSwitches),
         ("Advanced Installer, InstallAware, Wise and Setup Factory switches and locations", OtherSetupSwitches),
         ("Squirrel, ClickOnce, 7-Zip, WinRAR and MSIX entries", NotesAndSwitchlessKinds),
-        ("Unknown lists only guesses marked as untested", UnknownGuessesUntested),
+        ("Unknown lists no switches", UnknownListsNoSwitches),
+        ("Detection reports the setup program's architecture and whether it is signed", ArchitectureAndSignature),
+        ("MSI platform, languages and minimum Windows Installer from the summary stream", MsiSummaryExamples),
+        ("MSI facts and install scope", MsiFactsExamples),
+        ("MSI features with their default state", MsiFeatureExamples),
+        ("MSI options come from the dialogs' public properties only", MsiOptionExamples),
         ("ArgumentLine.Append examples", AppendExamples),
         ("ArgumentLine.MsiProperty examples", MsiPropertyExamples),
         ("PsadtScript EXE install and uninstall lines", PsadtExeLines),
@@ -393,21 +398,133 @@ internal static class InstallerInsightTests
         True(Kind("MSIX / AppX bundle").Note.Length > 0, "MSIX bundle has no note");
     }
 
-    private static void UnknownGuessesUntested()
+    private static void UnknownListsNoSwitches()
     {
-        var unknown = InstallerCatalog.Unknown;
-        foreach (var flag in new[] { "/S", "/silent", "/VERYSILENT", "/quiet", "/q", "-s", "--silent" })
+        Equal(0, InstallerCatalog.Unknown.Switches.Length);
+        Equal("", InstallerCatalog.Unknown.UninstallerLocation);
+    }
+
+    private static void ArchitectureAndSignature()
+    {
+        var plain = Detect(Pe32([(".rsrc", Latin1("Nullsoft"))]));
+        Equal("x86", plain.Architecture);
+        True(!plain.HasSignature, "an image without a certificate table reads as signed");
+
+        var signed = Detect(Pe32([], certificate: Zeros(0x200)));
+        True(signed.HasSignature, "an image with a certificate table reads as unsigned");
+        Equal("Unknown", signed.Kind.Name);
+
+        var x64 = Pe32([(".wixburn", Zeros(0x200))]);
+        U16(x64, PeOffset + 4, 0x8664);
+        Equal("x64", Detect(x64).Architecture);
+        Equal("WiX Burn", Detect(x64).Kind.Name);
+
+        var arm = Pe32([]);
+        U16(arm, PeOffset + 4, 0xAA64);
+        Equal("ARM64", Detect(arm).Architecture);
+
+        var other = Pe32([]);
+        U16(other, PeOffset + 4, 0x1C0);
+        Equal("", Detect(other).Architecture);
+    }
+
+    private static void MsiSummaryExamples()
+    {
+        Equal("x64", MsiInfoService.PlatformOf("x64;1033"));
+        Equal("x86", MsiInfoService.PlatformOf(";1033"));
+        Equal("x86", MsiInfoService.PlatformOf("Intel;1033"));
+        Equal("ARM64", MsiInfoService.PlatformOf("Arm64;0"));
+        Equal("Itanium", MsiInfoService.PlatformOf("Intel64;1033"));
+
+        Equal("Neutral", MsiInfoService.LanguagesOf("x64;0"));
+        Equal("", MsiInfoService.LanguagesOf("x64"));
+        var languages = MsiInfoService.LanguagesOf("Intel;1033,1031");
+        True(languages.Contains("(1033)") && languages.Contains("(1031)") || languages == "1033, 1031",
+            $"languages read as \"{languages}\"");
+
+        Equal("Windows Installer 5.0", MsiInfoService.MinimumInstallerOf("500"));
+        Equal("Windows Installer 4.5", MsiInfoService.MinimumInstallerOf("405"));
+        Equal("Windows Installer 2.0", MsiInfoService.MinimumInstallerOf("200"));
+        Equal("", MsiInfoService.MinimumInstallerOf(""));
+        Equal("", MsiInfoService.MinimumInstallerOf("abc"));
+    }
+
+    private static void MsiFactsExamples()
+    {
+        var info = new MsiInfoService.MsiInfo
         {
-            True(HasSwitch(unknown, false, flag), $"Unknown install guess {flag} missing");
-        }
-        foreach (var flag in new[] { "/S", "/uninstall", "/quiet", "/x" })
-        {
-            True(HasSwitch(unknown, true, flag), $"Unknown uninstall guess {flag} missing");
-        }
-        foreach (var s in unknown.Switches)
-        {
-            True(s.Explanation.StartsWith("Untested", StringComparison.Ordinal), $"Unknown guess {s.Text} is not marked untested");
-        }
+            Properties = SampleTable(),
+            Summary = new Dictionary<int, string>
+            {
+                [7] = "x64;0",
+                [9] = "{11111111-2222-3333-4444-555555555555}",
+                [12] = "2024-05-01",
+                [14] = "500",
+                [18] = "Windows Installer XML Toolset (3.11.2.4516)",
+            },
+        };
+        Equal("Created with, Platform, Languages, Install scope, Package code, Requires, Created",
+            string.Join(", ", info.Facts.Select(f => f.Label)));
+        Equal("x64", info.Facts.Single(f => f.Label == "Platform").Value);
+        Equal("Per machine", info.InstallScope);
+
+        Equal(0, new MsiInfoService.MsiInfo().Facts.Count);
+        Equal("Per user unless ALLUSERS=1 is passed",
+            new MsiInfoService.MsiInfo { Properties = [new("ProductName", "x")] }.InstallScope);
+        Equal("Per user",
+            new MsiInfoService.MsiInfo { Properties = [new("ALLUSERS", "2"), new("MSIINSTALLPERUSER", "1")] }.InstallScope);
+        Equal("Per machine when elevated, otherwise per user",
+            new MsiInfoService.MsiInfo { Properties = [new("ALLUSERS", "2")] }.InstallScope);
+    }
+
+    private static void MsiFeatureExamples()
+    {
+        var features = MsiInfoService.ToFeatures(
+        [
+            ["Core", "Application", "1"],
+            ["Docs", "", "3"],
+            ["Legacy", "Old bits", "0"],
+            ["", "ignored", "1"],
+        ], "");
+        Equal("Core, Docs, Legacy", string.Join(", ", features.Select(f => f.Name)));
+        Equal("Application · Installed by default", features[0].Detail);
+        Equal("Not installed by default", features[1].Detail);
+        Equal("Old bits · Disabled", features[2].Detail);
+
+        Equal("Installed by default", MsiInfoService.ToFeatures([["Docs", "", "3"]], "3")[0].Detail);
+    }
+
+    private static void MsiOptionExamples()
+    {
+        MsiInfoService.MsiProperty[] properties =
+        [
+            new("DESKTOPSHORTCUT", "1"),
+            new("STARTMODE", "auto"),
+            new("INSTALLFOLDER", @"C:\Program Files\App"),
+            new("_BrowseProperty", "INSTALLFOLDER"),
+        ];
+        var options = MsiInfoService.ToOptions(
+            controls:
+            [
+                ["CheckBox", "DESKTOPSHORTCUT", "{\\Font}Create a &desktop shortcut", "3"],
+                ["CheckBox", "LAUNCHAPP", "Launch when done", "3"],
+                ["RadioButtonGroup", "STARTMODE", "", "3"],
+                ["PathEdit", "_BrowseProperty", "", "11"],
+                ["Text", "ProductName", "Welcome", "3"],
+                ["Edit", "WixUI_Mode", "", "3"],
+                ["CheckBox", "DESKTOPSHORTCUT", "Again", "3"],
+            ],
+            checkBoxes: [["DESKTOPSHORTCUT", "1"]],
+            choices: [["STARTMODE", "auto"], ["STARTMODE", "manual"], ["STARTMODE", "auto"]],
+            properties: properties);
+
+        Equal("DESKTOPSHORTCUT, LAUNCHAPP, STARTMODE, INSTALLFOLDER", string.Join(", ", options.Select(o => o.Name)));
+        Equal("Check box “Create a desktop shortcut” · Checked sets 1 · Default: 1", options[0].Detail);
+        Equal("DESKTOPSHORTCUT=1", options[0].Argument);
+        Equal("LAUNCHAPP=1", options[1].Argument);
+        Equal("Check box “Launch when done” · Checked sets 1 · Not set by default", options[1].Detail);
+        Equal("Choice · Values: auto, manual · Default: auto", options[2].Detail);
+        Equal(@"INSTALLFOLDER=""C:\Program Files\App""", options[3].Argument);
     }
 
     // ── ArgumentLine, PsadtScript ──

@@ -17,7 +17,7 @@ public sealed class PublishRunViewModel : ObservableObject
         "Signing with Authenticode",
         "Building .intunewin package",
         "Registering Win32 app",
-        "Uploading to {0} tenant",
+        "Uploading to {0}",
         "Publishing and assigning",
     ];
     private const int UploadStepIndex = 3;
@@ -119,7 +119,7 @@ public sealed class PublishRunViewModel : ObservableObject
     {
         if (IsRunning) return null;
 
-        Steps[UploadStepIndex] = new PublishStepViewModel(UploadStepIndex + 1, string.Format(StepTitles[UploadStepIndex], tenantName));
+        Steps[UploadStepIndex] = new PublishStepViewModel(UploadStepIndex + 1, string.Format(StepTitles[UploadStepIndex], string.IsNullOrWhiteSpace(tenantName) ? "your tenant" : $"tenant {tenantName}"));
         foreach (var s in Steps) s.State = "pending";
         Steps[0].State = "working";
 
