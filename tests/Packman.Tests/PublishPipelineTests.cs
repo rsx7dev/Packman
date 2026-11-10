@@ -543,8 +543,9 @@ internal static class RealTimestampServer
 
 /// <summary>
 /// Self-signed code-signing certificates that live only in CurrentUser\My for the length of
-/// one test class. Nothing is ever added to Root, TrustedPublisher or a LocalMachine store,
-/// so a signature made here is correctly reported as untrusted.
+/// one test class. This class never adds one to Root, TrustedPublisher or a LocalMachine
+/// store, so a signature made here is correctly reported as untrusted; only
+/// TrustedSignatureTests trusts one, on a CI runner and for the length of its test.
 /// </summary>
 internal sealed class TempSigningCertificates : IDisposable
 {

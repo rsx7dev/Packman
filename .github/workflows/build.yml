@@ -51,6 +51,15 @@ jobs:
         shell: bash
         run: ./check.sh
 
+      # TrustedSignatureTests trusts a throwaway certificate on this runner and checks a signed
+      # script against Get-AuthenticodeSignature and the AllSigned policy; this is what it found.
+      - name: Show trusted signature test result
+        if: always()
+        shell: pwsh
+        run: |
+          $result = Join-Path $env:RUNNER_TEMP 'packman-trusted-signature.txt'
+          if (Test-Path -LiteralPath $result) { Get-Content -LiteralPath $result } else { 'The trusted signature test wrote no result.' }
+
       - name: Render native UI previews
         run: dotnet run --file scripts/RenderUiPreviews.cs -c Release -- artifacts/ui-previews
 
