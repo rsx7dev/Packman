@@ -487,7 +487,8 @@ public sealed class UploadToIntuneViewModel : ObservableObject
             ? new NativeCodeSigner(settings.CodeSigning.CertificateThumbprint, settings.CodeSigning.TimestampServer)
             : null;
 
-        var uploadService = new IntuneUploadService(_auth.CreateSessionTokenProvider(), _auth.TenantId ?? "", signer, settings.NetworkPaths.IntuneWinAppUtilInUse);
+        var uploadService = new IntuneUploadService(_auth.CreateSessionTokenProvider(), _auth.TenantId ?? "", signer, settings.NetworkPaths.IntuneWinAppUtilInUse)
+            { PublishWait = settings.IntuneDefaults.PublishWait };
         var packageRoot = PackageRoot;
         var rules = DetectionRules.ToList();
         var groups = GroupPicker.AssignableGroups;

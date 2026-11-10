@@ -605,7 +605,8 @@ public class UploadStepViewModel : ObservableObject
             ? new NativeCodeSigner(settings.CodeSigning.CertificateThumbprint, settings.CodeSigning.TimestampServer)
             : null;
 
-        var uploadService = new IntuneUploadService(_auth.CreateSessionTokenProvider(), _auth.TenantId ?? "", signer, settings.NetworkPaths.IntuneWinAppUtilInUse);
+        var uploadService = new IntuneUploadService(_auth.CreateSessionTokenProvider(), _auth.TenantId ?? "", signer, settings.NetworkPaths.IntuneWinAppUtilInUse)
+            { PublishWait = settings.IntuneDefaults.PublishWait };
 
         await Publish.RunAsync(
             $"Publishing {appInfo.Manufacturer} {appInfo.Name}…".Trim(),

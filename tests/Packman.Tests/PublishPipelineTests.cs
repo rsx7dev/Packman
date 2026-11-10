@@ -63,6 +63,9 @@ internal sealed class ScriptedIntune : HttpMessageHandler
     public HttpStatusCode? CommitAppFailure { get; set; }
     public HttpStatusCode? SupersedenceFailure { get; set; }
     public HttpStatusCode? AssignmentFailure { get; set; }
+
+    /// <summary>What the app's publishingState reads; anything but "published" keeps a publish waiting.</summary>
+    public string PublishingState { get; set; } = "published";
     public HttpStatusCode? CreateGroupFailure { get; set; }
     public HttpStatusCode DeleteStatus { get; set; } = HttpStatusCode.NoContent;
 
@@ -178,7 +181,7 @@ internal sealed class ScriptedIntune : HttpMessageHandler
 
         if (method == "GET" && path.Contains("/mobileApps/", StringComparison.Ordinal))
             return Json(HttpStatusCode.OK,
-                $"{{\"id\":\"{AppId}\",\"publishingState\":\"published\",\"committedContentVersion\":\"cv-{_contentVersions}\"}}");
+                $"{{\"id\":\"{AppId}\",\"publishingState\":\"{PublishingState}\",\"committedContentVersion\":\"cv-{_contentVersions}\"}}");
 
         throw new InvalidOperationException($"Unexpected request: {method} {uri}");
     }
@@ -346,7 +349,8 @@ public sealed class PublishPipelineConverterTests : PublishPipelineFixture
 
         // What the service read out of the archive and sent on.
         var app = Body("POST", "/mobileApps");
-        Assert.Equal("IntunePackage.intunewin", app.GetProperty("fileName").GetString());
+        // The app is labelled with what it is; only the content file keeps the converter's fixed name.
+        Assert.Equal(IntuneUploadService.PackageFileLabel(Info()), app.GetProperty("fileName").GetString());
         Assert.Equal(PsadtLayout.SetupFileName, app.GetProperty("setupFilePath").GetString());
 
         var file = Body("POST", "/files");

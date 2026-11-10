@@ -359,6 +359,10 @@ public sealed class SettingsViewModel : ObservableObject
     private string _defaultMaxRunTimeMinutes = AppSettings.IntuneDefaultsConfig.DefaultMaxRunTimeMinutes.ToString();
     public string DefaultMaxRunTimeMinutes { get => _defaultMaxRunTimeMinutes; set => Set(ref _defaultMaxRunTimeMinutes, value); }
 
+    private string _publishWaitMinutes = AppSettings.IntuneDefaultsConfig.DefaultPublishWaitMinutes.ToString();
+    /// <summary>Minutes a publish waits for Intune to process the content before skipping assignments.</summary>
+    public string PublishWaitMinutes { get => _publishWaitMinutes; set => Set(ref _publishWaitMinutes, value); }
+
     private string _defaultPrivacyUrl = "";
     public string DefaultPrivacyUrl { get => _defaultPrivacyUrl; set => Set(ref _defaultPrivacyUrl, value); }
 
@@ -509,6 +513,7 @@ public sealed class SettingsViewModel : ObservableObject
             ? s.IntuneDefaults.RestartBehavior
             : AppSettings.IntuneDefaultsConfig.DefaultRestartBehavior;
         DefaultMaxRunTimeMinutes = s.IntuneDefaults.MaxRunTimeMinutes.ToString();
+        PublishWaitMinutes = s.IntuneDefaults.PublishWaitMinutes.ToString();
         DefaultPrivacyUrl = s.IntuneDefaults.PrivacyUrl;
         DefaultInformationUrl = s.IntuneDefaults.InformationUrl;
         DisplayNameTemplate = s.IntuneDefaults.DisplayNameTemplate;
@@ -790,6 +795,10 @@ public sealed class SettingsViewModel : ObservableObject
             ? minutes
             : AppSettings.IntuneDefaultsConfig.DefaultMaxRunTimeMinutes;
         DefaultMaxRunTimeMinutes = s.IntuneDefaults.MaxRunTimeMinutes.ToString();
+        s.IntuneDefaults.PublishWaitMinutes = int.TryParse(PublishWaitMinutes.Trim(), out var wait) && wait is >= 1 and <= AppSettings.IntuneDefaultsConfig.MaxPublishWaitMinutes
+            ? wait
+            : AppSettings.IntuneDefaultsConfig.DefaultPublishWaitMinutes;
+        PublishWaitMinutes = s.IntuneDefaults.PublishWaitMinutes.ToString();
         s.IntuneDefaults.PrivacyUrl = DefaultPrivacyUrl.Trim();
         s.IntuneDefaults.InformationUrl = DefaultInformationUrl.Trim();
         s.IntuneDefaults.DisplayNameTemplate = Fallback(DisplayNameTemplate, AppSettings.IntuneDefaultsConfig.DefaultDisplayNameTemplate);

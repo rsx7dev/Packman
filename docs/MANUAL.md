@@ -200,6 +200,10 @@ Defaults applied to every upload started from the **Create** wizard:
   PSADT packages usually map `3010` / `1641` to a soft reboot, so *based on return codes* lets the
   installer decide.
 - **Maximum install time (minutes)** (`maxRunTimeInMinutes`, 1–1440, default 60).
+- **Wait for Intune processing (minutes)** (1–120, default 10). After the content is uploaded,
+  Intune processes it before it accepts supersedence and group assignments. If that takes longer
+  than this, the publish stops with a warning that lists what was not done. Raise it for large
+  packages. It is Packman's own setting and is not sent to Intune.
 - **App title template** for the app title in Intune — same `%vendor%` / `%appName%` /
   `%appVersion%` tokens, with a preview.
 - **Device requirements**: minimum operating system, free disk space, memory, processors, CPU speed.
@@ -821,6 +825,7 @@ Known limits, so you do not go looking:
 | Remote test: *No user is logged on…* | A **User** context run needs somebody signed in to the target. Use **System**, or log on first. |
 | Remote test: *No matching application files found* | Detection discovery could not find the installed executable — set the detection rule by hand on the Configure step. |
 | Upload failed partway | Read the per-upload log under `<Upload Logs Folder>\Upload\` (default `%LocalAppData%\Packman\Logs`); its path is printed at the start of the run. Packman tries to delete a known half-created app. If publication was confirmed or is uncertain it keeps the app and shows its ID, so check Intune before retrying. |
+| Publish warning: *Intune did not report it as published within … minutes* | The app and its content are in Intune, but Intune was still processing them. The warning lists the supersedence and group assignments that were not done; add them on the app's Deployment tab once the app reads *Published*. Raise **Wait for Intune processing** under Settings ▸ Intune defaults to wait longer next time. |
 | Group not assigned after upload | The name did not resolve to an Entra group. The log names it under *GROUP ASSIGNMENT*. |
 | Settings will not save | Packman writes to `%LocalAppData%\Packman\`; the page reports the actual error under the **Save settings** button. |
 
