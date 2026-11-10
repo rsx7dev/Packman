@@ -19,7 +19,7 @@ public sealed class ApplicationDetailViewModel : ObservableObject
     {
         CancelUpdateCommand = new RelayCommand(CancelUpdate, () => IsUpdating);
         _groupSearchBox = new IncrementalSearch<EntraGroup>(q => _apps.SearchGroupsAsync(q), () => OnPropertyChanged(nameof(HasGroupResults)));
-        _memberSearchBox = new IncrementalSearch<GroupMember>(q => _apps.SearchDevicesAndUsersAsync(q), () => OnPropertyChanged(nameof(HasMemberResults)));
+        _memberSearchBox = new IncrementalSearch<GroupMember>(q => _apps.SearchMembersAsync(q, _memberKind), () => OnPropertyChanged(nameof(HasMemberResults)));
         Devices = new DeviceStatusViewModel((progress, ct) => _apps.GetDeviceInstallStatusAsync(app.Id, progress, ct));
         // Seed from the list row so the header renders now; LoadAsync fills the rest.
         Detail = new ApplicationDetail
@@ -571,7 +571,47 @@ public sealed class ApplicationDetailViewModel : ObservableObject
     private bool _isFlyoutOpen;
     public bool IsFlyoutOpen { get => _isFlyoutOpen; private set => Set(ref _isFlyoutOpen, value); }
 
+    /// <summary>The members of the kind being shown, then nested groups.</summary>
     public ObservableCollection<GroupMember> Members { get; } = new();
+    private List<GroupMember> _allMembers = [];
+
+    /// <summary>Whether the panel searches for and lists users or devices.</summary>
+    private MemberKind _memberKind = MemberKind.Users;
+    public MemberKind MemberKindShown
+    {
+        get => _memberKind;
+        set
+        {
+            if (_memberKind == value) return;
+            _memberKind = value;
+            RaiseAll(nameof(MemberKindShown), nameof(ShowsUsers), nameof(ShowsDevices), nameof(MemberSearchHint), nameof(NoMembersOfKindText));
+            ShowMembersOfKind();
+            // The typed text stays; it is searched again as the other kind.
+            ErrorReporter.FireAndForget(() => _memberSearchBox.RunAsync(_memberSearch));
+        }
+    }
+
+    // A radio button only ever sets its own property to true.
+    public bool ShowsUsers { get => _memberKind == MemberKind.Users; set { if (value) MemberKindShown = MemberKind.Users; } }
+    public bool ShowsDevices { get => _memberKind == MemberKind.Devices; set { if (value) MemberKindShown = MemberKind.Devices; } }
+
+    public string MemberSearchHint => _memberKind == MemberKind.Users
+        ? "Name, email or sign-in name"
+        : "Device name";
+
+    /// <summary>A group holding users and devices: Intune then installs per person and per device at once.</summary>
+    public bool HasMixedMembers => GroupMember.IsMixed(_allMembers);
+
+    public bool HasNoMembersOfKind => FlyoutHasGroup && _membersLoaded && Members.Count == 0;
+    public string NoMembersOfKindText => _memberKind == MemberKind.Users ? "No users in this group." : "No devices in this group.";
+    private bool _membersLoaded;
+
+    private void ShowMembersOfKind()
+    {
+        Members.Clear();
+        foreach (var member in GroupMember.Visible(_allMembers, _memberKind)) Members.Add(member);
+        RaiseAll(nameof(HasMixedMembers), nameof(HasNoMembersOfKind));
+    }
 
     private string _membersStatus = "";
     public string MembersStatus { get => _membersStatus; private set => Set(ref _membersStatus, value); }
@@ -579,11 +619,17 @@ public sealed class ApplicationDetailViewModel : ObservableObject
     /// <summary>True for real groups; All Devices/Users have no member list.</summary>
     public bool FlyoutHasGroup => !string.IsNullOrEmpty(_flyoutGroup?.GroupId);
 
-    public async Task OpenMembersAsync(AssignedGroup group)
+    /// <summary>Opens the panel on <paramref name="group"/>, showing the kind of member it mostly holds.</summary>
+    public Task OpenMembersAsync(AssignedGroup group) => LoadMembersAsync(group, pickKind: true);
+
+    /// <param name="pickKind">False after a change in the open panel: the packager's own choice of users or devices stays.</param>
+    private async Task LoadMembersAsync(AssignedGroup group, bool pickKind)
     {
         FlyoutGroup = group;
         OnPropertyChanged(nameof(FlyoutHasGroup));
-        Members.Clear();
+        _allMembers = [];
+        _membersLoaded = false;
+        ShowMembersOfKind();
         _memberSearchBox.Clear();
         _memberSearch = "";
         OnPropertyChanged(nameof(MemberSearch));
@@ -607,9 +653,15 @@ public sealed class ApplicationDetailViewModel : ObservableObject
         {
             var members = await _apps.GetGroupMembersAsync(group.GroupId);
             if (!ReferenceEquals(_flyoutGroup, group)) return;   // flyout switched meanwhile
-            Members.Clear();
-            foreach (var m in members) Members.Add(m);
-            MembersStatus = $"{members.Count} member{(members.Count == 1 ? "" : "s")}";
+            _allMembers = members;
+            _membersLoaded = true;
+            if (pickKind && _memberKind != GroupMember.DefaultKind(members))
+            {
+                _memberKind = GroupMember.DefaultKind(members);
+                RaiseAll(nameof(MemberKindShown), nameof(ShowsUsers), nameof(ShowsDevices), nameof(MemberSearchHint), nameof(NoMembersOfKindText));
+            }
+            ShowMembersOfKind();
+            MembersStatus = GroupMember.Summary(members);
         }
         catch (Exception ex)
         {
@@ -639,11 +691,13 @@ public sealed class ApplicationDetailViewModel : ObservableObject
         if (group == null || string.IsNullOrEmpty(group.GroupId)) return;
         try
         {
-            await _apps.AddGroupMemberAsync(group.GroupId, member.Id);
+            var added = await _apps.AddGroupMemberAsync(group.GroupId, member.Id);
             _memberSearch = "";
             OnPropertyChanged(nameof(MemberSearch));
             _memberSearchBox.Clear();
-            await OpenMembersAsync(group);
+            await LoadMembersAsync(group, pickKind: false);
+            if (!added && ReferenceEquals(_flyoutGroup, group))
+                MembersStatus = $"{member.DisplayName} is already a member. {MembersStatus}";
         }
         catch (Exception ex)
         {
@@ -660,7 +714,7 @@ public sealed class ApplicationDetailViewModel : ObservableObject
         try
         {
             await _apps.RemoveGroupMemberAsync(group.GroupId, member.Id);
-            await OpenMembersAsync(group);
+            await LoadMembersAsync(group, pickKind: false);
         }
         catch (Exception ex)
         {

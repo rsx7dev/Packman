@@ -43,13 +43,14 @@ public partial class IntuneService
     public async Task<List<GroupMember>> GetGroupMembersAsync(string groupId, CancellationToken ct = default)
     {
         var members = new List<GroupMember>();
-        var url = $"{GraphClient.Groups}/{groupId}/members?$select=id,displayName&$top=999";
+        var url = $"{GraphClient.Groups}/{groupId}/members?$select=id,displayName,userPrincipalName&$top=999";
         await foreach (var m in _graph.GetAllPagesAsync(url, "Load members", ct))
         {
             members.Add(new GroupMember
             {
                 Id = m.GetSafeString("id"),
                 DisplayName = m.GetSafeString("displayName"),
+                Detail = m.GetSafeString("userPrincipalName"),
                 Kind = m.GetSafeString("@odata.type") switch
                 {
                     "#microsoft.graph.device" => "Device",
@@ -82,27 +83,33 @@ public partial class IntuneService
         => _graph.DeleteAsync($"{GraphClient.Groups}/{groupId}/members/{memberId}/$ref", "Remove member", ct);
 
     /// <summary>
-    /// Searches devices and users by name prefix for the add-member picker. Queried
-    /// independently so a missing scope on one doesn't hide the other's results.
+    /// Searches one kind of directory object for the add-member picker. Users match on the
+    /// start of their name, sign-in name, email or surname; devices on the start of their name.
     /// </summary>
-    public async Task<List<GroupMember>> SearchDevicesAndUsersAsync(string query, CancellationToken ct = default)
+    public async Task<List<GroupMember>> SearchMembersAsync(string query, MemberKind kind, CancellationToken ct = default)
     {
-        var results = new List<GroupMember>();
-        if (string.IsNullOrWhiteSpace(query)) return results;
+        if (string.IsNullOrWhiteSpace(query)) return [];
 
-        var filter = Uri.EscapeDataString($"startswith(displayName,'{OData.Literal(query.Trim())}')");
-        results.AddRange(await SearchDirectoryAsync($"{GraphClient.Devices}?$filter={filter}&$select=id,displayName&$top=8", "Device", ct));
-        results.AddRange(await SearchDirectoryAsync($"{GraphClient.Users}?$filter={filter}&$select=id,displayName&$top=8", "User", ct));
-        return results;
+        var literal = OData.Literal(query.Trim());
+        return kind == MemberKind.Users
+            ? await SearchDirectoryAsync(
+                $"{GraphClient.Users}?$filter={Uri.EscapeDataString(GroupMember.UserFilter(literal))}&$select=id,displayName,userPrincipalName&$top={MemberSearchLimit}",
+                GroupMember.User, "userPrincipalName", ct)
+            : await SearchDirectoryAsync(
+                $"{GraphClient.Devices}?$filter={Uri.EscapeDataString(GroupMember.DeviceFilter(literal))}&$select=id,displayName,operatingSystem&$top={MemberSearchLimit}",
+                GroupMember.Device, "operatingSystem", ct);
     }
 
-    private async Task<List<GroupMember>> SearchDirectoryAsync(string url, string kind, CancellationToken ct)
+    /// <summary>How many search results the add-member picker asks for.</summary>
+    public const int MemberSearchLimit = 20;
+
+    private async Task<List<GroupMember>> SearchDirectoryAsync(string url, string kind, string detailProperty, CancellationToken ct)
     {
         var results = new List<GroupMember>();
         var response = await _graph.GetAsync(url, $"Search {kind.ToLowerInvariant()}s", ct, throwOnError: false);
         if (!response.IsSuccess)
         {
-            // Typically a missing directory scope; the other query still answers.
+            // Typically a missing directory scope.
             Debug.WriteLine($"{kind} search failed: HTTP {response.StatusCode} {GraphException.ExtractMessage(response.Body)}");
             return results;
         }
@@ -113,6 +120,7 @@ public partial class IntuneService
                 {
                     Id = m.GetSafeString("id"),
                     DisplayName = m.GetSafeString("displayName"),
+                    Detail = m.GetSafeString(detailProperty),
                     Kind = kind,
                 });
         return results;

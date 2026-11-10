@@ -940,7 +940,7 @@
                         <!-- Assignment groups: select a row for members, remove, add inline. -->
                         <Border Style="{StaticResource SectionPanel}">
                             <StackPanel>
-                                <controls:SectionHeader Title="Assignment groups" Caption="Select a group to see and manage its members."/>
+                                <controls:SectionHeader Title="Assignment groups" Caption="Press Manage members on a group to add or remove its users and devices."/>
                                 <DockPanel Style="{StaticResource WriteNote}">
                                     <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconInfo}" Width="15" Height="15"
                                                        VerticalAlignment="Top" Margin="0,2,8,0"/>
@@ -986,9 +986,9 @@
                                                                Foreground="{DynamicResource InkBrush}" Margin="12,0,12,0" VerticalAlignment="Center" TextWrapping="Wrap"/>
                                                     <ContentControl Grid.Column="2" Content="{Binding}" ContentTemplate="{StaticResource StatusBadgeTemplate}"
                                                                     VerticalAlignment="Center" Focusable="False"/>
-                                                    <Button Grid.Column="3" Style="{StaticResource LinkButton}" Content="View members" Margin="12,0,0,0"
+                                                    <Button Grid.Column="3" Style="{StaticResource LinkButton}" Content="Manage members" Margin="12,0,0,0"
                                                             Click="ViewMembers_Click" VerticalAlignment="Center"
-                                                            AutomationProperties.Name="{Binding GroupName, StringFormat='View members of {0}'}"/>
+                                                            AutomationProperties.Name="{Binding GroupName, StringFormat='Manage members of {0}'}"/>
                                                     <Button Grid.Column="4" Style="{StaticResource RowIconButton}" HorizontalAlignment="Right"
                                                             Click="RemoveAssignment_Click" ToolTip="Remove this assignment"
                                                             AutomationProperties.Name="{Binding GroupName, StringFormat='Remove assignment for {0}'}"
@@ -1105,9 +1105,25 @@
                     </Border>
 
                     <StackPanel Grid.Row="2" Margin="0,0,0,8" Visibility="{Binding FlyoutHasGroup, Converter={StaticResource BoolToVis}}">
-                        <TextBlock Text="Add member" Style="{StaticResource FieldLabel}"/>
-                        <TextBox AutomationProperties.Name="Add member" Style="{StaticResource TextField}"
-                                 local:PlaceholderText.Text="Search devices or users"
+                        <!-- One switch for both the search and the list below: a search for a
+                             user never fills up with devices, and the other way round. -->
+                        <Border Style="{StaticResource SegmentGroup}" Height="36" HorizontalAlignment="Stretch" Margin="0,0,0,12">
+                            <UniformGrid Rows="1">
+                                <RadioButton Style="{StaticResource ContextToggle}" Content="Users"
+                                             IsChecked="{Binding ShowsUsers, Mode=TwoWay}"
+                                             AutomationProperties.Name="Show and add users"
+                                             ToolTip="List the users in this group and search for users to add."/>
+                                <RadioButton Style="{StaticResource ContextToggle}" Content="Devices"
+                                             IsChecked="{Binding ShowsDevices, Mode=TwoWay}"
+                                             AutomationProperties.Name="Show and add devices"
+                                             ToolTip="List the devices in this group and search for devices to add."/>
+                            </UniformGrid>
+                        </Border>
+                        <TextBlock Style="{StaticResource FieldLabel}"
+                                   Text="{Binding ShowsUsers, Converter={StaticResource BoolToText}, ConverterParameter='Add user|Add device'}"/>
+                        <TextBox Style="{StaticResource TextField}"
+                                 AutomationProperties.Name="{Binding ShowsUsers, Converter={StaticResource BoolToText}, ConverterParameter='Add user|Add device'}"
+                                 local:PlaceholderText.Text="{Binding MemberSearchHint}"
                                  Text="{Binding MemberSearch, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                                  IsEnabled="{Binding IsSignedIn}"/>
                     </StackPanel>
@@ -1126,7 +1142,11 @@
                                                     <ColumnDefinition Width="*"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Text="{Binding DisplayName}" FontSize="13" Foreground="{DynamicResource InkBrush}" TextTrimming="CharacterEllipsis"/>
+                                                <StackPanel>
+                                                    <TextBlock Text="{Binding DisplayName}" FontSize="13" Foreground="{DynamicResource InkBrush}" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding Detail}" FontSize="12" Foreground="{DynamicResource Muted2Brush}" TextTrimming="CharacterEllipsis"
+                                                               Visibility="{Binding HasDetail, Converter={StaticResource BoolToVis}}"/>
+                                                </StackPanel>
                                                 <TextBlock Grid.Column="1" Text="{Binding Kind}" FontSize="12" Foreground="{DynamicResource Muted2Brush}"
                                                            Margin="10,0,0,0" VerticalAlignment="Center"/>
                                             </Grid>
@@ -1139,6 +1159,9 @@
 
                     <Border Grid.Row="4" Background="{DynamicResource FieldBrush}" BorderBrush="{DynamicResource LineBrush}" BorderThickness="1" CornerRadius="8"
                             Visibility="{Binding FlyoutHasGroup, Converter={StaticResource BoolToVis}}">
+                        <Grid>
+                        <TextBlock Text="{Binding NoMembersOfKindText}" Style="{StaticResource SubText}" Margin="12,12"
+                                   Visibility="{Binding HasNoMembersOfKind, Converter={StaticResource BoolToVis}}"/>
                         <ScrollViewer VerticalScrollBarVisibility="Auto">
                             <ItemsControl ItemsSource="{Binding Members}" Margin="12,4">
                                 <ItemsControl.ItemTemplate>
@@ -1150,8 +1173,12 @@
                                                     <ColumnDefinition Width="Auto"/>
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Text="{Binding DisplayName}" FontSize="13" Foreground="{DynamicResource InkBrush}"
-                                                           VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                                <StackPanel VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding DisplayName}" FontSize="13" Foreground="{DynamicResource InkBrush}"
+                                                               TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{Binding Detail}" FontSize="12" Foreground="{DynamicResource Muted2Brush}" TextTrimming="CharacterEllipsis"
+                                                               Visibility="{Binding HasDetail, Converter={StaticResource BoolToVis}}"/>
+                                                </StackPanel>
                                                 <TextBlock Grid.Column="1" Text="{Binding Kind}" FontSize="12" Foreground="{DynamicResource Muted2Brush}"
                                                            Margin="8,0,0,0" VerticalAlignment="Center"/>
                                                 <Button Grid.Column="2" Style="{StaticResource RowIconButton}" Width="26" Height="26" Margin="4,0,0,0"
@@ -1166,9 +1193,16 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
                         </ScrollViewer>
+                        </Grid>
                     </Border>
 
-                    <TextBlock Grid.Row="5" Text="{Binding MembersStatus}" Style="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,10,0,0"/>
+                    <StackPanel Grid.Row="5" Margin="0,10,0,0">
+                        <TextBlock Text="{Binding MembersStatus}" Style="{StaticResource SubText}" TextWrapping="Wrap"
+                                   AutomationProperties.LiveSetting="Polite"/>
+                        <TextBlock Style="{StaticResource SubText}" FontSize="12" TextWrapping="Wrap" Margin="0,6,0,0"
+                                   Text="This group holds users and devices. A user gets the app on every device they sign in to; a device gets it whoever signs in."
+                                   Visibility="{Binding HasMixedMembers, Converter={StaticResource BoolToVis}}"/>
+                    </StackPanel>
                 </Grid>
             </Border>
         </Grid>

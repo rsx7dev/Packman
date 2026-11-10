@@ -671,10 +671,17 @@ Excel treats them as text. The report needs `DeviceManagementApps.Read.All`, whi
 
 - **Add assignment**: pick Required / Available / Uninstall, search Entra groups, press **Add group**.
 - Remove an assignment.
-- Click a group, or **View members**, to open the members panel: every member, an
-  **Add member** box that searches devices and users, and add/remove. Membership changes affect every
-  app assigned to that group — the panel says so. Built-in targets (All Devices / All Users) have
-  no member list.
+- Press **Manage members** on a group to open the members panel, which slides in beside the app.
+  A **Users | Devices** switch at the top sets both what the list shows and what the search finds;
+  it opens on whichever the group mostly holds. **Add user** finds people by the start of their
+  name, email, sign-in name or surname and shows the sign-in name under each result, so two people
+  with the same name can be told apart. **Add device** finds devices by the start of their name and
+  shows the operating system. Click a result to add it; the **x** on a member removes it after a
+  confirmation. Nested groups are listed under both. The line at the bottom counts the members by
+  kind, and says so when a group holds both users and devices: a user gets the app on every device
+  they sign in to, a device gets it whoever signs in. Membership changes affect every
+  app assigned to that group — the panel says so — and are saved to Entra ID immediately. Built-in
+  targets (All Devices / All Users) have no member list.
 - **Delete from Intune** (in the **Danger zone**) removes the app and its assignments from the
   tenant after a confirmation. It cannot be undone; devices keep their installed copy.
 

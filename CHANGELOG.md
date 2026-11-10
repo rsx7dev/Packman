@@ -108,6 +108,13 @@ All notable changes to Packman are recorded here. The format follows
 
 ### Changed
 
+- The group members panel on an app's Deployment tab has a **Users | Devices** switch that sets both
+  the member list and the search, so a search for a person no longer fills up with devices. Users
+  are found by name, email, sign-in name or surname (it was display name only) and show their
+  sign-in name; devices show their operating system. Each search returns up to 20 results instead
+  of 8 of each kind. The panel counts members by kind, notes when a group mixes users and devices,
+  and says when the object you picked was already a member. Its link on the group row now reads
+  **Manage members**.
 - `IntuneWinAppUtil.exe` is no longer shipped with Packman, because Microsoft's license terms do not
   allow redistributing it. With **IntuneWinAppUtil Path** empty, Packman downloads version 1.8.7 from
   Microsoft's repository on the first publish, checks its SHA-256, keeps it in
