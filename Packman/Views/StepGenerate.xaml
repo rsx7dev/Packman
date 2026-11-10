@@ -62,6 +62,27 @@
                     </StackPanel>
                 </DockPanel>
 
+                <!-- What the generator could not write into the template: stays until the next build. -->
+                <Border Style="{StaticResource CalloutWarn}" Margin="0,18,0,0" AutomationProperties.LiveSetting="Assertive"
+                        Visibility="{Binding CreatePackage.HasScriptWarnings, Converter={StaticResource BoolToVis}}">
+                    <DockPanel>
+                        <controls:LineIcon DockPanel.Dock="Left" Data="{DynamicResource IconAlert}" Foreground="{DynamicResource WarnBrush}"
+                                           VerticalAlignment="Top" Margin="0,1,10,0"/>
+                        <StackPanel>
+                            <TextBlock Text="The script needs attention before you publish" FontWeight="SemiBold" FontSize="13"/>
+                            <ItemsControl ItemsSource="{Binding CreatePackage.ScriptWarnings}" Margin="0,6,0,0" IsTabStop="False">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="12.5" LineHeight="18" Margin="0,0,0,4"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Button Style="{StaticResource LinkButton}" Content="Edit script" HorizontalAlignment="Left" Margin="0,4,0,0"
+                                    Command="{Binding OpenEditToolCommand}"/>
+                        </StackPanel>
+                    </DockPanel>
+                </Border>
+
                 <TextBlock Text="Optional before publishing" Style="{StaticResource H3}" Margin="0,22,0,4"/>
                 <TextBlock Text="The installer details are saved in the package. Check the script and test it before you configure the deployment."
                            Style="{StaticResource SubText}" TextWrapping="Wrap" Margin="0,0,0,14"/>

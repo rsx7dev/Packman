@@ -190,11 +190,13 @@ public class PSADTGenerator
         // The template may carry the upstream signature; the edits below invalidate it anyway.
         script.StripSignatureBlock();
 
-        void Set(string key, string value)
-        {
-            if (!script.SetSessionValue(key, value))
-                warnings.Add($"{key} is not in the template's $adtSession block; set it by hand.");
-        }
+        var layout = script.DetectLayout();
+        ActivityLog.Shared.Info($"Template: PSADT {script.ToolkitVersion ?? "version unknown"}, {Describe(layout)}");
+
+        // A key the template lacks is added rather than skipped: 4.2 dropped RequireAdmin, and
+        // a stripped-down template may lack others. Only a script with no $adtSession at all fails.
+        var noSession = false;
+        void Set(string key, string value) => noSession |= !script.SetOrAddSessionValue(key, value);
 
         Set("AppVendor", appInfo.Manufacturer);
         Set("AppName", appInfo.Name);
@@ -203,25 +205,40 @@ public class PSADTGenerator
         Set("AppScriptDate", PsadtScript.TodayStamp);
         Set("AppScriptAuthor", string.IsNullOrWhiteSpace(appInfo.Author) ? Environment.UserName : appInfo.Author);
 
+        // 4.2 passes $adtSession to Open-ADTSession, whose -RequireAdmin switch takes this entry.
         var userContext = appInfo.InstallContext.Equals("User", StringComparison.OrdinalIgnoreCase);
-        if (!script.SetSessionBool("RequireAdmin", !userContext))
-            warnings.Add("RequireAdmin is not in the template's $adtSession block; set it by hand.");
+        noSession |= !script.SetOrAddSessionBool("RequireAdmin", !userContext);
+        if (noSession)
+            warnings.Add("The template has no $adtSession block, so the application details and install context were not written. Set them in Edit script.");
 
         var msi = appInfo.PackageType == "MSI";
         var installer = ResolveInstallerName(appInfo, PsadtLayout.FilesFolder(packagePath), msi)
                         ?? (msi ? appInfo.Name + ".msi" : "setup.exe");
 
-        if (!script.InsertAfterSection(PsadtScript.InstallSection,
-                "", msi ? "## MSI Installation" : "## EXE Installation", PsadtScript.InstallCommand(msi, installer, appInfo.InstallArguments)))
-            warnings.Add($"No '<Perform {PsadtScript.InstallSection} tasks here>' marker in the template; add the install command by hand.");
+        if (script.InsertIntoPhase(PsadtScript.InstallSection,
+                "", msi ? "## MSI Installation" : "## EXE Installation", PsadtScript.InstallCommand(msi, installer, appInfo.InstallArguments)) == PhaseLayout.None)
+            warnings.Add(PhaseNotFound("install"));
 
-        if (!script.InsertAfterSection(PsadtScript.UninstallSection,
-                "", msi ? "## Uninstall MSI" : "## Uninstall EXE", PsadtScript.UninstallCommand(msi, installer, appInfo.MsiProductCode, appInfo.UninstallArguments)))
-            warnings.Add($"No '<Perform {PsadtScript.UninstallSection} tasks here>' marker in the template; add the uninstall command by hand.");
+        if (script.InsertIntoPhase(PsadtScript.UninstallSection,
+                "", msi ? "## Uninstall MSI" : "## Uninstall EXE", PsadtScript.UninstallCommand(msi, installer, appInfo.MsiProductCode, appInfo.UninstallArguments)) == PhaseLayout.None)
+            warnings.Add(PhaseNotFound("uninstall"));
 
         script.Save();
         return warnings;
     }
+
+    private static string Describe(PhaseLayout layout) => layout switch
+    {
+        PhaseLayout.Markers => "deployment functions with '<Perform … tasks here>' markers",
+        PhaseLayout.PhaseBlocks => "phase blocks (New-Variable -Name Install -Value { … })",
+        PhaseLayout.MarkHeadings => "'## MARK:' phase headings",
+        _ => "no install or uninstall phase found",
+    };
+
+    private static string PhaseNotFound(string phase) =>
+        $"Could not find the {phase} phase in the template (looked for a '<Perform …tasks here>' marker, " +
+        $"a 'New-Variable -Name {char.ToUpperInvariant(phase[0])}{phase[1..]}' block and a '## MARK:' heading). " +
+        $"The package has no {phase} command: add it in Edit script.";
 
     // A single source file is referenced by its own name; a list or folder by the first
     // installer that landed in Files\.

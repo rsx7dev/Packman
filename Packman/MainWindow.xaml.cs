@@ -48,7 +48,13 @@ public partial class MainWindow : FluentWindow
         AdvancedPage.ConnectRequested += () => SettingsNavBtn.IsChecked = true;
 
         AppNavigation.Requested += Navigate;
-        Closed += (_, _) => AppNavigation.Requested -= Navigate;
+        Closed += (_, _) =>
+        {
+            AppNavigation.Requested -= Navigate;
+            // The popped-out console is not owned (it may sit on another screen), so it would
+            // otherwise keep the app running after the main window closes.
+            Views.Controls.ConsoleWindow.Dock();
+        };
 
         // The title bar template builds the caption buttons without names.
         Loaded += (_, _) => Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Loaded,

@@ -36,6 +36,11 @@ public static class PackagePreflight
             if (placeholders.Any())
                 issues.Add("Replace the EXE install/uninstall flag placeholders in Edit script with the vendor's silent switches, then save the script.");
 
+            // PSADT 4.2+ phase blocks: an empty Install or Uninstall block deploys nothing and
+            // still exits 0, so Intune would report success for an app that never installed.
+            foreach (var phase in EmptyPhases(ast))
+                issues.Add($"The {phase} phase in the script is empty. Add the {phase.ToLowerInvariant()} command in Edit script, then save the script.");
+
             // Written when the MSI's product code is not known; uninstall cannot work with it.
             var productCode = ast.FindAll(node => node is StringConstantExpressionAst literal &&
                 literal.Value.Contains(PsadtScript.ProductCodePlaceholder, StringComparison.OrdinalIgnoreCase), searchNestedScriptBlocks: true);
@@ -47,6 +52,29 @@ public static class PackagePreflight
             issues.Add($"Cannot read the deployment script: {ex.Message}");
         }
         return issues;
+    }
+
+    /// <summary>"Install" and/or "Uninstall" when their New-Variable -Value { } block has no statements.</summary>
+    internal static IEnumerable<string> EmptyPhases(Ast ast)
+    {
+        foreach (var command in ast.FindAll(n => n is CommandAst c && string.Equals(c.GetCommandName(), "New-Variable", StringComparison.OrdinalIgnoreCase), true).Cast<CommandAst>())
+        {
+            string? name = null;
+            ScriptBlockAst? value = null;
+            var elements = command.CommandElements;
+            for (int i = 1; i < elements.Count - 1; i++)
+            {
+                if (elements[i] is not CommandParameterAst parameter) continue;
+                if (parameter.ParameterName.Equals("Name", StringComparison.OrdinalIgnoreCase) && elements[i + 1] is StringConstantExpressionAst s)
+                    name = s.Value;
+                else if (parameter.ParameterName.Equals("Value", StringComparison.OrdinalIgnoreCase) && elements[i + 1] is ScriptBlockExpressionAst block)
+                    value = block.ScriptBlock;
+            }
+            if (name is not ("Install" or "Uninstall") || value == null) continue;
+            var empty = (value.EndBlock?.Statements.Count ?? 0) == 0 && (value.ProcessBlock?.Statements.Count ?? 0) == 0
+                        && (value.BeginBlock?.Statements.Count ?? 0) == 0;
+            if (empty) yield return name;
+        }
     }
 
     public static void EnsureReady(string packageRoot)

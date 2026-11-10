@@ -18,13 +18,37 @@ public sealed record ActivityLine(DateTime Time, ActivityLevel Level, string Tex
 /// What the live console in the right column shows: package creation, upload and update report
 /// here as they run, from any thread. Secrets are removed on the way in.
 /// </summary>
-public sealed partial class ActivityLog
+public sealed partial class ActivityLog : System.ComponentModel.INotifyPropertyChanged
 {
     private const int MaxLines = 500;
 
     public static ActivityLog Shared { get; } = new();
 
     public ObservableCollection<ActivityLine> Lines { get; } = [];
+
+    // Lines wait here in the order they were logged, whatever thread logged them, and reach
+    // Lines in that order. Without it a line logged on the UI thread overtook lines a
+    // background job had already logged but not yet marshalled.
+    private readonly System.Collections.Concurrent.ConcurrentQueue<Action> _pending = new();
+
+    public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+
+    /// <summary>Warnings in the console now; the header shows it.</summary>
+    public int WarningCount { get; private set; }
+
+    /// <summary>Errors in the console now.</summary>
+    public int ErrorCount { get; private set; }
+
+    /// <summary>Raised on the UI thread for each warning or error added, so a collapsed console can open.</summary>
+    public event Action<ActivityLine>? IssueAdded;
+
+    private void Recount()
+    {
+        var warnings = Lines.Count(l => l.Level == ActivityLevel.Warning);
+        var errors = Lines.Count(l => l.Level == ActivityLevel.Error);
+        if (warnings != WarningCount) { WarningCount = warnings; PropertyChanged?.Invoke(this, new(nameof(WarningCount))); }
+        if (errors != ErrorCount) { ErrorCount = errors; PropertyChanged?.Invoke(this, new(nameof(ErrorCount))); }
+    }
 
     public string Text => string.Join(Environment.NewLine, Lines.Select(line => line.Display));
 
@@ -41,18 +65,31 @@ public sealed partial class ActivityLog
         {
             Lines.Add(line);
             if (Lines.Count > MaxLines) Lines.RemoveAt(0);
+            Recount();
+            if (level is ActivityLevel.Warning or ActivityLevel.Error) IssueAdded?.Invoke(line);
         });
     }
 
-    public void Clear() => OnUiThread(Lines.Clear);
-
-    private static void OnUiThread(Action action)
+    public void Clear() => OnUiThread(() =>
     {
+        Lines.Clear();
+        Recount();
+    });
+
+    private void OnUiThread(Action action)
+    {
+        _pending.Enqueue(action);
         var dispatcher = Application.Current?.Dispatcher;
         if (dispatcher == null || dispatcher.CheckAccess())
-            action();
+            Drain();
         else
-            dispatcher.InvokeAsync(action);
+            dispatcher.InvokeAsync(Drain);
+    }
+
+    // Runs only on the UI thread (or with no UI at all), so one drain never overlaps another.
+    private void Drain()
+    {
+        while (_pending.TryDequeue(out var next)) next();
     }
 
     // A SAS URL keeps its path but loses the query (sig, se, sp...); the rest are tokens

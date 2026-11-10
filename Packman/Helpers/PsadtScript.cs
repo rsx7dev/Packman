@@ -5,6 +5,19 @@ using System.Text.RegularExpressions;
 
 namespace Packman.Helpers;
 
+/// <summary>How a template lays out its deployment phases; see <see cref="PsadtScript.InsertIntoPhase"/>.</summary>
+public enum PhaseLayout
+{
+    /// <summary>No phase could be found.</summary>
+    None,
+    /// <summary>PSADT 4.0/4.1: "## &lt;Perform Installation tasks here&gt;" inside Install-ADTDeployment.</summary>
+    Markers,
+    /// <summary>PSADT 4.2+: "New-Variable -Name Install -Value { … }".</summary>
+    PhaseBlocks,
+    /// <summary>Only "## MARK: Install" headings are left.</summary>
+    MarkHeadings,
+}
+
 /// <summary>
 /// One package's Invoke-AppDeployToolkit.ps1. Reads and edits the $adtSession hashtable,
 /// the install/uninstall sections, the source-file references and the MSI product code
@@ -119,6 +132,38 @@ public sealed class PsadtScript
     public bool SetSessionBool(string key, bool value)
         => SetSessionLiteral(key, value ? "$true" : "$false");
 
+    /// <summary>
+    /// <see cref="SetSessionValue"/>, adding the entry when the template lacks it (4.2 dropped
+    /// RequireAdmin, for one). False only when the script has no $adtSession block at all.
+    /// </summary>
+    public bool SetOrAddSessionValue(string key, string? value)
+        => SetOrAddSessionLiteral(key, "'" + PowerShellLiteral.SingleQuoted(value) + "'");
+
+    public bool SetOrAddSessionBool(string key, bool value)
+        => SetOrAddSessionLiteral(key, value ? "$true" : "$false");
+
+    /// <summary>The PSADT version the template was written for (DeployAppScriptVersion), or null.</summary>
+    public string? ToolkitVersion => GetSessionValue("DeployAppScriptVersion");
+
+    private bool SetOrAddSessionLiteral(string key, string literal)
+    {
+        if (SetSessionLiteral(key, literal)) return true;
+        if (!SessionStart.IsMatch(Content)) return false;
+
+        // Before the DeployAppScript* entries the template keeps last, else before the closing brace.
+        var (start, length) = SessionBlock();
+        var block = Content.Substring(start, length);
+        var anchor = Regex.Match(block, @"^[ \t]*DeployAppScript", RegexOptions.Multiline);
+        var insertAt = start + (anchor.Success ? anchor.Index : length);
+        if (!anchor.Success && insertAt > 0 && Content[insertAt - 1] != '\n')
+            insertAt = Content.LastIndexOf('\n', insertAt - 1) + 1;
+
+        var sample = Regex.Match(block, @"^(?<ws>[ \t]+)\w+[ \t]*=", RegexOptions.Multiline);
+        var indent = sample.Success ? sample.Groups["ws"].Value : "    ";
+        Content = Content.Insert(insertAt, $"{indent}{key} = {literal}{NewLine}");
+        return true;
+    }
+
     private bool SetSessionLiteral(string key, string literal)
     {
         var (start, length) = SessionBlock();
@@ -205,34 +250,81 @@ public sealed class PsadtScript
     // ── Install / uninstall sections ──────────────────────────────────────────
 
     /// <summary>
-    /// Inserts lines right after the "&lt;Perform {section} tasks here&gt;" marker.
-    /// Returns false when the template has no such marker.
+    /// Inserts lines at the start of a deployment phase. Returns false when the template shows
+    /// none of the phase layouts <see cref="InsertIntoPhase"/> knows.
     /// </summary>
     public bool InsertAfterSection(string section, params string[] codeLines)
+        => InsertIntoPhase(section, codeLines) != PhaseLayout.None;
+
+    /// <summary>
+    /// Inserts lines at the start of the <paramref name="section"/> phase ("Installation",
+    /// "Uninstallation", "Repair") and says which layout it found. Indented to match the phase.
+    /// </summary>
+    public PhaseLayout InsertIntoPhase(string section, params string[] codeLines)
     {
         var lines = Content.Split('\n').ToList();   // '\r' stays on each line, so joining restores CRLF
-        var index = FindSection(lines, section);
-        if (index < 0) return false;
+        var (index, indent, layout) = FindPhase(lines, section);
+        if (layout == PhaseLayout.None) return layout;
 
         var cr = NewLine == "\r\n" ? "\r" : "";
         for (int i = 0; i < codeLines.Length; i++)
-            lines.Insert(index + i, codeLines[i] + cr);
+            lines.Insert(index + i, (codeLines[i].Length == 0 ? "" : indent + codeLines[i]) + cr);
 
         Content = string.Join('\n', lines);
-        return true;
+        return layout;
     }
 
-    private static int FindSection(List<string> lines, string name)
+    /// <summary>Which phase layouts the script has, best first; empty when none is recognised.</summary>
+    public PhaseLayout DetectLayout()
+    {
+        var lines = Content.Split('\n').ToList();
+        return FindPhase(lines, InstallSection).Layout;
+    }
+
+    /// <summary>"Install" for "Installation", "Uninstall" for "Uninstallation": the 4.2+ variable and MARK names.</summary>
+    private static string PhaseName(string section) =>
+        section.EndsWith("ation", StringComparison.OrdinalIgnoreCase) && section.Length > 5 ? section[..^5] : section;
+
+    // PSADT has shipped three shapes for the same phases, tried in this order:
+    //  4.0/4.1  function Install-ADTDeployment { … ## <Perform Installation tasks here> … }
+    //  4.2+     New-Variable -Name Install -Force -Value { … }
+    //  any      ## MARK: Install heading (a template whose markers were tidied away)
+    private static (int Index, string Indent, PhaseLayout Layout) FindPhase(List<string> lines, string section)
     {
         for (int i = 0; i < lines.Count; i++)
         {
-            if (lines[i].Contains($"<Perform {name} tasks here>") ||
-                lines[i].Contains($"## {name}") ||
-                lines[i].Contains($"## <{name}>"))
-                return i + 1;
+            if (lines[i].Contains($"<Perform {section} tasks here>") ||
+                lines[i].Contains($"## {section}") ||
+                lines[i].Contains($"## <{section}>"))
+                return (i + 1, LeadingWhitespace(lines[i]), PhaseLayout.Markers);
         }
-        return -1;
+
+        var phase = Regex.Escape(PhaseName(section));
+        var opener = new Regex(
+            $@"^(?<ws>[ \t]*)New-Variable\b(?=.*\s-Name\s+['""]?{phase}['""]?(?:\s|$)).*-Value\s*\{{\s*$",
+            RegexOptions.IgnoreCase);
+        for (int i = 0; i < lines.Count; i++)
+        {
+            var match = opener.Match(lines[i].TrimEnd('\r'));
+            if (match.Success) return (i + 1, match.Groups["ws"].Value + "    ", PhaseLayout.PhaseBlocks);
+        }
+
+        var heading = new Regex($@"^[ \t]*##[ \t]*MARK:[ \t]*{phase}[ \t]*$", RegexOptions.IgnoreCase);
+        for (int i = 0; i < lines.Count; i++)
+        {
+            if (!heading.IsMatch(lines[i].TrimEnd('\r'))) continue;
+            // Past the heading's rule lines and the 4.1 "InstallPhase =" line.
+            var at = i + 1;
+            while (at < lines.Count && (lines[at].TrimStart().StartsWith("##", StringComparison.Ordinal)
+                                        || lines[at].Contains("InstallPhase", StringComparison.Ordinal)))
+                at++;
+            return (at, LeadingWhitespace(lines[i]), PhaseLayout.MarkHeadings);
+        }
+
+        return (-1, "", PhaseLayout.None);
     }
+
+    private static string LeadingWhitespace(string line) => line[..(line.Length - line.TrimStart(' ', '\t').Length)];
 
     /// <summary>
     /// Blank <paramref name="arguments"/> keeps the placeholder the packager must replace (EXE)

@@ -487,12 +487,24 @@ public class CreatePackageViewModel : ObservableObject
         return check.PackageExists ? check.ExistingPath : null;
     }
 
+    private IReadOnlyList<string> _scriptWarnings = [];
+
+    /// <summary>What the generator could not write into the script; shown on the Package step until the next build.</summary>
+    public IReadOnlyList<string> ScriptWarnings
+    {
+        get => _scriptWarnings;
+        private set => Set(ref _scriptWarnings, value, [nameof(HasScriptWarnings)]);
+    }
+
+    public bool HasScriptWarnings => _scriptWarnings.Count > 0;
+
     public async Task<string?> GenerateAsync(AppSettings settings, bool overwriteExisting = false)
     {
         WasCancelled = false;
         if (!Validate()) return null;
 
         IsGenerating = true;
+        ScriptWarnings = [];
         StatusText = "Copying the PSADT template and source files…";
         ActivityLog.Shared.Section($"Creating package {AppName} {Version}");
         _cts = new CancellationTokenSource();
@@ -519,9 +531,10 @@ public class CreatePackageViewModel : ObservableObject
                 IconExtractor.CopyIconToPackage(ExtractedIconPath, packagePath, appInfo.Name);
 
             CurrentPackagePath = packagePath;
+            ScriptWarnings = result.Warnings;
             StatusText = result.Warnings.Count == 0
                 ? $"Package created · {DateTime.Now:HH:mm:ss}"
-                : $"Package created · {DateTime.Now:HH:mm:ss} · check the script: {string.Join(" ", result.Warnings)}";
+                : $"Package created · {DateTime.Now:HH:mm:ss} · the script needs attention";
             ActivityLog.Shared.Success($"Package created: {packagePath}");
             Debug.WriteLine($"Package created: {packagePath}");
             return packagePath;
@@ -559,6 +572,7 @@ public class CreatePackageViewModel : ObservableObject
         Architecture = "x64";
         CurrentMsiInfo = null;
         CurrentPackagePath = "";
+        ScriptWarnings = [];
         StatusText = "";
         InstallArguments = "";
         UninstallArguments = "";
