@@ -3,8 +3,10 @@ using System.IO;
 namespace Packman.Helpers;
 
 /// <summary>
-/// Finds an app's package folder on the share. Layout is {root}\{Vendor}_{AppName}\{version};
-/// a folder belongs to an app only through its <see cref="PackageMarker"/> link, never by name.
+/// Finds an app's package folder on the share. Layout is {root}\{app folder}\{version}, where the
+/// app folder is one level ({Vendor}_{AppName}) or two ({Vendor}\{AppName}) depending on the name
+/// format in Settings; a folder belongs to an app only through its <see cref="PackageMarker"/>
+/// link, never by name.
 /// </summary>
 public static class PackageSourceLocator
 {
@@ -37,6 +39,7 @@ public static class PackageSourceLocator
             if (!Directory.Exists(shareRoot)) return [];
             return Directory.EnumerateDirectories(shareRoot, "*", skipUnreadable)
                 .SelectMany(app => Directory.EnumerateDirectories(app, "*", skipUnreadable))
+                .SelectMany(folder => VersionFolders(folder, skipUnreadable))
                 .Where(folder => PackageMarker.Read(folder) is { } link && link.AppId == appId &&
                                  (link.IsLegacy || link.TenantId == tenantId))
                 .ToList();
@@ -44,6 +47,22 @@ public static class PackageSourceLocator
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             return [];   // unreachable share; the page shows "not found"
+        }
+    }
+
+    // A second-level folder is a version folder ({Vendor}_{AppName}\{version}) when it holds a
+    // package, and otherwise an app folder of the two-level format, whose children are the versions.
+    private static IEnumerable<string> VersionFolders(string folder, EnumerationOptions options)
+    {
+        if (Directory.Exists(PsadtLayout.ApplicationFolder(folder)) || Directory.Exists(PsadtLayout.IntuneFolder(folder)))
+            return [folder];
+        try
+        {
+            return Directory.EnumerateDirectories(folder, "*", options).ToList();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return [];
         }
     }
 }

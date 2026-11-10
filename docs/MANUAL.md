@@ -159,8 +159,14 @@ Package generation is blocked until the Intune Applications Path is set.
 ### Package layout
 
 Every new package gets `Application` (the PSADT files and installer; only this folder is packed
-into the `.intunewin`) and `Intune` (the built `.intunewin` and `packman.id`). Two things are up to you:
+into the `.intunewin`) and `Intune` (the built `.intunewin` and `packman.id`). Three things are up to you:
 
+- **Package folder name** — how the app's folder under the Intune Applications Path is named.
+  The default is `%vendor%_%appName%`; `%appName%` drops the vendor and `%vendor%\%appName%`
+  gives each vendor a folder. Tokens are `%vendor%` and `%appName%`, with one `\` at most; spaces
+  in the names become underscores. The version is always its own subfolder below, so
+  `%appVersion%` is refused, as is a format without `%appName%`. Upgrade puts a new version
+  beside the existing one whatever the format is now.
 - **Icon** (on by default) — keep the app icon in `Icon`. Off: the icon is extracted for the
   upload and not kept.
 - **Extra folders** — plain folder names (not `Application`, `Intune` or `Icon`; no `\` or `/`;
@@ -295,6 +301,8 @@ What generation does: Packman copies your PSADT template into
     Intune\           <- the .intunewin is built here at upload time, plus packman.id linking it to its Intune app
     Icon\             <- the icon extracted from the installer
 ```
+
+(`<Vendor>_<AppName>` is the default folder name; Settings ▸ Package layout can change it.)
 
 then rewrites `Invoke-AppDeployToolkit.ps1` — `AppVendor`, `AppName`, `AppVersion`, `AppArch`,
 `AppScriptDate`, `AppScriptAuthor`, `RequireAdmin` — and injects the deployment calls:
@@ -584,8 +592,8 @@ action; **Delete from Intune** sits in the **Danger zone** at the end of Overvie
 description, and the current assignments (read-only here; *Manage in Deployment* jumps to the tab
 that edits them).
 
-**Package** — where the app lives on your share. Packman searches the `<Vendor>_<AppName>\<Version>`
-folders under the Intune Applications path for the one whose `Intune\packman.id` links it to this app
+**Package** — where the app lives on your share. Packman searches the version
+folders (`<Vendor>_<AppName>\<Version>` or `<Vendor>\<AppName>\<Version>`) under the Intune Applications path for the one whose `Intune\packman.id` links it to this app
 and runs an integrity check. If more than one folder is linked to the same app, none is used —
 anyone who can write to the share can write a `packman.id`, so Packman will not guess — and the page
 lists the folders so you can delete the link from the wrong ones.
@@ -660,7 +668,7 @@ hidden behind a **Grant access** button.
 | Update logs | `<Upload Logs Folder>\Update\<App>-<date>.log` |
 | Crash / error logs | `%LocalAppData%\Packman\Logs\Errors\error-<date>.log` |
 | Editor cache | `%LocalAppData%\Packman\WebView2\` |
-| Packages | `<Intune Applications Path>\<Vendor>_<AppName>\<Version>\` |
+| Packages | `<Intune Applications Path>\<Vendor>_<AppName>\<Version>\` (the folder name follows Settings ▸ Package layout) |
 | `packman.id` link file | `<package>\Intune\`, next to the `.intunewin`; written on a successful upload or republish |
 | Staged test copy | `<Staging Folder>\Packman\...` on the target, default `C:\ProgramData\Packman` (SYSTEM and Administrators only) |
 

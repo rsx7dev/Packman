@@ -352,8 +352,8 @@ public sealed class MainViewModel : ObservableObject
             try
             {
                 var app = CreatePackage.BuildApplicationInfo();
-                return PackagePaths.VersionFolder(_settingsService.Settings.NetworkPaths.IntuneApplications,
-                    PackagePaths.AppFolderName(app.Manufacturer, app.Name), app.Version);
+                return PackagePaths.PackageFolder(_settingsService.Settings.NetworkPaths.IntuneApplications,
+                    _settingsService.Settings.PackageLayout.FolderNameTemplate, app.Manufacturer, app.Name, app.Version);
             }
             catch (Exception)
             {

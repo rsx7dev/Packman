@@ -21,8 +21,8 @@ public class PSADTGenerator
 
     public PackageValidationResult ValidatePackageCreation(ApplicationInfo appInfo)
     {
-        var appFolderName = PackagePaths.AppFolderName(appInfo.Manufacturer, appInfo.Name);
-        var packagePath = PackagePaths.VersionFolder(_baseOutputPath, appFolderName, appInfo.Version);
+        var appFolderName = PackagePaths.AppFolder(_layout.FolderNameTemplate, appInfo.Manufacturer, appInfo.Name);
+        var packagePath = PackagePaths.PackageFolder(_baseOutputPath, _layout.FolderNameTemplate, appInfo.Manufacturer, appInfo.Name, appInfo.Version);
         return new PackageValidationResult
         {
             PackageExists = Directory.Exists(packagePath),
@@ -41,8 +41,8 @@ public class PSADTGenerator
         bool overwriteExisting, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var appFolderName = PackagePaths.AppFolderName(appInfo.Manufacturer, appInfo.Name);
-        var packagePath = PackagePaths.VersionFolder(_baseOutputPath, appFolderName, appInfo.Version);
+        var appFolderName = PackagePaths.AppFolder(_layout.FolderNameTemplate, appInfo.Manufacturer, appInfo.Name);
+        var packagePath = PackagePaths.PackageFolder(_baseOutputPath, _layout.FolderNameTemplate, appInfo.Manufacturer, appInfo.Name, appInfo.Version);
 
         // Fail on a bad template before anything on the share is touched.
         var template = ResolveTemplatePath();

@@ -10,7 +10,7 @@
     <!-- The body keeps its own ScrollViewer (SectionScroll): the preview script scrolls it by name. -->
     <controls:PageFrame Title="Settings"
                         Subtitle="Configure authentication, paths, deployment defaults and appearance"
-                        IsBodyScrollable="False">
+                        IsBodyScrollable="False" ContentMaxWidth="860">
 
         <!-- ══ Section tabs ═════════════════════════════════════════════ -->
         <controls:PageFrame.HeaderBottom>
@@ -121,7 +121,7 @@
         <!-- ══ Body ═════════════════════════════════════════════════════ -->
         <ScrollViewer x:Name="SectionScroll" Focusable="False"
                       VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <StackPanel>
+            <StackPanel MaxWidth="860">
                 <Border Style="{StaticResource SectionPanel}">
                     <Grid>
                         <controls:AuthenticationSettings Visibility="{Binding IsChecked, ElementName=TabAuth, Converter={StaticResource BoolToVis}}"/>

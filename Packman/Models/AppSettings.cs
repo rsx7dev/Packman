@@ -77,6 +77,13 @@ public class AppSettings
         public bool IconFolder { get; set; } = true;
         // Created empty in every new package; plain folder names.
         public List<string> ExtraFolders { get; set; } = new();
+
+        /// <summary>
+        /// How a new package's folder under the Intune Applications Path is named. Tokens:
+        /// %vendor% %appName%; one '\' allowed for a vendor folder. The version is always a subfolder.
+        /// </summary>
+        // Same text as PackagePaths.DefaultFolderTemplate; a literal so this model compiles on its own.
+        public string FolderNameTemplate { get; set; } = "%vendor%_%appName%";
     }
 
     public class GroupAssignmentConfig

@@ -703,6 +703,12 @@ public sealed class SettingsViewModel : ObservableObject
             SaveStatus = $"Return code '{invalidCode.Code}' is not a number. Nothing was saved.";
             return;
         }
+        if (Layout.HasFolderNameProblem)
+        {
+            SaveStatusKind = "warn";
+            SaveStatus = $"Package folder name: {Layout.FolderNameProblem} Nothing was saved.";
+            return;
+        }
         if (HasRemoteStagingProblem)
         {
             SaveStatusKind = "warn";

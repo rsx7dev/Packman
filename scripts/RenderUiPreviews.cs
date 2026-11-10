@@ -159,7 +159,7 @@ internal static class UiPreviews
             Show("SettingsPage");
             var settings = (SettingsView)shell.FindName("SettingsPage");
             var settingsVm = (SettingsViewModel)settings.DataContext;
-            foreach (var name in new[] { "TabAuth", "TabNetworkPaths", "TabIntuneDefaults", "TabGroupAssignment", "TabCodeSign", "TabAppearance" })
+            foreach (var name in new[] { "TabAuth", "TabNetworkPaths", "TabPackageLayout", "TabIntuneDefaults", "TabGroupAssignment", "TabCodeSign", "TabAppearance" })
             {
                 ((RadioButton)settings.FindName(name)).IsChecked = true;
                 ((ScrollViewer)settings.FindName("SectionScroll")).ScrollToTop();

@@ -28,6 +28,26 @@ public class PackageUpgradeService
         CancellationToken cancellationToken = default)
         => Task.Run(() => UpgradePackage(existingPackagePath, newVersion, newSourcesPath, cancellationToken), cancellationToken);
 
+    /// <summary>
+    /// Where the new version goes: beside the existing version when that package is on the
+    /// output share, so an app keeps its folder even after the name format in Settings changes
+    /// or its vendor was edited in the script. A package from anywhere else follows the format.
+    /// </summary>
+    private (string AppFolder, string Path) NewVersionFolder(string existingPackagePath, string manufacturer, string appName, string newVersion)
+    {
+        var appFolder = Path.GetDirectoryName(Path.GetFullPath(existingPackagePath).TrimEnd('\\', '/'));
+        var root = Path.GetFullPath(_baseOutputPath).TrimEnd('\\', '/') + "\\";
+        if (appFolder != null && appFolder.Length > root.Length && appFolder.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+        {
+            var beside = Path.Combine(appFolder, PackagePaths.SanitizeSegment(newVersion));
+            PackagePaths.EnsureInside(_baseOutputPath, beside);
+            return (appFolder[root.Length..], beside);
+        }
+
+        return (PackagePaths.AppFolder(_layout.FolderNameTemplate, manufacturer, appName),
+                PackagePaths.PackageFolder(_baseOutputPath, _layout.FolderNameTemplate, manufacturer, appName, newVersion));
+    }
+
     private PackageCreationResult UpgradePackage(string existingPackagePath, string newVersion, string newSourcesPath,
         CancellationToken cancellationToken)
     {
@@ -50,8 +70,7 @@ public class PackageUpgradeService
         if (string.IsNullOrWhiteSpace(appName))
             throw new InvalidOperationException("The existing script has no AppName, so the package folder cannot be derived.");
 
-        var appFolderName = PackagePaths.AppFolderName(manufacturer, appName);
-        var newPackagePath = PackagePaths.VersionFolder(_baseOutputPath, appFolderName, newVersion);
+        var (appFolderName, newPackagePath) = NewVersionFolder(existingPackagePath, manufacturer, appName, newVersion);
 
         if (Directory.Exists(newPackagePath))
             throw new InvalidOperationException(
