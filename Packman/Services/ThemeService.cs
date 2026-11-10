@@ -18,9 +18,11 @@ public static class ThemeService
     private static readonly Color Accent = Color.FromRgb(0xE0, 0xA0, 0x50);
 
     // Absolute pack URIs: a relative Source resolves against the caller's context,
-    // which is not the application root once this runs from a view model.
-    private const string Dark = "pack://application:,,,/Themes/DarkTheme.xaml";
-    private const string Light = "pack://application:,,,/Themes/LightTheme.xaml";
+    // which is not the application root once this runs from a view model. They name the
+    // Packman assembly, so they also resolve when another program hosts the app's
+    // resources, as the preview renderer and the WPF tests do.
+    private const string Dark = "pack://application:,,,/Packman;component/Themes/DarkTheme.xaml";
+    private const string Light = "pack://application:,,,/Packman;component/Themes/LightTheme.xaml";
 
     /// <summary>True while the dark palette is loaded. Read by hosts that theme non-WPF surfaces.</summary>
     public static bool IsDark { get; private set; } = true;
