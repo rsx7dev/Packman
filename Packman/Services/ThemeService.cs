@@ -28,22 +28,40 @@ public static class ThemeService
     /// <summary>Raised after the palette swapped, so surfaces outside WPF (Monaco) can follow.</summary>
     public static event Action? Changed;
 
+    /// <summary>True while a Windows contrast theme is on and its colours replace the palette.</summary>
+    public static bool IsHighContrast { get; private set; }
+
+    private static AppTheme _requested = AppTheme.System;
+    private static ResourceDictionary? _palette;
+    private static bool _following;
+
     public static void Apply(AppTheme theme)
     {
-        var light = theme switch
-        {
-            AppTheme.Light => true,
-            AppTheme.Dark => false,
-            _ => SystemPrefersLight(),
-        };
+        _requested = theme;
+        FollowWindows();
+
+        // A Windows contrast theme wins over the app's own choice: the user picked those
+        // colours because they need them.
+        var contrast = SystemParameters.HighContrast;
+        var light = contrast
+            ? Luminance(SystemColors.WindowColor) > 0.5
+            : theme switch
+            {
+                AppTheme.Light => true,
+                AppTheme.Dark => false,
+                _ => SystemPrefersLight(),
+            };
         var wanted = light ? Light : Dark;
         var wasDark = IsDark;
+        var wasContrast = IsHighContrast;
         IsDark = !light;
+        IsHighContrast = contrast;
 
         // WPF UI first: applying its theme resets the accent, so amber goes back after.
-        var uiTheme = light ? ApplicationTheme.Light : ApplicationTheme.Dark;
+        var uiTheme = contrast ? ApplicationTheme.HighContrast : light ? ApplicationTheme.Light : ApplicationTheme.Dark;
         ApplicationThemeManager.Apply(uiTheme, WindowBackdropType.Mica, updateAccent: false);
-        ApplicationAccentColorManager.Apply(Accent, uiTheme, systemGlassColor: false, systemAccentColor: false);
+        if (!contrast)
+            ApplicationAccentColorManager.Apply(Accent, uiTheme, systemGlassColor: false, systemAccentColor: false);
 
         var merged = Application.Current?.Resources.MergedDictionaries;
         if (merged is null) return;
@@ -51,20 +69,100 @@ public static class ThemeService
         for (var i = 0; i < merged.Count; i++)
         {
             var source = merged[i].Source?.OriginalString ?? "";
-            var isPalette = source.EndsWith("DarkTheme.xaml", StringComparison.OrdinalIgnoreCase)
+            var isPalette = ReferenceEquals(merged[i], _palette)
+                         || source.EndsWith("DarkTheme.xaml", StringComparison.OrdinalIgnoreCase)
                          || source.EndsWith("LightTheme.xaml", StringComparison.OrdinalIgnoreCase);
             if (!isPalette) continue;
             // Compare on file name: App.xaml declares a relative source, later swaps
-            // use absolute pack URIs.
+            // use absolute pack URIs. A contrast palette is rebuilt every time, because
+            // the system colours behind it may have changed.
             var wantedFile = wanted[(wanted.LastIndexOf('/') + 1)..];
-            if (source.EndsWith(wantedFile, StringComparison.OrdinalIgnoreCase)) return;
+            if (!contrast && !wasContrast && source.EndsWith(wantedFile, StringComparison.OrdinalIgnoreCase)) return;
 
-            merged[i] = new ResourceDictionary { Source = new Uri(wanted, UriKind.Absolute) };
+            var palette = new ResourceDictionary { Source = new Uri(wanted, UriKind.Absolute) };
+            _palette = contrast ? HighContrastPalette(palette) : palette;
+            merged[i] = _palette;
             break;
         }
 
-        if (wasDark != IsDark) Changed?.Invoke();
+        if (wasDark != IsDark || wasContrast != IsHighContrast || contrast) Changed?.Invoke();
     }
+
+    /// <summary>
+    /// Re-applies the chosen theme when Windows changes underneath: a contrast theme turned
+    /// on or off, or the light/dark app setting while Packman is set to System.
+    /// </summary>
+    private static void FollowWindows()
+    {
+        if (_following || Application.Current is null) return;
+        _following = true;
+
+        // Windows raises these in bursts; only a change that alters the outcome re-themes.
+        void Reapply() => Application.Current?.Dispatcher.InvokeAsync(() =>
+        {
+            var contrast = SystemParameters.HighContrast;
+            var themeMoved = _requested == AppTheme.System && SystemPrefersLight() == IsDark;
+            if (contrast || contrast != IsHighContrast || themeMoved) Apply(_requested);
+        });
+        SystemParameters.StaticPropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(SystemParameters.HighContrast)) Reapply();
+        };
+        SystemEvents.UserPreferenceChanged += (_, e) =>
+        {
+            if (e.Category is UserPreferenceCategory.General or UserPreferenceCategory.Color or UserPreferenceCategory.Accessibility)
+                Reapply();
+        };
+    }
+
+    /// <summary>
+    /// The palette with every colour replaced by the Windows contrast theme's own: surfaces
+    /// take the window colour, text and every line the window text colour, the accent the
+    /// highlight pair. Keys are matched by role, so a colour added to the themes later
+    /// falls in with its group.
+    /// </summary>
+    private static ResourceDictionary HighContrastPalette(ResourceDictionary basis)
+    {
+        var palette = new ResourceDictionary();
+        foreach (var key in basis.Keys.OfType<string>().ToList())
+        {
+            var isBrush = key.EndsWith("Brush", StringComparison.Ordinal);
+            var isColor = key.EndsWith("Color", StringComparison.Ordinal);
+            if (!isBrush && !isColor)
+            {
+                palette[key] = key == "IsDarkTheme" ? IsDark : basis[key];
+                continue;
+            }
+
+            var color = ContrastColor(key[..^5]);
+            if (isColor) palette[key] = color;
+            else
+            {
+                var brush = new SolidColorBrush(color);
+                brush.Freeze();
+                palette[key] = brush;
+            }
+        }
+        return palette;
+    }
+
+    private static readonly HashSet<string> ContrastSurfaces =
+    [
+        "Bg", "Shell", "Surface", "Flyout", "Panel", "Card", "Card2", "Rail", "Field", "Control", "ControlHover",
+        "CodeBg", "OkSoft", "WarnSoft", "BadSoft", "PrimaryFaint", "PrimarySoft", "PrimaryDim", "Dock", "DockHover",
+    ];
+
+    private static Color ContrastColor(string role) => role switch
+    {
+        _ when ContrastSurfaces.Contains(role) => SystemColors.WindowColor,
+        "Primary" or "Primary2" or "DockActive" or "AccentMark" => SystemColors.HighlightColor,
+        "PrimaryFg" or "DockActiveText" => SystemColors.HighlightTextColor,
+        "AccentText" => SystemColors.HotTrackColor,
+        // Text, icons, hairlines, control outlines and status colours.
+        _ => SystemColors.WindowTextColor,
+    };
+
+    private static double Luminance(Color c) => (0.2126 * c.R + 0.7152 * c.G + 0.0722 * c.B) / 255;
 
     /// <summary>Windows stores the app-theme preference as a DWORD; unreadable means dark.</summary>
     private static bool SystemPrefersLight()

@@ -63,7 +63,7 @@
             <DataTemplate.Triggers>
                 <DataTrigger Binding="{Binding IsActive}" Value="True">
                     <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource ControlHoverBrush}"/>
-                    <Setter TargetName="TabBorder" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+                    <Setter TargetName="TabBorder" Property="BorderBrush" Value="{DynamicResource AccentMarkBrush}"/>
                     <Setter TargetName="TabName" Property="Foreground" Value="{DynamicResource InkBrush}"/>
                     <Setter TargetName="TabName" Property="FontWeight" Value="SemiBold"/>
                 </DataTrigger>

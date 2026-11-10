@@ -8,12 +8,13 @@
 
     <!-- ═══════════════ Type ═══════════════ -->
     <!-- Segoe UI Variable for UI, Cascadia where columns have to line up, bundled
-         Fonts/ faces last. The pack URI must lead: everything after the '#' is the
-         fallback list. A pack URI placed later cannot parse, as its own commas
-         split it into junk family names. -->
-    <FontFamily x:Key="UIFontFamily">pack://application:,,,/Fonts/#Segoe UI Variable Text, Segoe UI, Instrument Sans</FontFamily>
-    <FontFamily x:Key="MonoFontFamily">pack://application:,,,/Fonts/#Cascadia Mono, Consolas, JetBrains Mono</FontFamily>
-    <FontFamily x:Key="LabelFontFamily">pack://application:,,,/Fonts/#Segoe UI Variable Small, Segoe UI, Martian Mono</FontFamily>
+         Fonts/ faces last. A family list splits on commas, and a full pack URI carries
+         commas of its own, so a pack URI in the list breaks every name around it. System
+         families are named plainly; the bundled faces use the rooted form /Fonts/#Family,
+         which resolves against the application's resources. -->
+    <FontFamily x:Key="UIFontFamily">Segoe UI Variable Text, Segoe UI, /Fonts/#Instrument Sans</FontFamily>
+    <FontFamily x:Key="MonoFontFamily">Cascadia Mono, Consolas, /Fonts/#JetBrains Mono</FontFamily>
+    <FontFamily x:Key="LabelFontFamily">Segoe UI Variable Small, Segoe UI, /Fonts/#Martian Mono</FontFamily>
 
     <!-- ═══════════════ Focus ═══════════════ -->
     <!-- Keyboard focus is an accent hairline. Drawn as an adorner so it never
@@ -329,7 +330,7 @@
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
                             <Setter TargetName="bd" Property="Background" Value="{DynamicResource PrimaryFaintBrush}"/>
-                            <Setter TargetName="edge" Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+                            <Setter TargetName="edge" Property="Background" Value="{DynamicResource AccentMarkBrush}"/>
                         </Trigger>
                         <Trigger Property="IsEnabled" Value="False">
                             <Setter Property="Opacity" Value="0.45"/>
@@ -351,7 +352,7 @@
         <Setter Property="Background" Value="{DynamicResource FieldBrush}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource ControlStrokeBrush}"/>
         <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
-        <Setter Property="CaretBrush" Value="{DynamicResource PrimaryBrush}"/>
+        <Setter Property="CaretBrush" Value="{DynamicResource AccentMarkBrush}"/>
         <Setter Property="SelectionBrush" Value="{DynamicResource PrimaryDimBrush}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="FontSize" Value="13.5"/>
@@ -430,7 +431,7 @@
                                               TextElement.Foreground="{TemplateBinding Foreground}"/>
                         </Border>
                         <Border x:Name="pill" Width="3" Height="0" CornerRadius="2" HorizontalAlignment="Left"
-                                Margin="-7,0,0,0" VerticalAlignment="Center" Background="{DynamicResource PrimaryBrush}"/>
+                                Margin="-7,0,0,0" VerticalAlignment="Center" Background="{DynamicResource AccentMarkBrush}"/>
                     </Grid>
                     <ControlTemplate.Triggers>
                         <Trigger Property="IsMouseOver" Value="True">
@@ -475,7 +476,8 @@
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="bd" Property="Background" Value="{DynamicResource PanelBrush}"/>
-                            <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource LineBrush}"/>
+                            <!-- The outline is what marks the chosen segment: the lift alone is 1.1:1. -->
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource ControlStrokeBrush}"/>
                             <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
                             <Setter Property="FontWeight" Value="SemiBold"/>
                         </Trigger>
@@ -517,7 +519,7 @@
                             <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
                         </Trigger>
                         <Trigger Property="IsChecked" Value="True">
-                            <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource PrimaryBrush}"/>
+                            <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentMarkBrush}"/>
                             <Setter Property="Foreground" Value="{DynamicResource InkBrush}"/>
                             <Setter Property="FontWeight" Value="SemiBold"/>
                         </Trigger>
@@ -839,18 +841,54 @@
     <Style TargetType="{x:Type ProgressBar}">
         <Setter Property="Height" Value="6"/>
         <Setter Property="Background" Value="{DynamicResource Card2Brush}"/>
-        <Setter Property="Foreground" Value="{DynamicResource PrimaryBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource AccentMarkBrush}"/>
         <Setter Property="BorderThickness" Value="0"/>
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="{x:Type ProgressBar}">
                     <Grid>
-                        <Border Background="{TemplateBinding Background}" CornerRadius="3"/>
+                        <Border Background="{TemplateBinding Background}" CornerRadius="3"
+                                BorderBrush="{DynamicResource EdgeBrush}" BorderThickness="1"/>
                         <!-- PART_Track measures the span the indicator is sized against. -->
                         <Border x:Name="PART_Track"/>
                         <Border x:Name="PART_Indicator" HorizontalAlignment="Left" CornerRadius="3"
                                 Background="{TemplateBinding Foreground}"/>
+                        <!-- Indeterminate: WPF sizes PART_Indicator to the full track, which
+                             reads as "done". This band sweeps across instead. The mask's
+                             transform is relative, so it fits any width. -->
+                        <Border x:Name="Sweep" CornerRadius="3" Visibility="Collapsed"
+                                Background="{TemplateBinding Foreground}">
+                            <Border.OpacityMask>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <LinearGradientBrush.RelativeTransform>
+                                        <TranslateTransform X="-1"/>
+                                    </LinearGradientBrush.RelativeTransform>
+                                    <GradientStop Offset="0.30" Color="Transparent"/>
+                                    <GradientStop Offset="0.38" Color="Black"/>
+                                    <GradientStop Offset="0.62" Color="Black"/>
+                                    <GradientStop Offset="0.70" Color="Transparent"/>
+                                </LinearGradientBrush>
+                            </Border.OpacityMask>
+                        </Border>
                     </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsIndeterminate" Value="True">
+                            <Setter TargetName="PART_Indicator" Property="Visibility" Value="Hidden"/>
+                            <Setter TargetName="Sweep" Property="Visibility" Value="Visible"/>
+                            <Trigger.EnterActions>
+                                <BeginStoryboard x:Name="SweepStory">
+                                    <Storyboard RepeatBehavior="Forever">
+                                        <DoubleAnimation Storyboard.TargetName="Sweep"
+                                                         Storyboard.TargetProperty="(UIElement.OpacityMask).(Brush.RelativeTransform).(TranslateTransform.X)"
+                                                         From="-0.7" To="0.7" Duration="0:0:1.6"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </Trigger.EnterActions>
+                            <Trigger.ExitActions>
+                                <StopStoryboard BeginStoryboardName="SweepStory"/>
+                            </Trigger.ExitActions>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
@@ -1418,7 +1456,7 @@
                 <Setter TargetName="disc" Property="Stroke" Value="{DynamicResource PrimaryBrush}"/>
                 <Setter TargetName="num" Property="Visibility" Value="Collapsed"/>
                 <Setter TargetName="tick" Property="Visibility" Value="Visible"/>
-                <Setter TargetName="line" Property="Background" Value="{DynamicResource PrimaryBrush}"/>
+                <Setter TargetName="line" Property="Background" Value="{DynamicResource AccentMarkBrush}"/>
                 <Setter TargetName="title" Property="Foreground" Value="{DynamicResource Text2Brush}"/>
             </DataTrigger>
             <DataTrigger Binding="{Binding IsCurrent}" Value="True">
@@ -1451,7 +1489,7 @@
                             </Grid.ColumnDefinitions>
                             <Grid Width="18" Height="18" VerticalAlignment="Top" Margin="0,1,14,0">
                                 <Ellipse x:Name="ring" Stroke="{DynamicResource Muted2Brush}" StrokeThickness="1.5" Fill="Transparent"/>
-                                <Ellipse x:Name="dot" Width="8" Height="8" Fill="{DynamicResource PrimaryBrush}" Visibility="Collapsed"/>
+                                <Ellipse x:Name="dot" Width="8" Height="8" Fill="{DynamicResource AccentMarkBrush}" Visibility="Collapsed"/>
                             </Grid>
                             <ContentPresenter Grid.Column="1" VerticalAlignment="Top"/>
                         </Grid>
@@ -1463,7 +1501,7 @@
                         <Trigger Property="IsChecked" Value="True">
                             <Setter TargetName="bd" Property="BorderBrush" Value="{DynamicResource AccentTextBrush}"/>
                             <Setter TargetName="bd" Property="Background" Value="{DynamicResource PrimaryFaintBrush}"/>
-                            <Setter TargetName="ring" Property="Stroke" Value="{DynamicResource PrimaryBrush}"/>
+                            <Setter TargetName="ring" Property="Stroke" Value="{DynamicResource AccentMarkBrush}"/>
                             <Setter TargetName="dot" Property="Visibility" Value="Visible"/>
                         </Trigger>
                     </ControlTemplate.Triggers>

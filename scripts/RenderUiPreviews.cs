@@ -84,10 +84,8 @@ internal static class UiPreviews
 
         foreach (var theme in new[] { "Dark", "Light" })
         {
-            app.Resources.MergedDictionaries.Add(new ResourceDictionary
-            {
-                Source = new Uri($"pack://application:,,,/Packman;component/Themes/{theme}Theme.xaml")
-            });
+            // The app's own switch, so the Fluent controls follow the palette as they do live.
+            ThemeService.Apply(theme == "Light" ? AppTheme.Light : AppTheme.Dark);
 
             var shell = new MainWindow();
             // Layout only: no window is shown, no sign-in or Graph operation is started.

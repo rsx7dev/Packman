@@ -1,4 +1,5 @@
 using System.Windows;
+using System.Windows.Automation.Peers;
 using System.Windows.Controls;
 using System.Windows.Media;
 
@@ -64,6 +65,10 @@ public class AppIdentity : Control
     public string Meta { get => (string)GetValue(MetaProperty); set => SetValue(MetaProperty, value); }
     public ImageSource? Icon { get => (ImageSource?)GetValue(IconProperty); set => SetValue(IconProperty, value); }
     public double TileSize { get => (double)GetValue(TileSizeProperty); set => SetValue(TileSizeProperty, value); }
+
+    protected override AutomationPeer OnCreateAutomationPeer() => new TextAutomationPeer(this,
+        () => IsTileOnly ? Title : TextAutomationPeer.Join(", ", Title, Subtitle, Meta),
+        IsTileOnly ? AutomationControlType.Image : AutomationControlType.Text);
 
     /// <summary>First letter of the title, for the tile when there is no icon.</summary>
     public string Initial => (string)GetValue(InitialProperty);
