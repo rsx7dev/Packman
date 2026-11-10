@@ -27,7 +27,7 @@
 
             <!-- ═══ Remote test ═══ -->
             <Border Style="{StaticResource SectionRule}" Margin="0,24"/>
-            <controls:SectionHeader Title="Remote test" Caption="Where packages are copied on the test computer before they run." Margin="0,0,0,20"/>
+            <controls:SectionHeader Title="Remote test" Caption="Where packages are copied on the test computer before they run, and the PsExec to use for targets without WinRM." Margin="0,0,0,20"/>
             <TextBlock Text="Staging Folder on Target" Style="{StaticResource FieldLabel}"/>
             <TextBox AutomationProperties.Name="Remote test staging folder on target" Style="{StaticResource MonoField}" Margin="0,7,0,0"
                      Text="{Binding RemoteStagingFolder, UpdateSourceTrigger=PropertyChanged}" local:PlaceholderText.Text="C:\ProgramData"/>
@@ -37,6 +37,17 @@
                         Visibility="{Binding HasRemoteStagingProblem, Converter={StaticResource BoolToVis}}">
                 <controls:LineIcon Data="{DynamicResource IconAlert}" Foreground="{DynamicResource WarnBrush}" Width="14" Height="14" Margin="0,0,8,0"/>
                 <TextBlock Text="{Binding RemoteStagingProblem}" FontSize="12.5" Foreground="{DynamicResource TextBrush}" TextWrapping="Wrap"/>
+            </StackPanel>
+            <TextBlock Text="PsExec Path" Style="{StaticResource FieldLabel}" Margin="0,16,0,0"/>
+            <TextBox AutomationProperties.Name="PsExec Path" Style="{StaticResource MonoField}" Margin="0,7,0,0"
+                     Text="{Binding PsExecPath, UpdateSourceTrigger=PropertyChanged}" local:PlaceholderText.Text="PsExec64.exe found on PATH"/>
+            <TextBlock Style="{StaticResource SubText}" FontSize="12.5" TextWrapping="Wrap" Margin="0,6,0,0"
+                       Text="Only for Remote test with PsExec. Packman does not include PsExec; download PsTools from Microsoft Sysinternals and point to PsExec64.exe, or leave this empty if it is on PATH."
+                       Visibility="{Binding HasPsExecProblem, Converter={StaticResource InverseBoolToVis}}"/>
+            <StackPanel Orientation="Horizontal" Margin="0,8,0,0" AutomationProperties.LiveSetting="Polite"
+                        Visibility="{Binding HasPsExecProblem, Converter={StaticResource BoolToVis}}">
+                <controls:LineIcon Data="{DynamicResource IconAlert}" Foreground="{DynamicResource WarnBrush}" Width="14" Height="14" Margin="0,0,8,0"/>
+                <TextBlock Text="{Binding PsExecProblem}" FontSize="12.5" Foreground="{DynamicResource TextBrush}" TextWrapping="Wrap"/>
             </StackPanel>
             <TextBlock Style="{StaticResource SubText}" FontSize="12.5" TextWrapping="Wrap" Margin="0,6,0,0"
                        Text="A local folder on the target. Packman always works in its own Packman subfolder there and limits it to SYSTEM and Administrators."/>

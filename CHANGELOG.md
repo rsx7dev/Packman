@@ -108,6 +108,13 @@ All notable changes to Packman are recorded here. The format follows
 
 ### Changed
 
+- The group members panel on an app's Deployment tab has a **Users | Devices** switch that sets both
+  the member list and the search, so a search for a person no longer fills up with devices. Users
+  are found by name, email, sign-in name or surname (it was display name only) and show their
+  sign-in name; devices show their operating system. Each search returns up to 20 results instead
+  of 8 of each kind. The panel counts members by kind, notes when a group mixes users and devices,
+  and says when the object you picked was already a member. Its link on the group row now reads
+  **Manage members**.
 - `IntuneWinAppUtil.exe` is no longer shipped with Packman, because Microsoft's license terms do not
   allow redistributing it. With **IntuneWinAppUtil Path** empty, Packman downloads version 1.8.7 from
   Microsoft's repository on the first publish, checks its SHA-256, keeps it in
@@ -160,6 +167,14 @@ All notable changes to Packman are recorded here. The format follows
 
 ### Added
 
+- Remote test has a **Test with** choice: **WinRM** (as before), **PsExec** or **Windows Sandbox**.
+  - **PsExec** tests a remote computer that has no WinRM, over the admin shares. Packman does not
+    include PsExec (its license does not allow redistribution); set **PsExec Path** in Settings ▸
+    Paths or put `PsExec64.exe` on `PATH`. The scripts run on the target as SYSTEM and only if their
+    SHA-256 matches.
+  - **Windows Sandbox** runs the test in a clean, disposable Windows on this computer, with options
+    to close the sandbox after the run and to turn its network off. Nothing is installed on a real
+    device. Detection discovery does not run for a sandbox test.
 - `CODE_OF_CONDUCT.md`.
 - **Package folder name** in Settings ▸ Package layout: a format of `%vendor%` and `%appName%` with
   at most one `\` (default `%vendor%_%appName%`, unchanged). The version is always its own

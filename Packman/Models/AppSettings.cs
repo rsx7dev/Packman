@@ -6,6 +6,18 @@ namespace Packman.Models;
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum AuthMode { Interactive, AppRegistration }
 
+/// <summary>How Remote test reaches the computer the package runs on.</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum RemoteTestMethod
+{
+    /// <summary>PowerShell remoting; this computer is tested through an elevated helper instead.</summary>
+    WinRM,
+    /// <summary>Sysinternals PsExec over the admin shares, for targets without WinRM.</summary>
+    PsExec,
+    /// <summary>A disposable Windows Sandbox on this computer.</summary>
+    Sandbox,
+}
+
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum AssignmentIntent { Available, Required, Uninstall }
 
@@ -57,6 +69,9 @@ public class AppSettings
 
         /// <summary>Parent folder on Remote test targets; Packman stages in its Packman subfolder. Empty uses C:\ProgramData.</summary>
         public string RemoteStagingFolder { get; set; } = "";
+
+        /// <summary>PsExec64.exe or PsExec.exe for Remote test over PsExec; empty looks on PATH. Not shipped with Packman.</summary>
+        public string PsExec { get; set; } = "";
 
         /// <summary>Where upload and update logs go, e.g. a share for an audit trail. Empty uses %LocalAppData%\Packman\Logs.</summary>
         public string UploadLogsFolder { get; set; } = "";
@@ -167,6 +182,9 @@ public class AppSettings
         public List<string> RecentComputers { get; set; } = new();
         // Off by default so a re-run only copies what changed.
         public bool CleanupAfterRun { get; set; } = false;
+        public RemoteTestMethod Method { get; set; } = RemoteTestMethod.WinRM;
+        /// <summary>Whether a Windows Sandbox test can reach the network; installers that download need it.</summary>
+        public bool SandboxNetworking { get; set; } = true;
     }
 
     public class ExistingGroupAssignment

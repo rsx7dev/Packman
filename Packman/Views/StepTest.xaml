@@ -39,6 +39,27 @@
                        Margin="0,8,0,0" FontSize="12" LineHeight="18" TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}"
                        Visibility="{Binding NeedsPackage, Converter={StaticResource BoolToVis}}"/>
 
+            <!-- Method: how the test reaches the computer it runs on. -->
+            <TextBlock Text="Test with" Style="{StaticResource FieldLabel}" Margin="0,20,0,0"/>
+            <Border Style="{StaticResource SegmentGroup}" Height="36" HorizontalAlignment="Left">
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton Style="{StaticResource ContextToggle}" Content="WinRM" MinWidth="84"
+                                 IsChecked="{Binding IsWinRm, Mode=TwoWay}" IsEnabled="{Binding IsIdle}"
+                                 AutomationProperties.Name="Test over WinRM"
+                                 ToolTip="PowerShell remoting to a remote computer, or this computer when you enter localhost."/>
+                    <RadioButton Style="{StaticResource ContextToggle}" Content="PsExec" MinWidth="84"
+                                 IsChecked="{Binding IsPsExec, Mode=TwoWay}" IsEnabled="{Binding IsIdle}"
+                                 AutomationProperties.Name="Test with PsExec"
+                                 ToolTip="Sysinternals PsExec over the admin shares, for a remote computer without WinRM."/>
+                    <RadioButton Style="{StaticResource ContextToggle}" Content="Windows Sandbox" MinWidth="140"
+                                 IsChecked="{Binding IsSandbox, Mode=TwoWay}" IsEnabled="{Binding IsIdle}"
+                                 AutomationProperties.Name="Test in Windows Sandbox"
+                                 ToolTip="A clean, disposable Windows on this computer. No test device needed."/>
+                </StackPanel>
+            </Border>
+            <TextBlock Text="{Binding MethodHelpText}" Margin="0,10,0,0" FontSize="12" LineHeight="18"
+                       TextWrapping="Wrap" Foreground="{DynamicResource MutedBrush}"/>
+
             <!-- Target: computer, run context and deploy mode on one row. -->
             <Grid Margin="0,20,0,0">
                 <Grid.ColumnDefinitions>
@@ -59,12 +80,23 @@
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
+                    <!-- A sandbox run has no computer to name; the field keeps its value for the other methods. -->
                     <ComboBox IsEditable="True"
                               ItemsSource="{Binding RecentComputers}"
                               Text="{Binding TargetComputer, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                              IsEnabled="{Binding IsIdle}"
                               AutomationProperties.Name="Computer name"
-                              ToolTip="Name of the machine to test on. WinRM must be enabled there (Enable-PSRemoting). Enter localhost to test on this computer: no WinRM, one administrator prompt per run."/>
+                              ToolTip="Name of the machine to test on. Enter localhost to test on this computer: one administrator prompt per run. Not used for Windows Sandbox.">
+                        <ComboBox.Style>
+                            <Style TargetType="ComboBox" BasedOn="{StaticResource {x:Type ComboBox}}">
+                                <Setter Property="IsEnabled" Value="{Binding IsIdle}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding NeedsComputer}" Value="False">
+                                        <Setter Property="IsEnabled" Value="False"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ComboBox.Style>
+                    </ComboBox>
                     <Button Grid.Column="1" Style="{StaticResource IconButton}" Width="36" Height="36" Margin="8,0,0,0"
                             BorderBrush="{DynamicResource EdgeBrush}"
                             Command="{Binding CheckOnlineCommand}"
@@ -100,11 +132,17 @@
                 <Run Text="Runs the Intune command lines from the staged package: "/>
                 <Run Text="{Binding CommandPreview, Mode=OneWay}" FontFamily="{StaticResource MonoFontFamily}" Foreground="{DynamicResource InkBrush}"/>
             </TextBlock>
-            <CheckBox Content="Delete the staged package from the target after the run"
+            <CheckBox Content="{Binding CleanupLabel}"
                       Margin="0,12,0,0" FontSize="12" HorizontalAlignment="Left"
                       IsChecked="{Binding CleanupAfterRun, Mode=TwoWay}" IsEnabled="{Binding IsIdle}"
-                      AutomationProperties.Name="Delete the staged package from the target after the run"
-                      ToolTip="Off by default, so a re-run only copies the files that changed."/>
+                      AutomationProperties.Name="{Binding CleanupLabel}"
+                      ToolTip="{Binding CleanupToolTip}"/>
+            <CheckBox Content="Let the sandbox use the network"
+                      Margin="0,8,0,0" FontSize="12" HorizontalAlignment="Left"
+                      IsChecked="{Binding SandboxNetworking, Mode=TwoWay}" IsEnabled="{Binding IsIdle}"
+                      Visibility="{Binding IsSandbox, Converter={StaticResource BoolToVis}}"
+                      AutomationProperties.Name="Let the sandbox use the network"
+                      ToolTip="On by default, because many installers download files. Turn it off to test with no network at all."/>
 
             <!-- Actions -->
             <Grid Margin="0,20,0,0">
@@ -124,7 +162,7 @@
                 <Button Grid.Column="2" Style="{StaticResource GhostButton}" Content="Cancel" Margin="10,0,0,0"
                         Command="{Binding CancelCommand}"
                         Visibility="{Binding IsRunning, Converter={StaticResource BoolToVis}}"
-                        ToolTip="Stop the copy or the deployment and remove the test task from the target."/>
+                        ToolTip="Stop the copy or the deployment and remove the test task from the target. A sandbox test closes the sandbox."/>
                 <Button Grid.Column="4" Style="{StaticResource GhostButton}" Content="Discover detection" Margin="10,0,0,0"
                         Command="{Binding DetectCommand}"
                         ToolTip="Search the target for the installed executable and build a detection rule from it."/>

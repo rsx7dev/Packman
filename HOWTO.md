@@ -81,7 +81,7 @@ runs the same `Invoke-AppDeployToolkit.exe` command line Intune will, and stream
 Package problems such as a leftover EXE placeholder show as warnings at the top of the log, and
 **Cancel** stops a run. Check the discovered detection rule and use
 **Use this rule for publishing** to carry it into Configure for the wizard’s package. Verify
-**Uninstall** on the test device too; test devices need WinRM and admin-share access. No test machine? Enter `localhost` to test on this computer with one administrator prompt.
+**Uninstall** on the test device too; test devices need WinRM and admin-share access. No WinRM on the test device? Choose **PsExec** under **Test with** (you supply PsExec; see the manual). No test machine? Choose **Windows Sandbox** for a clean, disposable Windows, or enter `localhost` to test on this computer with one administrator prompt.
 
 → [Remote testing](docs/MANUAL.md#remote-testing)
 
