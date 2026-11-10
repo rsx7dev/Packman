@@ -4,16 +4,17 @@ Installer file to published Intune app, in the shortest path that works. Every s
 full explanation in the [Packman manual](docs/MANUAL.md).
 
 > Before you start: Windows, the .NET 10 Desktop Runtime, and an Intune account with the required
-> Graph permissions — see [Requirements](README.md#requirements). The PSADT v4 template and
-> `IntuneWinAppUtil.exe` are included.
+> Graph permissions — see [Requirements](README.md#requirements). The PSADT v4 template is
+> included; `IntuneWinAppUtil.exe` is downloaded from Microsoft on your first publish.
 
 ---
 
 ## 1. Set it up once
 
 On first launch Packman asks one question: the **Packages folder** where packages are written (see
-[First-run setup](docs/MANUAL.md#first-run-setup--the-settings-page)). The PSADT v4 template and
-`IntuneWinAppUtil.exe` are included, so there is nothing else to download or locate.
+[First-run setup](docs/MANUAL.md#first-run-setup--the-settings-page)). The PSADT v4 template is
+included, and Packman downloads `IntuneWinAppUtil.exe` itself on your first publish, so there is
+nothing else to download or locate.
 
 To publish, open **Settings ▸ Authentication**, press **Sign in** (interactive needs no app
 registration), then **Test connection** to check read access and publishing permission (it reads the
@@ -29,10 +30,15 @@ missing, with a link to the setting that fixes it.
 
 ### Using your own IntuneWinAppUtil.exe or PSADT template
 
-Packman bundles Microsoft's Win32 Content Prep Tool (1.8.7, from
-[microsoft/Microsoft-Win32-Content-Prep-Tool](https://github.com/microsoft/Microsoft-Win32-Content-Prep-Tool))
-and PSADT 4.1.8. To use another build, set **IntuneWinAppUtil Path** or **PSADT Template Path** under
-**Settings ▸ Paths**; empty uses the bundled one. Check a tool of your own before you point
+Packman bundles PSADT 4.1.8. Microsoft's Win32 Content Prep Tool is not bundled, because its license
+terms do not allow redistributing it: on your first publish Packman downloads version 1.8.7 from
+[microsoft/Microsoft-Win32-Content-Prep-Tool](https://github.com/microsoft/Microsoft-Win32-Content-Prep-Tool),
+checks its SHA-256 and keeps it in `%LocalAppData%\Packman\Tools`. Microsoft's license terms for the
+tool apply to your use of it. On a computer that cannot reach `raw.githubusercontent.com`, download
+the tool yourself and set **IntuneWinAppUtil Path**.
+
+To use another build, set **IntuneWinAppUtil Path** or **PSADT Template Path** under
+**Settings ▸ Paths**; empty uses Packman's own. Check a tool of your own before you point
 Settings at it:
 
 ```powershell

@@ -40,7 +40,7 @@ public partial class IntuneUploadService
     private async Task<string> CreateIntuneWinFileAsync(string packagePath, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(_converterPath) || !File.Exists(_converterPath))
-            throw new FileNotFoundException($"IntuneWinAppUtil.exe not found at: '{_converterPath}'. Set the IntuneWinAppUtil path on the Settings page.");
+            throw new FileNotFoundException($"IntuneWinAppUtil.exe not found at: '{_converterPath}'. Set IntuneWinAppUtil Path under Settings → Paths, or clear it to use the build Packman downloads.");
 
         var applicationFolder = PsadtLayout.ApplicationFolder(packagePath);
         var setupFile = Path.Combine(applicationFolder, PsadtLayout.SetupFileName);

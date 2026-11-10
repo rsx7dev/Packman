@@ -43,7 +43,7 @@ public sealed class SetupChecklistTests : IDisposable
 
         Assert.Equal(new[] { "Output share", "PSADT template", "IntuneWinAppUtil", "Intune sign-in" }, checklist.Items.Select(i => i.Label));
         Assert.Equal("bad", Kind(checklist, "Output share"));
-        // Empty paths use the template and tool bundled in the build output.
+        // Empty paths use the bundled template and the tool Packman downloads when it publishes.
         Assert.Equal("ok", Kind(checklist, "PSADT template"));
         Assert.Equal("ok", Kind(checklist, "IntuneWinAppUtil"));
         Assert.Equal("warn", Kind(checklist, "Intune sign-in"));

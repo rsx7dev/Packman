@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [main, "codex/**"]
+    branches: [main]
     tags: ["v*"]
   pull_request:
 
@@ -19,8 +19,8 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      # NuGet.config points at the vendored packages/ folder only, so this proves the
-      # offline restore still works.
+      # NuGet.config restores from the vendored packages/ folder, and from nuget.org only the
+      # packages mapped to it there, so this proves the vendored feed is still complete.
       - name: Restore
         run: dotnet restore Packman.sln
 
@@ -29,6 +29,21 @@ jobs:
 
       - name: Build
         run: dotnet build Packman.sln --no-restore -c Release
+
+      # The tool is not in the repository (Microsoft's terms do not allow redistributing it).
+      # Packman downloads this same file to this same place on a first publish; fetching it
+      # here lets the tests run the real converter without reaching the network themselves.
+      - name: Fetch the pinned IntuneWinAppUtil.exe
+        shell: pwsh
+        run: |
+          $target = Join-Path $env:LOCALAPPDATA 'Packman\Tools\IntuneWinAppUtil-1.8.7\IntuneWinAppUtil.exe'
+          New-Item -ItemType Directory -Force (Split-Path $target) | Out-Null
+          Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/microsoft/Microsoft-Win32-Content-Prep-Tool/v1.8.7/IntuneWinAppUtil.exe' -OutFile $target
+          $hash = (Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne 'c1ba45b5cb939e84af064bb7ff4b38fb3dfe33c8dc1078fd9b157672eae671f6') {
+            Remove-Item -LiteralPath $target -Force
+            throw "IntuneWinAppUtil.exe SHA-256 is $hash, not the pinned build."
+          }
 
       # Every test program, the Python checks and tests/Packman.Tests, the same set a
       # contributor runs locally.

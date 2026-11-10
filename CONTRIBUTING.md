@@ -24,7 +24,7 @@ CI runs `./check.sh` through bash, so CI and a local run cover the same tests, a
 it runs in CI too. Portable checks alone do not verify the Windows application. All commands
 propagate failures.
 
-The repository's NuGet feed is the vendored `packages/` directory. Keep package references and the vendored feed in sync when changing dependencies. Preserve their licenses and notices.
+The repository's NuGet feed is the vendored `packages/` directory, plus nuget.org for the packages listed in `third-party/nuget-external.json`. Keep package references and the vendored feed in sync when changing dependencies. Preserve their licenses and notices, and do not vendor a package whose terms do not allow redistribution.
 
 The standalone Windows preview utility renders the main views, both themes, Settings sections and Application Detail tabs. CI attaches the screenshots as `ui-previews` and launches/closes the packaged application. Previews use sample data and do not connect to a tenant or deploy an application. Add unit tests for new behavior to `tests/Packman.Tests`, and report other validation evidence in the pull request.
 
@@ -103,10 +103,17 @@ it in text.
 ## Offline builds
 
 `NuGet.config` at the repo root points restore at `packages/`, a folder of `.nupkg`
-files checked into the repo — the project's full dependency closure, transitive
-packages included. The config opens with `<clear />`, so restore ignores nuget.org and
-any feed configured on the machine. A fresh clone builds and runs with no network
-access.
+files checked into the repo — the project's dependency closure, transitive
+packages included. The config opens with `<clear />`, so restore ignores any feed
+configured on the machine.
+
+One package is not vendored: `Microsoft.Management.Infrastructure.Runtime.Win`, whose
+Microsoft license terms do not allow this repository to redistribute it. `NuGet.config`
+maps that package alone to nuget.org, and `third-party/nuget-external.json` records its
+version and SHA-256. The first restore on a machine therefore needs nuget.org once;
+after that the package is in the machine's NuGet cache and the build works with no
+network access. To prepare a machine that is never online, copy that `.nupkg` into its
+NuGet cache or a local feed of its own.
 
 The .NET 10 SDK and the WebView2 Runtime from [Requirements](README.md#requirements) still have
 to be installed on the machine; neither ships as a NuGet package.
@@ -145,6 +152,9 @@ Get-ChildItem .\obj\pkgstage -Recurse -Filter *.nupkg | Copy-Item -Destination .
 `--source` bypasses the offline config for those commands. The second restore is what
 picks up the runtime packs — skip it and publishing breaks offline while building still
 works, which is an easy thing not to notice.
+
+Leave out any package whose license does not allow redistribution: add it to
+`third-party/nuget-external.json` and map it to nuget.org in `NuGet.config` instead.
 
 Commit the new `.nupkg` files together with the `.csproj` change, then confirm the
 result still works with no network:
@@ -193,12 +203,11 @@ Packman/
   Fonts/          embedded UI fonts
   MonacoEditor/   the editor host page and Monaco assets
   PSADT/          bundled PSADT v4 template (script and runtime)
-  IntuneWinAppUtil/  bundled IntuneWinAppUtil.exe and its license terms
   Tools/          extract-psadt-functions.py, regenerates MonacoEditor/psadt-functions.json
 tests/            file-based test programs, Python checks and the xunit project Packman.Tests
 docs/             the manual, the UI design notes and the documentation screenshots
 scripts/          native Windows preview utility and third-party inventory tooling
-packages/         vendored .nupkg files for offline restore
+packages/         vendored .nupkg files for restore without nuget.org
 .github/workflows/build.yml   restore, build, native previews and app startup on windows-latest
 ```
 

@@ -44,7 +44,9 @@ temp file; a read-only folder only warns that `packman.id` cannot be written). I
 window opens, and setup is not shown again. Closing it unfinished ends the app.
 
 Nothing else is asked. The PSADT v4 template (PSADT 4.1.8 with its runtime, in `PSADT\Application`
-beside `Packman.exe`) and `IntuneWinAppUtil.exe` 1.8.7 (in `IntuneWinAppUtil\`) are included, and
+beside `Packman.exe`) is included. `IntuneWinAppUtil.exe` 1.8.7 is not, because Microsoft's license
+terms do not allow redistributing it: Packman downloads it from Microsoft's repository on your first
+publish, checks its SHA-256 and keeps it in `%LocalAppData%\Packman\Tools`. Both are
 used while **PSADT Template Path** and **IntuneWinAppUtil Path** are empty. Connect to Intune,
 choose package folders and change any path in Settings when you need to.
 
@@ -149,7 +151,7 @@ publishing stops before building or uploading content.
 |---|---|
 | **Intune Applications Path** | Root folder where packages are written, typically a share. |
 | **PSADT Template Path** | Optional. Your own PSADT v4 folder — either the folder containing `Invoke-AppDeployToolkit.ps1` or the script path itself. Empty uses the bundled template. |
-| **IntuneWinAppUtil Path** | Optional. Full path to your own `IntuneWinAppUtil.exe`. Empty uses the bundled one. |
+| **IntuneWinAppUtil Path** | Optional. Full path to your own `IntuneWinAppUtil.exe`. Empty uses version 1.8.7, which Packman downloads from Microsoft on your first publish. Set it on a computer that cannot reach `raw.githubusercontent.com`. |
 | **PSADT Log Folder** | Read-only. `LogPath` from the template's `Config\config.psd1`. Suggested `/log` switches write here. Change it in the template. |
 | **Staging Folder on Target** | Optional. A local folder on Remote test targets, such as `D:\Staging`. Packman always stages in its own `Packman` subfolder there. Empty uses `C:\ProgramData`. Network paths and environment variables are refused. The folder and every folder above it must be changeable by administrators only (owned by Administrators or SYSTEM, with no delete or permission rights for anyone else); otherwise the run stops before anything is copied, because the package runs as SYSTEM from there. |
 | **Upload Logs Folder** | Optional. Where upload and update logs go, for example a share for a team audit trail. Each log names the user and computer. If the folder can't be written during a publish, the log goes to the local folder and the console says so. **Open logs folder** opens it. Empty uses `%LocalAppData%\Packman\Logs`. |

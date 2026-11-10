@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Inventory the offline NuGet feed and retain license files without executing packages."""
+"""Inventory the offline NuGet feed and retain license files without executing packages.
+
+Packages whose terms do not allow this repository to redistribute them are not in packages/.
+They are restored from nuget.org (see NuGet.config) and recorded by hand in
+third-party/nuget-external.json, with their notice files kept in third-party/nuget-notices.
+"""
 
 import argparse
 import hashlib
@@ -13,6 +18,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = Path("third-party/nuget-packages.json")
 NOTICE_ROOT = Path("third-party/nuget-notices")
+EXTERNAL = Path("third-party/nuget-external.json")
 
 
 def collect():
@@ -52,6 +58,16 @@ def collect():
                 files[destination] = package.read(name)
                 entry["notices"].append(destination.as_posix())
             packages.append(entry)
+    vendored = {(entry["id"].lower(), entry["version"]) for entry in packages}
+    for entry in json.loads((ROOT / EXTERNAL).read_text(encoding="utf-8"))["packages"]:
+        if (entry["id"].lower(), entry["version"]) in vendored:
+            raise ValueError(f"{entry['id']} {entry['version']} is listed as external but is in packages/")
+        for notice in entry["notices"]:
+            if not (ROOT / notice).is_file():
+                raise ValueError(f"Missing notice for external package {entry['id']}: {notice}")
+        packages.append(entry)
+    # The order of the archive names, which is what the vendored entries already follow.
+    packages.sort(key=lambda entry: f"{entry['id']}.{entry['version']}".lower())
     files[MANIFEST] = (json.dumps({"schemaVersion": 1, "packages": packages}, indent=2) + "\n").encode()
     return packages, files
 

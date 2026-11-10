@@ -1,3 +1,4 @@
+using System.IO;
 using Packman.Helpers;
 using Packman.Models;
 using Packman.Services;
@@ -66,7 +67,12 @@ public sealed class SetupChecklistViewModel : ObservableObject
         {
             SetupChecks.ApplicationsRoot(share),
             SetupChecks.Template(template),
-            SetupChecks.IntuneWinAppUtil(converter),
+            // With no path of the user's own, Packman fetches the pinned build when it publishes.
+            string.IsNullOrWhiteSpace(paths.IntuneWinAppUtil)
+                ? new SetupCheck("ok", File.Exists(converter)
+                    ? $"IntuneWinAppUtil.exe {ContentPrepTool.Version} is downloaded."
+                    : $"IntuneWinAppUtil.exe {ContentPrepTool.Version} is downloaded from Microsoft on your first publish.")
+                : SetupChecks.IntuneWinAppUtil(converter),
         });
         if (sequence != Volatile.Read(ref _sequence)) return;
 

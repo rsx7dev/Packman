@@ -56,7 +56,7 @@
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <TextBlock Text="The PSADT v4 template and IntuneWinAppUtil are included."
+                        <TextBlock Text="The PSADT v4 template is included; IntuneWinAppUtil is downloaded from Microsoft on your first publish."
                                    Style="{StaticResource FooterHint}" Margin="0,0,18,0"/>
                         <Button Grid.Column="1" Command="{Binding NextCommand}" IsDefault="True" MinWidth="160" Style="{StaticResource PrimaryButton}"
                                 AutomationProperties.Name="Get started">

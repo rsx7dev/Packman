@@ -215,6 +215,13 @@ public partial class IntuneUploadService
     {
         Report(progress, log, 5, "Checking PSADT runtime and deployment script...");
         PackagePreflight.EnsureReady(packagePath);
+        // Before signing: a failed download should not leave the package half prepared.
+        if (ContentPrepTool.IsManaged(_converterPath) && !ContentPrepTool.IsVerified(_converterPath))
+        {
+            Report(progress, log, 7, $"Downloading IntuneWinAppUtil.exe {ContentPrepTool.Version} from Microsoft...");
+            await ContentPrepTool.EnsureAsync(_converterPath, ct);
+            log.Success($"IntuneWinAppUtil.exe {ContentPrepTool.Version} downloaded and verified (SHA-256 {ContentPrepTool.Sha256})");
+        }
         Report(progress, log, 10, "Signing application files...");
         await SignApplicationFilesAsync(packagePath, progress, log, ct);
 

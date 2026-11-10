@@ -108,6 +108,15 @@ All notable changes to Packman are recorded here. The format follows
 
 ### Changed
 
+- `IntuneWinAppUtil.exe` is no longer shipped with Packman, because Microsoft's license terms do not
+  allow redistributing it. With **IntuneWinAppUtil Path** empty, Packman downloads version 1.8.7 from
+  Microsoft's repository on the first publish, checks its SHA-256, keeps it in
+  `%LocalAppData%\Packman\Tools` and checks the hash again before every publish. A computer that
+  cannot reach `raw.githubusercontent.com` needs the tool downloaded by hand and its path set in
+  Settings.
+- `Microsoft.Management.Infrastructure.Runtime.Win` is restored from nuget.org instead of the
+  vendored `packages/` folder, for the same reason; the first restore on a machine needs nuget.org.
+- CI no longer runs on pushes to `codex/**` branches.
 - The Settings tab **Network paths** is now **Paths**.
 - The Package layout tab no longer lists fixed **Application** and **Intune** rows; the example
   tree shows them.
@@ -151,6 +160,7 @@ All notable changes to Packman are recorded here. The format follows
 
 ### Added
 
+- `CODE_OF_CONDUCT.md`.
 - **Package folder name** in Settings ▸ Package layout: a format of `%vendor%` and `%appName%` with
   at most one `\` (default `%vendor%_%appName%`, unchanged). The version is always its own
   subfolder; a format with `%appVersion%`, without `%appName%`, or with unknown tokens or invalid
@@ -175,8 +185,7 @@ All notable changes to Packman are recorded here. The format follows
   warning and error counts, **Issues only**, and a pop-out into its own window. The state is kept
   as you move between pages.
 - Bundled PSADT 4.1.8 template with its runtime (`Invoke-AppDeployToolkit.exe` and the
-  `PSAppDeployToolkit` module) and Microsoft's `IntuneWinAppUtil.exe` 1.8.7, copied beside
-  `Packman.exe`. Licenses are in THIRD-PARTY-NOTICES.md.
+  `PSAppDeployToolkit` module), copied beside `Packman.exe`. Licenses are in THIRD-PARTY-NOTICES.md.
 - `tests/BundledToolsTests.py`, run by `check.sh`: the template has its runtime, the script matches
   the runtime version, and `IntuneWinAppUtil.exe` is the pinned build.
 - `tests/DocsLinkTests.py`, run by `check.sh`: checks relative links, `#` anchors, image alt text,
