@@ -244,6 +244,17 @@ public sealed class SettingsViewModel : ObservableObject
     /// <summary>The folder a test actually stages in, so the Packman subfolder is never a surprise.</summary>
     public string RemoteStagingPreview => HasRemoteStagingProblem ? "" : $"Packages are staged in {RemoteStaging.BasePath(_remoteStagingFolder)} on the target.";
 
+    private string _psExecPath = "";
+    /// <summary>PsExec for Remote test; empty looks on PATH. A problem is shown but does not block saving.</summary>
+    public string PsExecPath
+    {
+        get => _psExecPath;
+        set => Set(ref _psExecPath, value, [nameof(PsExecProblem), nameof(HasPsExecProblem)]);
+    }
+
+    public string PsExecProblem => PsExecTestRunner.PathProblem(_psExecPath);
+    public bool HasPsExecProblem => PsExecProblem.Length > 0;
+
     private string _uploadLogsFolder = "";
     public string UploadLogsFolder { get => _uploadLogsFolder; set => Set(ref _uploadLogsFolder, value); }
 
@@ -471,6 +482,7 @@ public sealed class SettingsViewModel : ObservableObject
         PSADTTemplatePath = s.NetworkPaths.PSADTTemplate;
         IntuneWinAppUtilPath = s.NetworkPaths.IntuneWinAppUtil;
         RemoteStagingFolder = s.NetworkPaths.RemoteStagingFolder;
+        PsExecPath = s.NetworkPaths.PsExec;
         UploadLogsFolder = s.NetworkPaths.UploadLogsFolder;
         Layout.Load(s.PackageLayout);
 
@@ -749,6 +761,7 @@ public sealed class SettingsViewModel : ObservableObject
         s.NetworkPaths.PSADTTemplate = PSADTTemplatePath;
         s.NetworkPaths.IntuneWinAppUtil = IntuneWinAppUtilPath;
         s.NetworkPaths.RemoteStagingFolder = RemoteStagingFolder.Trim();
+        s.NetworkPaths.PsExec = PsExecPath.Trim().Trim('"');
         s.NetworkPaths.UploadLogsFolder = UploadLogsFolder.Trim();
         s.PackageLayout = Layout.ToConfig();
 

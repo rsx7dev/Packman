@@ -1,4 +1,5 @@
 using Packman.Helpers;
+using Packman.Models;
 using System.Diagnostics;
 using System.IO;
 using System.Management.Automation;
@@ -9,9 +10,10 @@ using System.Text.RegularExpressions;
 namespace Packman.Services;
 
 /// <summary>
-/// Deploys a PSADT v4 package to a test machine over WinRM.
+/// Deploys a PSADT v4 package to a test machine: over WinRM, through PsExec, or into a
+/// Windows Sandbox on this computer.
 ///
-/// WinRM is the transport only; the install runs from a one-shot scheduled task. A
+/// Each of them is the transport only; the install runs from a one-shot scheduled task. A
 /// remote session runs as the connecting admin, not as SYSTEM, and the two differ in
 /// %TEMP%, HKCU and network identity, so it would not match what Intune does.
 ///
@@ -65,18 +67,23 @@ public class RemoteTestService
     /// <paramref name="runAsUser"/>: false runs as SYSTEM (what Intune does), true runs in
     /// the logged-on user's session. <paramref name="copyProgress"/> reports 0-100, then null.
     /// <paramref name="stagingParent"/> is the Settings ▸ Paths value; empty stages in C:\ProgramData\Packman.
+    /// <paramref name="method"/> picks the transport; a Sandbox run ignores <paramref name="computerName"/>
+    /// and <paramref name="stagingParent"/>, and <paramref name="cleanupAfterDeploy"/> closes the sandbox.
     /// Throws PSRemotingTransportException when WinRM is unreachable, and
     /// OperationCanceledException when <paramref name="ct"/> stops the run.
     /// </summary>
     public async Task<int> DeployAsync(string computerName, string sourcePath, string deploymentType, string commandLine,
         bool cleanupAfterDeploy, bool runAsUser, Action<string> output,
-        Action<int?>? copyProgress = null, CancellationToken ct = default, string? stagingParent = null)
+        Action<int?>? copyProgress = null, CancellationToken ct = default, string? stagingParent = null,
+        RemoteTestMethod method = RemoteTestMethod.WinRM, string? psExecPath = null, bool sandboxNetworking = true)
     {
-        if (!IsValidComputerName(computerName))
+        var sandbox = method == RemoteTestMethod.Sandbox;
+        if (sandbox) computerName = "Windows Sandbox";
+        else if (!IsValidComputerName(computerName))
             throw new ArgumentException($"'{computerName}' is not a valid computer name", nameof(computerName));
 
-        // Checked before anything touches the target.
-        var basePath = RemoteStaging.BasePath(stagingParent);
+        // Checked before anything touches the target. A sandbox is new each time, so it uses the default.
+        var basePath = RemoteStaging.BasePath(sandbox ? null : stagingParent);
 
         if (!DeploymentTypes.Contains(deploymentType))
             throw new ArgumentException($"'{deploymentType}' is not a valid deployment type", nameof(deploymentType));
@@ -87,10 +94,12 @@ public class RemoteTestService
             throw new ArgumentException("The command line must be a single non-empty line", nameof(commandLine));
 
         // This computer needs no WinRM: one elevated helper does what the remote session would.
-        var local = LocalTestRunner.IsLocalTarget(computerName);
+        var local = !sandbox && LocalTestRunner.IsLocalTarget(computerName);
 
         output("========================================");
-        output(local ? "Packman Test (this computer, no WinRM)" : "Packman Remote Test (WinRM)");
+        output(sandbox ? "Packman Test (Windows Sandbox)"
+            : local ? "Packman Test (this computer, no WinRM)"
+            : method == RemoteTestMethod.PsExec ? "Packman Remote Test (PsExec)" : "Packman Remote Test (WinRM)");
         output("========================================");
         output($"Target: {computerName}");
         output($"Source: {sourcePath}");
@@ -138,11 +147,16 @@ public class RemoteTestService
         string configPath = $@"{workingDirectory}\Config\config.psd1";
         string consoleLog = $@"{remotePackagePath}\Packman_Console.log";
 
+        if (sandbox)
+            return await DeploySandboxAsync(sourcePath, commandLine, cleanupAfterDeploy, runAsUser, sandboxNetworking, output, copyProgress, ct,
+                basePath, remotePackagePath, workingDirectory, consoleLog, configPath);
+
         if (local)
             return await DeployLocalAsync(sourcePath, commandLine, cleanupAfterDeploy, runAsUser, output, copyProgress, ct,
                 basePath, remotePackagePath, workingDirectory, consoleLog, configPath);
 
-        // ICMP is a hint only: plenty of fleets block it while WinRM is open.
+        // ICMP is a hint only: plenty of fleets block it while WinRM or SMB is open.
+        var transport = method == RemoteTestMethod.PsExec ? "PsExec" : "WinRM";
         output($"Checking connectivity to {computerName}...");
         using (var ping = new Ping())
         {
@@ -151,13 +165,17 @@ public class RemoteTestService
                 var reply = ping.Send(computerName, 2000);
                 output(reply.Status == IPStatus.Success
                     ? $"[OK] {computerName} responds to ping"
-                    : $"[--] {computerName} did not respond to ping ({reply.Status}) - trying WinRM anyway");
+                    : $"[--] {computerName} did not respond to ping ({reply.Status}) - trying {transport} anyway");
             }
             catch (PingException ex)
             {
-                output($"[--] Ping failed ({ex.InnerException?.Message ?? ex.Message}) - trying WinRM anyway");
+                output($"[--] Ping failed ({ex.InnerException?.Message ?? ex.Message}) - trying {transport} anyway");
             }
         }
+
+        if (method == RemoteTestMethod.PsExec)
+            return await DeployPsExecAsync(computerName, sourcePath, commandLine, cleanupAfterDeploy, runAsUser, output, copyProgress, ct,
+                psExecPath, basePath, remotePackagePath, workingDirectory, consoleLog, configPath);
 
         // Connect before the copy so a target without WinRM fails fast.
         ct.ThrowIfCancellationRequested();
@@ -194,16 +212,7 @@ public class RemoteTestService
                 throw new InvalidOperationException($"Could not secure {basePath} on {computerName}: {secure.Streams.Error.FirstOrDefault()}");
         }
 
-        output($"Copying files to {targetUnc}...");
-        var copyTimer = Stopwatch.StartNew();
-        await CopyWithRobocopyAsync(sourcePath, targetUnc, copyProgress, ct);
-        copyTimer.Stop();
-        copyProgress?.Invoke(null);
-
-        var copiedFiles = Directory.GetFiles(targetUnc, "*", SearchOption.AllDirectories);
-        double sizeMb = copiedFiles.Sum(f => new FileInfo(f).Length) / 1048576.0;
-        output($"Package size: {Math.Round(sizeMb, 2)} MB");
-        output($"[OK] {copiedFiles.Length} files in sync after {Math.Round(copyTimer.Elapsed.TotalSeconds, 1)} seconds");
+        await CopyToTargetAsync(sourcePath, targetUnc, output, copyProgress, ct);
 
         output("");
         output($"Registering scheduled task '{TaskName}' on target...");
@@ -260,22 +269,167 @@ public class RemoteTestService
         if (exitCode == -1)
             output("WARNING: The remote monitor returned no exit code; check the PSADT log on the target.");
 
-        if (cleanupAfterDeploy)
+        if (cleanupAfterDeploy) DeleteStagedPackage(targetUnc, output);
+
+        return exitCode;
+    }
+
+    private static async Task CopyToTargetAsync(string sourcePath, string targetUnc, Action<string> output, Action<int?>? copyProgress, CancellationToken ct)
+    {
+        output($"Copying files to {targetUnc}...");
+        var copyTimer = Stopwatch.StartNew();
+        await CopyWithRobocopyAsync(sourcePath, targetUnc, copyProgress, ct);
+        copyTimer.Stop();
+        copyProgress?.Invoke(null);
+
+        var copiedFiles = Directory.GetFiles(targetUnc, "*", SearchOption.AllDirectories);
+        double sizeMb = copiedFiles.Sum(f => new FileInfo(f).Length) / 1048576.0;
+        output($"Package size: {Math.Round(sizeMb, 2)} MB");
+        output($"[OK] {copiedFiles.Length} files in sync after {Math.Round(copyTimer.Elapsed.TotalSeconds, 1)} seconds");
+    }
+
+    private static void DeleteStagedPackage(string targetUnc, Action<string> output)
+    {
+        output("");
+        output("Cleaning up...");
+        try
         {
-            output("");
-            output("Cleaning up...");
-            try
+            DirectoryCopy.ClearReadOnlyRecursive(targetUnc);
+            Directory.Delete(targetUnc, true);
+            output("[OK] Cleanup completed");
+        }
+        catch (Exception ex)
+        {
+            output($"WARNING: Cleanup failed: {ex.Message}");
+        }
+    }
+
+    /// <summary>Passes console lines on and picks the exit code out of the sentinel line.</summary>
+    private sealed class ExitCodeReader(Action<string> output)
+    {
+        public int ExitCode { get; private set; } = -1;
+        public bool Seen { get; private set; }
+
+        public void Line(string line)
+        {
+            if (!line.StartsWith(ExitCodeSentinel, StringComparison.Ordinal))
             {
-                Packman.Helpers.DirectoryCopy.ClearReadOnlyRecursive(targetUnc);
-                Directory.Delete(targetUnc, true);
-                output("[OK] Cleanup completed");
+                output(line);
+                return;
             }
-            catch (Exception ex)
-            {
-                output($"WARNING: Cleanup failed: {ex.Message}");
-            }
+            ExitCode = ParseExitCode(line.AsSpan(ExitCodeSentinel.Length));
+            Seen = true;
         }
 
+        public int Report(string where)
+        {
+            output("");
+            output($"Exit code: {ExitCode}");
+            if (!Seen || ExitCode == -1)
+                output($"WARNING: The monitor returned no exit code; check the PSADT log {where}.");
+            return ExitCode;
+        }
+    }
+
+    internal const string PsExecMissing =
+        "PsExec was not found. Download PsTools from Microsoft Sysinternals, then set PsExec Path under Settings → Paths " +
+        "or put PsExec64.exe in a folder on PATH. Packman cannot ship it: its license does not allow redistribution.";
+
+    /// <summary>
+    /// The WinRM run with PsExec as the transport: the staging and task scripts are the same,
+    /// each run on the target as SYSTEM by PsExec, and the copy goes over the admin share.
+    /// Needs SMB and the Service Control Manager on the target instead of WinRM.
+    /// </summary>
+    private static async Task<int> DeployPsExecAsync(string computerName, string sourcePath, string commandLine, bool cleanupAfterDeploy,
+        bool runAsUser, Action<string> output, Action<int?>? copyProgress, CancellationToken ct, string? psExecPath,
+        string basePath, string remotePackagePath, string workingDirectory, string consoleLog, string configPath)
+    {
+        var psExec = PsExecTestRunner.Find(psExecPath) ?? throw new InvalidOperationException(PsExecMissing);
+        output($"Using {psExec}");
+        output("PsExec is started with -accepteula, which accepts the Sysinternals license terms for your account on this computer.");
+
+        string targetUnc = RemoteStaging.AdminShare(computerName, remotePackagePath);
+
+        // The package runs as SYSTEM, so only SYSTEM and Administrators may write where it is staged.
+        ct.ThrowIfCancellationRequested();
+        output($"Connecting to {computerName} with PsExec and securing {basePath}...");
+        await PsExecTestRunner.RunScriptAsync(psExec, computerName, BuildSecureStagingScript(basePath), output, ct);
+        output("[OK] PsExec ran on the target");
+
+        await CopyToTargetAsync(sourcePath, targetUnc, output, copyProgress, ct);
+
+        output("");
+        output($"Registering scheduled task '{TaskName}' on target...");
+        output($"Working directory: {workingDirectory}");
+        output("");
+
+        ct.ThrowIfCancellationRequested();
+        var reader = new ExitCodeReader(output);
+        try
+        {
+            await PsExecTestRunner.RunScriptAsync(psExec, computerName,
+                BuildTaskScript(runAsUser, commandLine, remotePackagePath, workingDirectory, consoleLog, configPath), reader.Line, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            // Killing PsExec here does not stop the task on the target; a second call removes it.
+            try
+            {
+                using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+                await PsExecTestRunner.RunScriptAsync(psExec, computerName,
+                    $"Stop-ScheduledTask -TaskName '{TaskName}' -ErrorAction SilentlyContinue; Unregister-ScheduledTask -TaskName '{TaskName}' -Confirm:$false -ErrorAction SilentlyContinue",
+                    _ => { }, cleanup.Token);
+                output($"Stopped and removed the scheduled task '{TaskName}' on target");
+            }
+            catch (Exception ex) when (ex is InvalidOperationException or OperationCanceledException or IOException)
+            {
+                output($"WARNING: Could not remove the scheduled task '{TaskName}' on {computerName}. Check Task Scheduler there before running again.");
+            }
+            throw;
+        }
+
+        var exitCode = reader.Report("on the target");
+        if (cleanupAfterDeploy) DeleteStagedPackage(targetUnc, output);
+        return exitCode;
+    }
+
+    /// <summary>
+    /// The same run inside Windows Sandbox on this computer: <see cref="SandboxTestRunner"/>
+    /// starts a clean, disposable Windows whose logon command stages the package and runs the
+    /// same task script, so the install is still done by a SYSTEM (or signed-in user) scheduled
+    /// task. Nothing is installed on this computer, and closing the sandbox discards the test.
+    /// </summary>
+    private static async Task<int> DeploySandboxAsync(string sourcePath, string commandLine, bool closeWhenDone, bool runAsUser,
+        bool networking, Action<string> output, Action<int?>? copyProgress, CancellationToken ct,
+        string basePath, string stagedPackagePath, string workingDirectory, string consoleLog, string configPath)
+    {
+        ct.ThrowIfCancellationRequested();
+        var reader = new ExitCodeReader(output);
+        try
+        {
+            await SandboxTestRunner.RunAsync(sourcePath,
+                () => SandboxTestRunner.BuildLogonScript(BuildSecureStagingScript(basePath),
+                    // A line each second of the wait, so a closed sandbox is noticed.
+                    BuildTaskScript(runAsUser, commandLine, stagedPackagePath, workingDirectory, consoleLog, configPath,
+                        eachSecond: $"'{SandboxTestRunner.Heartbeat}'"),
+                    stagedPackagePath, closeWhenDone),
+                networking, reader.Line, copyProgress, ct);
+        }
+        catch (OperationCanceledException)
+        {
+            output("Closed Windows Sandbox; everything in it is discarded.");
+            throw;
+        }
+        finally
+        {
+            copyProgress?.Invoke(null);
+        }
+
+        var exitCode = reader.Report("in the sandbox");
+        output("");
+        output(closeWhenDone
+            ? "The sandbox closes itself now; the test left nothing on this computer."
+            : "The sandbox stays open so you can inspect the result. Close its window when you are done; that discards everything in it.");
         return exitCode;
     }
 

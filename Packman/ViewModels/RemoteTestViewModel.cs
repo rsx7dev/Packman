@@ -19,8 +19,8 @@ public sealed class RemoteTestLine
 }
 
 /// <summary>
-/// The Remote Test tool: stages a package on a test machine over WinRM, runs PSADT as
-/// SYSTEM or as the logged-on user, then discovers the detection rule the install
+/// The Remote Test tool: stages a package on a test machine (over WinRM or PsExec) or in a
+/// Windows Sandbox on this computer, runs PSADT as SYSTEM or as the logged-on user, then discovers the detection rule the install
 /// produced and offers it to the publish step.
 /// </summary>
 public sealed class RemoteTestViewModel : ObservableObject
@@ -93,8 +93,8 @@ public sealed class RemoteTestViewModel : ObservableObject
 
         InstallCommand        = new AsyncRelayCommand(() => RunAsync("Install"), CanRun);
         UninstallCommand      = new AsyncRelayCommand(() => RunAsync("Uninstall"), CanRun);
-        DetectCommand         = new AsyncRelayCommand(DiscoverAsync, () => !_isRunning && IsValidTarget);
-        CheckOnlineCommand    = new AsyncRelayCommand(CheckOnlineAsync, () => !_isRunning && IsValidTarget);
+        DetectCommand         = new AsyncRelayCommand(DiscoverAsync, () => !_isRunning && NeedsComputer && IsValidTarget);
+        CheckOnlineCommand    = new AsyncRelayCommand(CheckOnlineAsync, () => !_isRunning && NeedsComputer && IsValidTarget);
         ApplyDetectionCommand = new RelayCommand(ApplyDetection, () => !_isRunning && _discoveredRule != null && _isGeneratedPackage);
         ClearLogCommand       = new RelayCommand(() => { Lines.Clear(); lock (_pending) _pending.Clear(); });
         CancelCommand         = new RelayCommand(CancelRun, () => _isRunning && _runCts is { IsCancellationRequested: false });
@@ -204,12 +204,76 @@ public sealed class RemoteTestViewModel : ObservableObject
             if (!Set(ref _targetComputer, value)) return;
             InvalidateDetection();
             IsOnline = false;
-            StatusText = IsValidTarget ? "not checked" : "enter a computer name";
+            if (NeedsComputer) StatusText = IsValidTarget ? "not checked" : "enter a computer name";
+            OnPropertyChanged(nameof(TargetLabel));
             RaiseCommandStates();
         }
     }
 
     public bool IsValidTarget => RemoteTestService.IsValidComputerName(_targetComputer);
+
+    // ── Method ─────────────────────────────────────────────────────────
+    /// <summary>How the test reaches the computer it runs on. Persisted between tests.</summary>
+    public RemoteTestMethod Method
+    {
+        get => _settingsService.Settings.RemoteTest.Method;
+        set
+        {
+            if (_settingsService.Settings.RemoteTest.Method == value) return;
+            _settingsService.Settings.RemoteTest.Method = value;
+            SaveSettingsQuietly();
+            InvalidateDetection();
+            IsOnline = false;
+            StatusText = IsSandbox ? "Windows Sandbox" : IsValidTarget ? "not checked" : "enter a computer name";
+            RaiseAll(nameof(Method), nameof(IsWinRm), nameof(IsPsExec), nameof(IsSandbox), nameof(NeedsComputer), nameof(TargetLabel),
+                nameof(MethodHelpText), nameof(ContextHelpText), nameof(CleanupLabel), nameof(CleanupToolTip));
+            RaiseCommandStates();
+        }
+    }
+
+    // A radio button only ever sets its own property to true; unchecking the others is the group's job.
+    public bool IsWinRm { get => Method == RemoteTestMethod.WinRM; set { if (value) Method = RemoteTestMethod.WinRM; } }
+    public bool IsPsExec { get => Method == RemoteTestMethod.PsExec; set { if (value) Method = RemoteTestMethod.PsExec; } }
+    public bool IsSandbox { get => Method == RemoteTestMethod.Sandbox; set { if (value) Method = RemoteTestMethod.Sandbox; } }
+
+    /// <summary>A sandbox run has no computer to name.</summary>
+    public bool NeedsComputer => !IsSandbox;
+
+    /// <summary>What the rail and the log call the place the test runs.</summary>
+    public string TargetLabel => IsSandbox ? "Windows Sandbox" : _targetComputer;
+
+    public string MethodHelpText => Method switch
+    {
+        RemoteTestMethod.PsExec =>
+            "PsExec: for computers without WinRM. Needs the admin shares (File and Printer Sharing) on the target and your own PsExec " +
+            "from Microsoft Sysinternals (Settings ▸ Paths, or on PATH). A run accepts the Sysinternals license terms for your account.",
+        RemoteTestMethod.Sandbox =>
+            "Windows Sandbox: a clean, disposable Windows on this computer. Nothing is installed on a real device, and closing the sandbox " +
+            "discards the test. Needs the Windows Sandbox feature (Windows Pro, Enterprise or Education).",
+        _ => "WinRM: PowerShell remoting must be enabled on the target (Enable-PSRemoting). Enter localhost to test on this computer " +
+             "instead: no WinRM, one administrator prompt per run.",
+    };
+
+    /// <summary>Whether the sandbox can reach the network. Persisted between tests.</summary>
+    public bool SandboxNetworking
+    {
+        get => _settingsService.Settings.RemoteTest.SandboxNetworking;
+        set
+        {
+            if (_settingsService.Settings.RemoteTest.SandboxNetworking == value) return;
+            _settingsService.Settings.RemoteTest.SandboxNetworking = value;
+            SaveSettingsQuietly();
+            OnPropertyChanged();
+        }
+    }
+
+    public string CleanupLabel => IsSandbox
+        ? "Close the sandbox after the run"
+        : "Delete the staged package from the target after the run";
+
+    public string CleanupToolTip => IsSandbox
+        ? "Off by default, so the sandbox stays open and you can look at what the install did."
+        : "Off by default, so a re-run only copies the files that changed.";
 
     public bool IsOnline
     {
@@ -234,7 +298,9 @@ public sealed class RemoteTestViewModel : ObservableObject
     }
 
     public string ContextHelpText => _runAsUser
-        ? "Runs in the logged-on user's session — their profile and HKCU, PSADT dialogs visible."
+        ? IsSandbox
+            ? "Runs in the sandbox's signed-in session (WDAGUtilityAccount) — its profile and HKCU, PSADT dialogs visible."
+            : "Runs in the logged-on user's session — their profile and HKCU, PSADT dialogs visible."
         : "Runs as NT AUTHORITY\\SYSTEM via a scheduled task, the same identity the Intune Management Extension uses.";
 
     // ── Deploy mode ────────────────────────────────────────────────────
@@ -295,7 +361,7 @@ public sealed class RemoteTestViewModel : ObservableObject
         ApplyDetectionCommand.RaiseCanExecuteChanged();
     }
 
-    private bool CanRun() => !_isRunning && IsValidTarget && HasPackage;
+    private bool CanRun() => !_isRunning && HasPackage && (IsSandbox || IsValidTarget);
 
     private void RaiseCommandStates()
     {
@@ -348,7 +414,7 @@ public sealed class RemoteTestViewModel : ObservableObject
         LastRunSucceeded = null;
         LastRunSummary = "";
         StatusText = $"{deploymentType.ToLowerInvariant()} running…";
-        ActivityLog.Shared.Section($"Remote test: {deploymentType.ToLowerInvariant()} on {TargetComputer}");
+        ActivityLog.Shared.Section($"Remote test: {deploymentType.ToLowerInvariant()} on {TargetLabel}");
         _flushTimer.Start();
         var context = CaptureDetectionContext();
 
@@ -356,27 +422,33 @@ public sealed class RemoteTestViewModel : ObservableObject
         string commandLine = CommandLine(deploymentType);
         bool runAsUser = _runAsUser;
         bool cleanup = CleanupAfterRun;
+        var method = Method;
+        bool sandbox = method == RemoteTestMethod.Sandbox;
+        bool sandboxNetworking = SandboxNetworking;
 
         int exitCode = -1;
         var cancelled = false;
         try
         {
-            RememberComputer(context.Computer);
+            if (!sandbox) RememberComputer(context.Computer);
             try
             {
                 // Warn rather than block: a root-layout package can still be tested.
                 foreach (var issue in await Task.Run(() => PackagePreflight.Check(packagePath)))
                     Append($"WARNING: {issue}");
 
-                var stagingParent = _settingsService.Settings.NetworkPaths.RemoteStagingFolder;
+                var paths = _settingsService.Settings.NetworkPaths;
                 exitCode = await Task.Run(() => new RemoteTestService().DeployAsync(
                     context.Computer, packagePath, deploymentType, commandLine, cleanup, runAsUser,
-                    Append, percent => CopyPercent = percent, cts.Token, stagingParent));
+                    Append, percent => CopyPercent = percent, cts.Token, paths.RemoteStagingFolder,
+                    method, paths.PsExec, sandboxNetworking));
             }
             catch (OperationCanceledException)
             {
                 cancelled = true;
-                Append("WARNING: Cancelled. The scheduled task was stopped; an installer it had already started may still be running or half-applied on the target.");
+                Append(sandbox
+                    ? "WARNING: Cancelled. If the sandbox window is still open, close it; that discards whatever the installer had done."
+                    : "WARNING: Cancelled. The scheduled task was stopped; an installer it had already started may still be running or half-applied on the target.");
             }
             catch (PSRemotingTransportException ex)
             {
@@ -405,7 +477,8 @@ public sealed class RemoteTestViewModel : ObservableObject
 
             // Keep the operation busy through follow-up discovery so another action
             // cannot uninstall the app or change the target during this delay.
-            if (success && deploymentType == "Install")
+            // A sandbox is not reachable by name, so there is nothing to search afterwards.
+            if (success && deploymentType == "Install" && !sandbox)
             {
                 Append("Waiting for the registry to settle…");
                 Flush();
@@ -426,7 +499,7 @@ public sealed class RemoteTestViewModel : ObservableObject
 
     private async Task DiscoverAsync()
     {
-        if (IsRunning || !IsValidTarget) return;
+        if (IsRunning || !NeedsComputer || !IsValidTarget) return;
 
         IsRunning = true;
         _flushTimer.Start();
@@ -528,6 +601,10 @@ public sealed class RemoteTestViewModel : ObservableObject
         foreach (var name in _settingsService.Settings.RemoteTest.RecentComputers)
             RecentComputers.Add(name);
         OnPropertyChanged(nameof(CommandPreview));
+        // The wizard's test step and the standalone page share these saved choices.
+        RaiseAll(nameof(Method), nameof(IsWinRm), nameof(IsPsExec), nameof(IsSandbox), nameof(NeedsComputer), nameof(TargetLabel),
+            nameof(MethodHelpText), nameof(ContextHelpText), nameof(CleanupLabel), nameof(CleanupToolTip), nameof(SandboxNetworking),
+            nameof(CleanupAfterRun));
     }
 
     private void RememberComputer(string name)

@@ -10,7 +10,7 @@
              d:DataContext="{d:DesignInstance Type=vm:RemoteTestViewModel}"
              FontFamily="{StaticResource UIFontFamily}">
 
-    <controls:PageFrame Title="Remote test" HasConsole="True" ContentMaxWidth="860" Subtitle="Test a PSADT package on a remote Windows device">
+    <controls:PageFrame Title="Remote test" HasConsole="True" ContentMaxWidth="860" Subtitle="Test a PSADT package on a Windows device or in Windows Sandbox">
         <controls:PageFrame.Footer>
             <Grid>
                 <Grid.ColumnDefinitions>

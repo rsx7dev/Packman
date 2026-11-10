@@ -21,7 +21,7 @@
         </controls:AppIdentity>
 
         <ContentControl Style="{StaticResource KvRow}" Tag="Computer">
-            <TextBlock Text="{Binding TargetComputer}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12" TextWrapping="Wrap" TextAlignment="Right"/>
+            <TextBlock Text="{Binding TargetLabel}" FontFamily="{StaticResource MonoFontFamily}" FontSize="12" TextWrapping="Wrap" TextAlignment="Right"/>
         </ContentControl>
         <ContentControl Style="{StaticResource KvRow}" Tag="Status" Content="{Binding StatusText}"/>
         <ContentControl Style="{StaticResource KvRow}" Tag="Context"

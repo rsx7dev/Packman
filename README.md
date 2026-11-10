@@ -69,7 +69,7 @@ Each area links to the part of the [manual](docs/MANUAL.md) that explains it.
 
 ### Testing
 
-- **Remote test** a package on a real machine over WinRM, or on this computer with no WinRM (enter `localhost`), before anything reaches Intune, as
+- **Remote test** a package on a real machine over WinRM or PsExec, on this computer with no WinRM (enter `localhost`), or in a disposable Windows Sandbox, before anything reaches Intune, as
   `NT AUTHORITY\SYSTEM` or in the logged-on user's session, with the same command line Intune runs and
   the PSADT log streamed live.
 - After a successful install, Packman proposes a **detection rule** from the executable that was
@@ -116,7 +116,7 @@ Each area links to the part of the [manual](docs/MANUAL.md) that explains it.
 | **PSADT v4 template** | Included: PSADT 4.1.8 with its runtime, in `PSADT/` beside `Packman.exe`. Set a path in Settings only to use your own (PSADT 4.0 to 4.2) |
 | **Content prep tool** | `IntuneWinAppUtil.exe` 1.8.7 (Microsoft Win32 Content Prep Tool). Not included, because Microsoft's terms do not allow redistributing it: Packman downloads it from Microsoft's repository on your first publish and checks its SHA-256. Set a path in Settings only to use your own |
 | **Tenant** | An active Microsoft Intune license and Microsoft Graph permissions for the selected [authentication mode](docs/MANUAL.md#authentication) |
-| **Remote test (optional)** | A test machine with WinRM enabled and reachable, and administrative rights on it (the package is staged over the `C$` admin share). Or this computer: enter `localhost`, no WinRM, one administrator prompt per run |
+| **Remote test (optional)** | A test machine with WinRM enabled and reachable, and administrative rights on it (the package is staged over the `C$` admin share). Or this computer: enter `localhost`, no WinRM, one administrator prompt per run. Without WinRM on the target, use your own Sysinternals PsExec (not included). Without a test machine, use Windows Sandbox (Windows Pro, Enterprise or Education) |
 
 ---
 

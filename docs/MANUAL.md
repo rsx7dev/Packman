@@ -154,6 +154,7 @@ publishing stops before building or uploading content.
 | **IntuneWinAppUtil Path** | Optional. Full path to your own `IntuneWinAppUtil.exe`. Empty uses version 1.8.7, which Packman downloads from Microsoft on your first publish. Set it on a computer that cannot reach `raw.githubusercontent.com`. |
 | **PSADT Log Folder** | Read-only. `LogPath` from the template's `Config\config.psd1`. Suggested `/log` switches write here. Change it in the template. |
 | **Staging Folder on Target** | Optional. A local folder on Remote test targets, such as `D:\Staging`. Packman always stages in its own `Packman` subfolder there. Empty uses `C:\ProgramData`. Network paths and environment variables are refused. The folder and every folder above it must be changeable by administrators only (owned by Administrators or SYSTEM, with no delete or permission rights for anyone else); otherwise the run stops before anything is copied, because the package runs as SYSTEM from there. |
+| **PsExec Path** | Optional. Full path to your own `PsExec64.exe` or `PsExec.exe`, used by Remote test with **PsExec**. Empty looks for it in the folders on `PATH`. Packman does not include PsExec. |
 | **Upload Logs Folder** | Optional. Where upload and update logs go, for example a share for a team audit trail. Each log names the user and computer. If the folder can't be written during a publish, the log goes to the local folder and the console says so. **Open logs folder** opens it. Empty uses `%LocalAppData%\Packman\Logs`. |
 
 Package generation is blocked until the Intune Applications Path is set.
@@ -360,13 +361,46 @@ If the WebView2 Runtime is missing the editor is replaced by a note that points 
 **Remote test** stages the package on a machine and runs it there, so you see the real install
 before Intune ever sees the package. It is optional.
 
+**Test with** picks how Packman reaches the computer the package runs on. All three run the same
+scheduled task, so what you see is the same; they differ in what the target must have.
+
+| Method | Use it when | What it needs |
+|---|---|---|
+| **WinRM** (default) | You have a test machine with PowerShell remoting, or want to test on this computer (`localhost`). | WinRM enabled on the target (`Enable-PSRemoting`), the `C$` admin share and administrator rights there. |
+| **PsExec** | The test machine has no WinRM. | Your own `PsExec64.exe` from Microsoft Sysinternals (see below), the admin shares (File and Printer Sharing) on the target and administrator rights there. |
+| **Windows Sandbox** | You have no test machine, or want a clean Windows every time. | The Windows Sandbox feature on this computer (Windows Pro, Enterprise or Education, with virtualization enabled). |
+
+**Testing with PsExec.** Packman does not include PsExec, because the Sysinternals license does not
+allow redistributing it. Download PsTools from Microsoft Sysinternals and either set **PsExec Path**
+under Settings ▸ Paths or put `PsExec64.exe` in a folder on `PATH`. Packman starts it with
+`-accepteula`, which records your acceptance of the Sysinternals license terms for your account on
+this computer, and with `-s`, so the staging and task scripts run on the target as SYSTEM. Each
+script is copied to the target's `Windows\Temp` over the `ADMIN$` share and is only run if its
+SHA-256 matches. The package itself is copied over the admin share exactly as with WinRM. PsExec
+installs its `PSEXESVC` service on the target while it runs; security software often flags that,
+so expect to allow it on test machines. A `localhost` target never uses PsExec: it runs through the
+administrator prompt described below.
+
+**Testing in Windows Sandbox.** Packman copies the package to
+`%LocalAppData%\Packman\Sandbox`, opens a sandbox that maps that copy read-only, and has the sandbox
+stage the package in its own `C:\ProgramData\Packman` and run the scheduled task there. The output
+is read from a log file in a second mapped folder. Nothing is installed on a real device, and
+closing the sandbox window discards the test. **Computer** is not used. Two options appear:
+**Close the sandbox after the run** (off by default, so you can look at what the install did) and
+**Let the sandbox use the network** (on by default, because many installers download files).
+Windows runs one sandbox at a time, so close an open one first. **User** context runs as the
+sandbox's own signed-in account, `WDAGUtilityAccount`. Detection discovery does not run for a
+sandbox test: the sandbox cannot be reached by name. A sandbox is a fresh Windows without your
+organisation's policies, agents or software, so it shows whether the package installs cleanly, not
+whether it behaves on your managed devices.
+
 **Testing on this computer.** Enter `localhost` (or this computer's own name) as the target and no
 WinRM is needed. Packman asks for administrator rights once per run (a Windows prompt for Windows
 PowerShell) and that elevated helper stages the package and registers the same scheduled task, so
 the install still runs as SYSTEM, or as you for a **User** run. Declining the prompt runs nothing.
 It really installs the app on your workstation; a clean test machine is the better final check.
 
-WinRM is only the transport — the install itself runs from a one-shot **scheduled task**, because a
+WinRM, PsExec and the sandbox are only the transport — the install itself runs from a one-shot **scheduled task**, because a
 remote session runs as the connecting admin and would not match Intune's identity. The task runs
 the install or uninstall command line from Settings ▸ Intune defaults (by default
 `Invoke-AppDeployToolkit.exe Install`) from the staged `Application` folder, exactly as the Intune
@@ -375,7 +409,8 @@ Management Extension does, so the launcher, PowerShell edition and module isolat
 1. **Package** — pre-filled with the package the wizard just generated. On the standalone
    **Remote test** page (sidebar) there is no wizard package, so press **Browse…** and pick one
    built earlier; name and version are read back out of its script.
-2. **Computer** — type a name or pick a recent one, then press the ping icon (tooltip *Check the
+2. **Test with** — WinRM, PsExec or Windows Sandbox; see the table above. The choice is remembered.
+   **Computer** — for WinRM and PsExec, type a name or pick a recent one, then press the ping icon (tooltip *Check the
    computer is online (ping)*) to check reachability. The status reads *online* or *unreachable*.
 3. **Context**:
    - **System** (default) — runs as `NT AUTHORITY\SYSTEM`, the identity the Intune Management
@@ -413,7 +448,8 @@ Management Extension does, so the launcher, PowerShell edition and module isolat
    available for the wizard's own package — a package picked from the share has no publish step to feed.
 
 **Cancel** stops the copy (robocopy and its workers are ended) or the deployment; a cancelled
-deployment also stops and removes the scheduled task on the target.
+deployment also stops and removes the scheduled task on the target. Cancelling a sandbox test
+closes the sandbox.
 
 Exit codes `0`, `3010` and `1641` count as success (the latter two mean *reboot required*).
 
@@ -730,8 +766,8 @@ Known limits, so you do not go looking:
 - The Remote test **Use this rule for publishing** button only works for the package the wizard
   generated. A package browsed from the share has no publish step to feed.
 - The remote test runs **Install** and **Uninstall** only — there is no Repair button.
-- Remote testing needs WinRM enabled on the target (except a `localhost` run), firewall access, and administrative rights (the
-  copy goes over `C$`). The **User** context additionally needs somebody logged on.
+- Remote testing needs WinRM enabled on the target (except a `localhost`, PsExec or Windows Sandbox run), firewall access, and administrative rights (the
+  copy goes over `C$`). PsExec is not included; you supply it. A Windows Sandbox test cannot discover a detection rule. The **User** context additionally needs somebody logged on.
 - Detection discovery searches for an installed executable. Packages that install no `.exe`, or
   whose executable name looks like an uninstaller/setup/helper, will not produce a rule — set one by
   hand.
@@ -768,6 +804,11 @@ Known limits, so you do not go looking:
 | An EXE package "succeeds" but installs nothing | The `<silent flags>` placeholder was never replaced. Open the script and put the installer's real silent switches in. |
 | The in-app editor shows a plain note instead of code | The Edge WebView2 Runtime is missing. Install it, or use **Open externally**. |
 | Remote test: *WinRM connection failed* | Run `Enable-PSRemoting -Force` on the target and allow WinRM through its firewall. To test on this computer, enter `localhost`: that needs no WinRM. |
+| Remote test: *PsExec was not found* | Download PsTools from Microsoft Sysinternals and set **PsExec Path** under Settings ▸ Paths, or put `PsExec64.exe` in a folder on `PATH`. |
+| Remote test: *Could not write to \\\\PC\\ADMIN$* or *PsExec could not run the script* | The target needs File and Printer Sharing (the admin shares) reachable and your account must be an administrator there. Security software may block the `PSEXESVC` service PsExec installs. |
+| Remote test: *Windows Sandbox is not installed* | Turn on the **Windows Sandbox** Windows feature (Pro, Enterprise or Education; virtualization enabled in firmware) and restart. |
+| Remote test: *Windows Sandbox is already open* | Close the open sandbox window. Windows runs one sandbox at a time. |
+| Remote test: *Windows Sandbox did not report back* | The sandbox did not start or its logon command did not run. Start Windows Sandbox by hand once to check it works, then run the test again. |
 | Remote test: *The administrator prompt was declined* | A `localhost` test needs administrator rights to stage the package and run it as SYSTEM. Run it again and approve the Windows prompt. |
 | Remote test: the status reads *unreachable* | The target did not answer a ping — check the name and that it is powered on. Some networks block ICMP while WinRM still works; try the run anyway. |
 | Remote test: *No user is logged on…* | A **User** context run needs somebody signed in to the target. Use **System**, or log on first. |
