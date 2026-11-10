@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [main, "codex/**"]
+    branches: [main]
     tags: ["v*"]
   pull_request:
 
@@ -19,8 +19,8 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
-      # NuGet.config points at the vendored packages/ folder only, so this proves the
-      # offline restore still works.
+      # NuGet.config restores from the vendored packages/ folder, and from nuget.org only the
+      # packages mapped to it there, so this proves the vendored feed is still complete.
       - name: Restore
         run: dotnet restore Packman.sln
 

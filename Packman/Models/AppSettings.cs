@@ -52,7 +52,7 @@ public class AppSettings
         /// <summary>A template of your own; empty uses the one bundled with Packman.</summary>
         public string PSADTTemplate { get; set; } = "";
 
-        /// <summary>An IntuneWinAppUtil.exe of your own; empty uses the one bundled with Packman.</summary>
+        /// <summary>An IntuneWinAppUtil.exe of your own; empty uses the pinned build Packman downloads from Microsoft.</summary>
         public string IntuneWinAppUtil { get; set; } = "";
 
         /// <summary>Parent folder on Remote test targets; Packman stages in its Packman subfolder. Empty uses C:\ProgramData.</summary>

@@ -2,7 +2,7 @@
     <Border Background="Transparent" BorderThickness="0" Padding="0">
         <StackPanel>
             <!-- ═══ Packages and tools ═══ -->
-            <controls:SectionHeader Title="Paths" Caption="Where packages are written. The PSADT template and IntuneWinAppUtil come bundled with Packman; set a path only to use your own." Margin="0,0,0,20"/>
+            <controls:SectionHeader Title="Paths" Caption="Where packages are written. The PSADT template comes with Packman and IntuneWinAppUtil is downloaded from Microsoft on your first publish; set a path only to use your own." Margin="0,0,0,20"/>
             <!-- Intune Applications output path -->
             <TextBlock Text="Intune Applications Path" Style="{StaticResource FieldLabel}"/>
             <Grid Margin="0,7,0,0">
@@ -16,7 +16,7 @@
             <!-- IntuneWinAppUtil path -->
             <TextBlock Text="IntuneWinAppUtil Path" Style="{StaticResource FieldLabel}" Margin="0,16,0,0"/>
             <Grid Margin="0,7,0,0">
-                <TextBox AutomationProperties.Name="IntuneWinAppUtil Path" Style="{StaticResource TextField}" Text="{Binding IntuneWinAppUtilPath, UpdateSourceTrigger=PropertyChanged}" local:PlaceholderText.Text="Bundled IntuneWinAppUtil.exe"/>
+                <TextBox AutomationProperties.Name="IntuneWinAppUtil Path" Style="{StaticResource TextField}" Text="{Binding IntuneWinAppUtilPath, UpdateSourceTrigger=PropertyChanged}" local:PlaceholderText.Text="IntuneWinAppUtil.exe 1.8.7, downloaded from Microsoft"/>
             </Grid>
             <!-- PSADT log folder: PSADT decides it, so it is shown, not set. -->
             <TextBlock Text="PSADT Log Folder" Style="{StaticResource FieldLabel}" Margin="0,16,0,0"/>

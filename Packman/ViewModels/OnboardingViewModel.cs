@@ -5,8 +5,8 @@ namespace Packman.ViewModels;
 
 /// <summary>
 /// First-run setup: the one thing Packman cannot guess, the folder packages are written to.
-/// The PSADT template and IntuneWinAppUtil ship with Packman, and connecting to Intune is
-/// done in Settings when publishing, so neither is asked here.
+/// The PSADT template ships with Packman, IntuneWinAppUtil is downloaded on the first publish,
+/// and connecting to Intune is done in Settings when publishing, so none of them is asked here.
 /// </summary>
 public sealed class OnboardingViewModel : ObservableObject
 {

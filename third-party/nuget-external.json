@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "packages": [
+    {
+      "id": "Microsoft.Management.Infrastructure.Runtime.Win",
+      "version": "3.0.0",
+      "archive": null,
+      "source": "https://api.nuget.org/v3/index.json",
+      "sha256": "7206e8f30c824066fb34a97795ba88e4733a6958e9e08fba746e035ef6075f34",
+      "licenseType": "file",
+      "license": "LICENSE.txt",
+      "projectUrl": "https://github.com/PowerShell/MMI",
+      "notices": [
+        "third-party/nuget-notices/Microsoft.Management.Infrastructure.Runtime.Win-3.0.0/LICENSE.txt"
+      ]
+    }
+  ]
+}

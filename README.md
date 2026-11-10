@@ -114,7 +114,7 @@ Each area links to the part of the [manual](docs/MANUAL.md) that explains it.
 | **Runtime** | .NET 10 Desktop Runtime — or the .NET 10 SDK to build |
 | **Editor host** | Microsoft Edge **WebView2 Runtime**, for the in-app script editor. Without it the editor falls back to opening the script in your own editor |
 | **PSADT v4 template** | Included: PSADT 4.1.8 with its runtime, in `PSADT/` beside `Packman.exe`. Set a path in Settings only to use your own (PSADT 4.0 to 4.2) |
-| **Content prep tool** | Included: `IntuneWinAppUtil.exe` 1.8.7 (Microsoft Win32 Content Prep Tool), in `IntuneWinAppUtil/` beside `Packman.exe`. Set a path in Settings only to use your own |
+| **Content prep tool** | `IntuneWinAppUtil.exe` 1.8.7 (Microsoft Win32 Content Prep Tool). Not included, because Microsoft's terms do not allow redistributing it: Packman downloads it from Microsoft's repository on your first publish and checks its SHA-256. Set a path in Settings only to use your own |
 | **Tenant** | An active Microsoft Intune license and Microsoft Graph permissions for the selected [authentication mode](docs/MANUAL.md#authentication) |
 | **Remote test (optional)** | A test machine with WinRM enabled and reachable, and administrative rights on it (the package is staged over the `C$` admin share). Or this computer: enter `localhost`, no WinRM, one administrator prompt per run |
 
@@ -129,7 +129,8 @@ provide a **Packman-community-windows** artifact. Extract the entire archive and
 `Packman.exe` after installing the runtimes listed under [Requirements](#requirements). CI artifacts
 are development builds, not a separately signed installer or stable release. Tagged versions are
 published as GitHub Releases; see [Releases](CONTRIBUTING.md#releases). On first launch Packman asks
-only for the folder to write packages to; the PSADT template and `IntuneWinAppUtil.exe` are included.
+only for the folder to write packages to; the PSADT template is included, and `IntuneWinAppUtil.exe`
+is downloaded from Microsoft on your first publish.
 
 ### Build and run from source
 
@@ -141,7 +142,7 @@ dotnet run --project Packman/Packman.csproj
 ```
 
 Or open `Packman.sln` in a Visual Studio installation with .NET 10 support and run. The repository
-restores from the vendored `packages/` folder, so a fresh clone builds with no network access; see
+restores from the vendored `packages/` folder and fetches one package from nuget.org; see
 [Offline builds](CONTRIBUTING.md#offline-builds).
 
 ### Package your first app
@@ -172,6 +173,7 @@ and publish.
 - [ROADMAP.md](ROADMAP.md) — what belongs to the community edition and what is planned.
 - [CHANGELOG.md](CHANGELOG.md) — what changed in each version.
 - [SECURITY.md](SECURITY.md) — how to report a vulnerability privately.
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — what is expected of everyone taking part.
 - [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) — licenses of bundled components.
 - [docs/UI-DESIGN.md](docs/UI-DESIGN.md) — the desktop UI's structure and validation.
 
