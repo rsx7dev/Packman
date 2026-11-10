@@ -286,29 +286,28 @@ public abstract class PublishPipelineFixture : GraphStaticsFixture
 // ── 1. The real .intunewin ────────────────────────────────────────────────────
 
 /// <summary>
-/// The bundled Microsoft Win32 Content Prep Tool, run the way the service runs it, on a
-/// package built from the bundled PSADT v4 template. Only packs a folder into a file.
+/// The Microsoft Win32 Content Prep Tool Packman downloads, run the way the service runs it,
+/// on a package built from the bundled PSADT v4 template. Only packs a folder into a file.
+/// The tool is not in the repository: CI fetches the pinned build before the tests, and a
+/// machine that has not published with Packman yet skips the tests that need it.
 /// </summary>
 public sealed class PublishPipelineConverterTests : PublishPipelineFixture
 {
     private static readonly string Converter = BundledTools.IntuneWinAppUtil;
 
-    /// <summary>A missing converter skips the build tests rather than failing them all.</summary>
-    private static bool Available => File.Exists(Converter);
+    /// <summary>
+    /// Only the pinned build counts: with anything else at that path the service would go and
+    /// download the tool, and these tests do not touch the network.
+    /// </summary>
+    private static bool Available => ContentPrepTool.IsVerified(Converter);
 
     [Fact]
-    public void TheBundledConverterIsTheExactBinaryTheThirdPartyNoticesDeclare()
+    public void InCiThePinnedConverterIsThereSoTheBuildTestsRun()
     {
-        // Guards the skip in the tests below: if this is the only converter failure, the
-        // exe was not copied to the output, not that the pipeline broke.
-        Assert.True(Available, $"IntuneWinAppUtil.exe is missing from {Converter}; the build tests cannot run.");
-
-        // The notices pin a SHA-256; the redistribution terms depend on the binary being
-        // the unmodified Microsoft tool. The PE's own FileVersion is a build number.
-        var readme = Path.Combine(Path.GetDirectoryName(Converter)!, "README.txt");
-        var declared = File.ReadAllLines(readme).First(l => l.StartsWith("SHA-256:", StringComparison.Ordinal))["SHA-256:".Length..].Trim();
-        Assert.Equal(declared, Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(Converter))).ToLowerInvariant());
-        Assert.Contains("v1.8.7", File.ReadAllText(readme));
+        // Guards the skip in the tests below: CI downloads the tool first, so a missing or
+        // different file there means the real converter was not exercised at all.
+        if (Environment.GetEnvironmentVariable("GITHUB_ACTIONS") != "true") return;
+        Assert.True(Available, $"The pinned IntuneWinAppUtil.exe {ContentPrepTool.Version} is not at {Converter}; the build tests cannot run.");
     }
 
     [Fact]
@@ -399,7 +398,7 @@ public sealed class PublishPipelineConverterTests : PublishPipelineFixture
 
         var ex = await Assert.ThrowsAsync<FileNotFoundException>(() => Upload(service, package));
 
-        Assert.Contains("Set the IntuneWinAppUtil path on the Settings page", ex.Message);
+        Assert.Contains("Set IntuneWinAppUtil Path under Settings", ex.Message);
         Assert.Empty(Intune.Where("POST", "/mobileApps"));
         Assert.Null(Link(package));
         Assert.Null(service.RollbackSucceeded);
