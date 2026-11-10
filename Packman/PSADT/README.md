@@ -18,9 +18,9 @@ PSADT/
     SupportFiles/
 ```
 
-Packman creates each package as `{Vendor}_{AppName}/{version}/` holding three
-folders: `Application/` (this template), `Intune/` (the .intunewin is built here
-at upload time) and `Icon/` (the archived app icon).
+Packman creates each package as `<package folder name>/{version}/` (default
+`{Vendor}_{AppName}`) holding `Application/` (this template), `Intune/` (the .intunewin
+is built here at upload time) and, when the Icon option is on, `Icon/` (the archived app icon).
 
 ## Changes from upstream
 

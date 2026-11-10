@@ -41,6 +41,7 @@ internal static class UiPreviews
         vm.CreatePackage.CurrentMsiInfo = new MsiInfoService.MsiInfo
         {
             ProductCode = "{3FA85F64-5717-4562-B3FC-2C963F66AFA6}", ProductVersion = "4.2.0",
+            UpgradeCode = "{8B1E4D2A-6C3F-4E5B-9A7D-1F2E3C4B5A69}",
             Properties =
             [
                 new("ProductName", "Contoso Reader"), new("ProductVersion", "4.2.0"), new("Manufacturer", "Contoso"),
@@ -180,6 +181,8 @@ internal static class UiPreviews
             settingsVm.CreateGroupPerPackage = false;
             settingsVm.CreateUninstallGroupPerPackage = false;
 
+            RenderExtraStates(theme, root, shell, vm, Show);
+
             shell.Close();
 
             // First-run setup, on settings in a temp folder so none of the user's paths show.
@@ -197,10 +200,161 @@ internal static class UiPreviews
         Console.WriteLine($"Native UI previews written to {_outputDirectory}");
     }
 
+    /// <summary>
+    /// States the page-by-page pass does not reach: wide and narrow windows, Settings tabs scrolled
+    /// to the bottom, a deeper package folder format, and the console with lines, filtered and
+    /// collapsed. Dark gets the full set; Light a subset, since layout does not depend on the theme.
+    /// </summary>
+    private static void RenderExtraStates(string theme, FrameworkElement root, MainWindow shell, MainViewModel vm, Action<string> show)
+    {
+        var full = theme == "Dark";
+        var settings = (SettingsView)shell.FindName("SettingsPage");
+        var settingsVm = (SettingsViewModel)settings.DataContext;
+        var sectionScroll = (ScrollViewer)settings.FindName("SectionScroll");
+        void Tab(string name)
+        {
+            ((RadioButton)settings.FindName(name)).IsChecked = true;
+            sectionScroll.ScrollToTop();
+        }
+
+        // ── Wide windows: the 860px column stays centred and the rail grows to 480px ──
+        (int Width, int Height)[] wideSizes = full ? [(1920, 1080), (2560, 1300)] : [(1920, 1080)];
+        foreach (var (width, height) in wideSizes)
+        {
+            var tag = $"{theme}-20-wide{width}";
+            show("CreatePackagePage");
+            vm.CurrentStepIndex = 0;
+            RenderShell(root, $"{tag}-package", width, height);
+            if (!full) continue;
+            vm.CurrentStepIndex = 1;
+            RenderShell(root, $"{tag}-configure", width, height);
+            vm.CurrentStepIndex = 0;
+            show("UploadIntunePage");
+            RenderShell(root, $"{tag}-upload", width, height);
+            show("RemoteTestPage");
+            RenderShell(root, $"{tag}-remote-test", width, height);
+            show("SettingsPage");
+            foreach (var name in new[] { "TabAuth", "TabNetworkPaths", "TabPackageLayout" })
+            {
+                Tab(name);
+                RenderShell(root, $"{tag}-settings-{name}", width, height);
+            }
+        }
+
+        // ── Narrow windows. The rail folds at a 1000px page frame, which is a window of about
+        //    1228px with the navigation open; 1080px is the window's minimum width. ──
+        show("CreatePackagePage");
+        vm.CurrentStepIndex = 0;
+        RenderShell(root, $"{theme}-21-narrow1240-package", 1240, 780);
+        RenderShell(root, $"{theme}-21-narrow1216-package", 1216, 780);
+        if (full)
+        {
+            RenderShell(root, $"{theme}-21-narrow1080-package", 1080, 780);
+            // Every frame, shown or not: IsVisible is false for all of them without a window.
+            foreach (var frame in Descendants<Packman.Views.Controls.PageFrame>(root)) frame.IsRailOpen = true;
+            RenderShell(root, $"{theme}-21-narrow1080-package-details-open", 1080, 780);
+            foreach (var frame in Descendants<Packman.Views.Controls.PageFrame>(root)) frame.IsRailOpen = false;
+            vm.CurrentStepIndex = 1;
+            RenderShell(root, $"{theme}-21-narrow1080-configure", 1080, 780);
+            vm.CurrentStepIndex = 0;
+            show("UploadIntunePage");
+            RenderShell(root, $"{theme}-21-narrow1080-upload", 1080, 780);
+            show("RemoteTestPage");
+            RenderShell(root, $"{theme}-21-narrow1240-remote-test", 1240, 780);
+            RenderShell(root, $"{theme}-21-narrow1080-remote-test", 1080, 780);
+            show("SettingsPage");
+            Tab("TabPackageLayout");
+            RenderShell(root, $"{theme}-21-narrow1240-settings-TabPackageLayout", 1240, 780);
+            RenderShell(root, $"{theme}-21-narrow1080-settings-TabPackageLayout", 1080, 780);
+            Tab("TabAuth");
+            RenderShell(root, $"{theme}-21-narrow1080-settings-TabAuth", 1080, 780);
+        }
+
+        // ── Settings: bottom of Paths and Package layout, and a format one folder deeper ──
+        show("SettingsPage");
+        Tab("TabNetworkPaths");
+        RenderShell(root, $"{theme}-22-settings-TabNetworkPaths-bottom", 1440, 860, sectionScroll.ScrollToBottom);
+        var layout = settingsVm.Layout;
+        var savedTemplate = layout.FolderNameTemplate;
+        var savedFolders = layout.ExtraFolders.ToList();
+        layout.FolderNameTemplate = @"%vendor%\%appName%";
+        foreach (var folder in new[] { "Documentation", "Source" })
+            if (!layout.ExtraFolders.Contains(folder)) layout.ExtraFolders.Add(folder);
+        Tab("TabPackageLayout");
+        RenderShell(root, $"{theme}-22-settings-TabPackageLayout-vendor-folder", 1440, 860);
+        RenderShell(root, $"{theme}-22-settings-TabPackageLayout-vendor-folder-bottom", 1440, 860, sectionScroll.ScrollToBottom);
+        if (full)
+        {
+            sectionScroll.ScrollToTop();
+            RenderShell(root, $"{theme}-22-settings-TabPackageLayout-vendor-folder-tall", 1440, 1300);
+            RenderShell(root, $"{theme}-22-settings-TabPackageLayout-vendor-folder-narrow1080", 1080, 1300);
+            layout.FolderNameTemplate = "%vendor%_%appName%_%version%";
+            RenderShell(root, $"{theme}-22-settings-TabPackageLayout-format-problem", 1440, 1300);
+        }
+        layout.FolderNameTemplate = savedTemplate;
+        layout.ExtraFolders.Clear();
+        foreach (var folder in savedFolders) layout.ExtraFolders.Add(folder);
+        sectionScroll.ScrollToTop();
+        Tab("TabAuth");
+
+        // ── Console: lines with a warning and an error, issues only, collapsed ──
+        show("CreatePackagePage");
+        vm.CurrentStepIndex = 0;
+        var log = ActivityLog.Shared;
+        var console = Packman.Views.Controls.ConsoleState.Shared;
+        log.Section("Generate package");
+        log.Info(@"Copying the PSADT template to C:\Packages\Contoso_Contoso_Reader\4.2.0\Application");
+        log.Info("Reading ContosoReader-4.2.0-x64.msi");
+        log.Warning("The installer has no icon. A placeholder icon is used for the upload.");
+        log.Success("Invoke-AppDeployToolkit.ps1 written");
+        log.Error(@"Signing failed: no certificate with thumbprint 9F3A52C1D07B4E6688A1B2C3D4E5F60718293A4B in CurrentUser\My.");
+        log.Info("Sample lines. Nothing ran in this preview.");
+        RenderShell(root, $"{theme}-23-console-lines", 1440, 860, RefreshConsoles);
+        console.IsCollapsed = true;
+        RenderShell(root, $"{theme}-23-console-collapsed", 1440, 860, RefreshConsoles);
+        console.IsCollapsed = false;
+        if (full)
+        {
+            console.IssuesOnly = true;
+            RenderShell(root, $"{theme}-23-console-issues-only", 1440, 860, RefreshConsoles);
+            console.IssuesOnly = false;
+            RenderShell(root, $"{theme}-23-console-lines-wide2560", 2560, 1300, RefreshConsoles);
+            show("RemoteTestPage");
+            RenderShell(root, $"{theme}-23-console-lines-remote-test", 1440, 860, RefreshConsoles);
+            show("CreatePackagePage");
+        }
+        log.Clear();
+        RenderShell(root, $"{theme}-23-console-cleared", 1440, 860, RefreshConsoles);
+
+        // The console subscribes to its state on Loaded, which a view that is never shown may not get.
+        void RefreshConsoles()
+        {
+            foreach (var view in Descendants<Packman.Views.Controls.ActivityConsole>(root))
+                view.RaiseEvent(new RoutedEventArgs(FrameworkElement.LoadedEvent));
+        }
+    }
+
+    private static IEnumerable<T> Descendants<T>(DependencyObject parent) where T : DependencyObject
+    {
+        for (var i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T match) yield return match;
+            foreach (var deeper in Descendants<T>(child)) yield return deeper;
+        }
+    }
+
     /// <summary>The whole window content on the shell background, at a window size.</summary>
-    private static void RenderShell(FrameworkElement root, string name, int width = 1440, int height = 860)
+    private static void RenderShell(FrameworkElement root, string name, int width = 1440, int height = 860, Action? afterLayout = null)
     {
         var surface = new Border { Background = (Brush)Application.Current.FindResource("ShellBrush"), Child = root };
+        // The content is lifted out of its window, so give it the text colour the window passes down.
+        System.Windows.Documents.TextElement.SetForeground(surface, (Brush)Application.Current.FindResource("TextBrush"));
+        if (afterLayout != null)
+        {
+            Layout(surface, width, height);
+            afterLayout();
+        }
         Save(surface, name, width, height);
         surface.Child = null;
     }
@@ -216,11 +370,18 @@ internal static class UiPreviews
         surface.Child = null;
     }
 
-    private static void Save(Border surface, string name, int width, int height)
+    private static void Layout(Border surface, int width, int height)
     {
         surface.Measure(new Size(width, height));
         surface.Arrange(new Rect(0, 0, width, height));
         surface.UpdateLayout();
+        // Do not pump the dispatcher here: the Application posts its Startup from its constructor,
+        // and running that shows the real main window and connects a saved app registration.
+    }
+
+    private static void Save(Border surface, string name, int width, int height)
+    {
+        Layout(surface, width, height);
         if (surface.Child is FrameworkElement { ActualWidth: <= 0 })
             throw new InvalidOperationException($"{name} did not produce a layout.");
         var bitmap = new RenderTargetBitmap(width, height, 96, 96, PixelFormats.Pbgra32);

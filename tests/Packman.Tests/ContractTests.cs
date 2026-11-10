@@ -132,7 +132,8 @@ public sealed class ContractTests : GraphStaticsFixture
         Assert.Contains("SetAccessRuleProtection($true, $false)", script);
         Assert.Contains("Rename-Item", script);
         Assert.Contains(@"'C:\ProgramData\Packman'", script);
-        Assert.DoesNotContain("takeown", script, StringComparison.OrdinalIgnoreCase);
+        // The takeown tool, not the TakeOwnership right the ancestor check names.
+        Assert.DoesNotMatch(@"(?i)\btakeown(\.exe)?\s", script);
         Assert.DoesNotContain("icacls", script, StringComparison.OrdinalIgnoreCase);
         Parser.ParseInput(script, out _, out var errors);
         Assert.Empty(errors);

@@ -468,20 +468,29 @@ public class UploadStepViewModel : ObservableObject
             => "Detection needs a path and a file name.",
         DetectionMethod.FileVersion when Blank(DetectionValue)
             => "Detection needs the version to compare against.",
+        DetectionMethod.FileVersion when !DetectionInput.IsVersion(DetectionValue)
+            => DetectionInput.VersionProblem,
         DetectionMethod.RegistryKey when Blank(RegistryKeyPath)
             => "Detection needs a registry key path.",
+        DetectionMethod.RegistryKey when Blank(SelectedRegistryHive)
+            => "Detection needs a registry hive.",
         DetectionMethod.MsiProductCode when Blank(DetectionProductCode)
             => "Detection needs an MSI product code.",
+        DetectionMethod.MsiProductCode when DetectionInput.NormalizeProductCode(DetectionProductCode) == null
+            => DetectionInput.ProductCodeProblem,
         _ => null,
     };
 
     private static bool Blank(string? value) => string.IsNullOrWhiteSpace(value);
 
-    private DetectionRule? BuildSelectedDetectionRule() => DetectionRuleFactory.FromMethod(
-        SelectedDetectionMethod,
-        DetectionPath, DetectionName, DetectionValue, null,
-        SelectedRegistryHive, RegistryKeyPath, RegistryValueName,
-        DetectionProductCode);
+    // Null while the fields can't make a rule: the problem is reported, never thrown from a setter.
+    private DetectionRule? BuildSelectedDetectionRule() => DescribeDetectionProblem() != null ? null
+        : DetectionRuleFactory.FromMethod(
+            SelectedDetectionMethod,
+            DetectionPath, DetectionName, DetectionValue, null,
+            SelectedRegistryHive, RegistryKeyPath, RegistryValueName,
+            DetectionProductCode,
+            is32BitApp: string.Equals(_create.Architecture, "x86", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>Product code of the first MSI staged in the package, if any.</summary>
     private string FindMsiProductCode()
@@ -659,10 +668,13 @@ public class UploadStepViewModel : ObservableObject
         }
         else
         {
-            _detectionValue = appInfo.Version;
-            _selectedDetectionMethod = string.IsNullOrWhiteSpace(appInfo.Version)
-                ? DetectionMethod.FileExists
-                : DetectionMethod.FileVersion;
+            // The version as typed: BuildApplicationInfo fills a blank one with a placeholder,
+            // and a rule comparing against a number nobody chose would be wrong.
+            var typedVersion = _create.Version?.Trim() ?? "";
+            _detectionValue = typedVersion;
+            _selectedDetectionMethod = DetectionInput.IsVersion(typedVersion)
+                ? DetectionMethod.FileVersion
+                : DetectionMethod.FileExists;
         }
 
         RaiseAll(nameof(SelectedDetectionMethod), nameof(DetectionPath), nameof(DetectionName), nameof(DetectionValue),

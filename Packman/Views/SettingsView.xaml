@@ -119,9 +119,10 @@
         </controls:PageFrame.Rail>
 
         <!-- ══ Body ═════════════════════════════════════════════════════ -->
-        <ScrollViewer x:Name="SectionScroll" Focusable="False"
+        <!-- Out to the sheet edge and down to the footer, so the scrollbar is not drawn over the form. -->
+        <ScrollViewer x:Name="SectionScroll" Focusable="False" Margin="0,0,-32,-28"
                       VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <StackPanel MaxWidth="860">
+            <StackPanel MaxWidth="860" Margin="0,0,32,28">
                 <Border Style="{StaticResource SectionPanel}">
                     <Grid>
                         <controls:AuthenticationSettings Visibility="{Binding IsChecked, ElementName=TabAuth, Converter={StaticResource BoolToVis}}"/>

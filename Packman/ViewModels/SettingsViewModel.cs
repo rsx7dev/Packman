@@ -18,6 +18,8 @@ public class CertificateInfo
     public string IssuerName { get; init; } = "";
     public DateTime NotAfter { get; init; }
     public bool HasPrivateKey { get; init; }
+    /// <summary>False for an expired, key-less or non-code-signing certificate: devices reject what it signs.</summary>
+    public bool CanSignCode { get; init; }
     public string DisplayName => !string.IsNullOrWhiteSpace(FriendlyName) ? FriendlyName
         : !string.IsNullOrWhiteSpace(SubjectName) ? SubjectName
         : !string.IsNullOrWhiteSpace(Subject) ? Subject : "Unnamed certificate";
@@ -407,6 +409,12 @@ public sealed class SettingsViewModel : ObservableObject
 
     public ObservableCollection<CertificateInfo> AvailableCertificates { get; } = new();
 
+    /// <summary>
+    /// The certificates that can sign code, for the Code signing picker. The sign-in certificate
+    /// sits in the same store and Windows would sign with it, producing a signature devices reject.
+    /// </summary>
+    public ObservableCollection<CertificateInfo> CodeSigningCertificates { get; } = new();
+
     public RelayCommand SaveCommand { get; }
     public RelayCommand ResetCommand { get; }
     public AsyncRelayCommand SignInCommand { get; }
@@ -543,6 +551,7 @@ public sealed class SettingsViewModel : ObservableObject
                             IssuerName = cert.GetNameInfo(X509NameType.SimpleName, true),
                             NotAfter = cert.NotAfter,
                             HasPrivateKey = cert.HasPrivateKey,
+                            CanSignCode = NativeCodeSigner.UsageProblem(cert) == null,
                             Thumbprint = cert.Thumbprint
                         });
                     }
@@ -556,9 +565,17 @@ public sealed class SettingsViewModel : ObservableObject
         }
         if (!string.IsNullOrEmpty(AuthThumbprint))
             SelectedAuthCert = AvailableCertificates.FirstOrDefault(c => c.Thumbprint == AuthThumbprint);
+        // The saved certificate stays listed when it has become unusable (expired, say), so the
+        // picker shows what is configured; publishing refuses it with the reason.
+        CodeSigningCertificates.Clear();
+        foreach (var cert in AvailableCertificates.Where(c => c.CanSignCode || IsSavedCodeSignCert(c)))
+            CodeSigningCertificates.Add(cert);
         if (!string.IsNullOrEmpty(CodeSignThumbprint))
-            SelectedCodeSignCert = AvailableCertificates.FirstOrDefault(c => c.Thumbprint == CodeSignThumbprint);
+            SelectedCodeSignCert = CodeSigningCertificates.FirstOrDefault(IsSavedCodeSignCert);
     }
+
+    private bool IsSavedCodeSignCert(CertificateInfo cert) =>
+        !string.IsNullOrEmpty(CodeSignThumbprint) && cert.Thumbprint.Equals(CodeSignThumbprint, StringComparison.OrdinalIgnoreCase);
 
     private async Task SignInAsync()
     {

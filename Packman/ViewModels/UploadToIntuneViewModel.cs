@@ -241,7 +241,7 @@ public sealed class UploadToIntuneViewModel : ObservableObject
     public List<string> DetectionMethods { get; } = DetectionMethod.All;
     public IReadOnlyList<string> RegistryHives { get; } = RegistryHiveNames.All;
     public ObservableCollection<string> Operators { get; } =
-        new() { "greaterThanOrEqual", "equal", "greaterThan", "lessThan", "lessThanOrEqual" };
+        new() { "greaterThanOrEqual", "equal", "notEqual", "greaterThan", "lessThan", "lessThanOrEqual" };
 
     private string _newRuleMethod = DetectionMethod.FileExists;
     public string NewRuleMethod
@@ -269,16 +269,16 @@ public sealed class UploadToIntuneViewModel : ObservableObject
     public string NewRulePath { get => _newRulePath; set { if (Set(ref _newRulePath, value)) AddRuleCommand.RaiseCanExecuteChanged(); } }
 
     private string _newRuleName = "";
-    public string NewRuleName { get => _newRuleName; set => Set(ref _newRuleName, value); }
+    public string NewRuleName { get => _newRuleName; set { if (Set(ref _newRuleName, value)) AddRuleCommand.RaiseCanExecuteChanged(); } }
 
     private string _newRuleOperator = DetectionRuleFactory.DefaultVersionOperator;
     public string NewRuleOperator { get => _newRuleOperator; set => Set(ref _newRuleOperator, value); }
 
     private string _newRuleValue = "";
-    public string NewRuleValue { get => _newRuleValue; set => Set(ref _newRuleValue, value); }
+    public string NewRuleValue { get => _newRuleValue; set { if (Set(ref _newRuleValue, value)) AddRuleCommand.RaiseCanExecuteChanged(); } }
 
     private string _newRuleHive = RegistryHiveNames.LocalMachine;
-    public string NewRuleHive { get => _newRuleHive; set => Set(ref _newRuleHive, value); }
+    public string NewRuleHive { get => _newRuleHive; set { if (Set(ref _newRuleHive, value)) AddRuleCommand.RaiseCanExecuteChanged(); } }
 
     private string _newRuleKeyPath = "";
     public string NewRuleKeyPath { get => _newRuleKeyPath; set { if (Set(ref _newRuleKeyPath, value)) AddRuleCommand.RaiseCanExecuteChanged(); } }
@@ -293,11 +293,14 @@ public sealed class UploadToIntuneViewModel : ObservableObject
         set { if (Set(ref _newRuleProductCode, value)) AddRuleCommand.RaiseCanExecuteChanged(); }
     }
 
+    // The same completeness the wizard's Configure step asks for.
     public bool CanAddRule => _newRuleMethod switch
     {
-        DetectionMethod.RegistryKey => !string.IsNullOrWhiteSpace(NewRuleKeyPath),
-        DetectionMethod.MsiProductCode => !string.IsNullOrWhiteSpace(NewRuleProductCode),
-        _ => !string.IsNullOrWhiteSpace(NewRulePath),
+        DetectionMethod.RegistryKey => !string.IsNullOrWhiteSpace(NewRuleKeyPath) && !string.IsNullOrWhiteSpace(NewRuleHive),
+        DetectionMethod.MsiProductCode => DetectionInput.NormalizeProductCode(NewRuleProductCode) != null,
+        DetectionMethod.FileVersion => !string.IsNullOrWhiteSpace(NewRulePath) && !string.IsNullOrWhiteSpace(NewRuleName)
+                                       && DetectionInput.IsVersion(NewRuleValue),
+        _ => !string.IsNullOrWhiteSpace(NewRulePath) && !string.IsNullOrWhiteSpace(NewRuleName),
     };
 
     private void AddDetectionRule()
@@ -306,7 +309,8 @@ public sealed class UploadToIntuneViewModel : ObservableObject
             _newRuleMethod,
             NewRulePath, NewRuleName, NewRuleValue, NewRuleOperator,
             NewRuleHive, NewRuleKeyPath, NewRuleValueName,
-            NewRuleProductCode);
+            NewRuleProductCode,
+            is32BitApp: string.Equals(_architecture, "x86", StringComparison.OrdinalIgnoreCase));
         if (rule == null) return;
 
         DetectionRules.Add(rule);

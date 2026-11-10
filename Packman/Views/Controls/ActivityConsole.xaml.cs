@@ -61,6 +61,7 @@ public partial class ActivityConsole : UserControl
 
         Grip.Visibility = !IsDetached && showLines ? Visibility.Visible : Visibility.Collapsed;
         Body.Visibility = showLines ? Visibility.Visible : Visibility.Collapsed;
+        Actions.Visibility = Body.Visibility;
         Body.Height = IsDetached ? double.NaN : State.Height;
         PoppedOutNote.Visibility = awayInWindow ? Visibility.Visible : Visibility.Collapsed;
 

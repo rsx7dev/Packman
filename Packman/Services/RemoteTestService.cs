@@ -86,8 +86,11 @@ public class RemoteTestService
         if (commandLine.Length == 0 || commandLine.IndexOfAny(['\r', '\n']) >= 0)
             throw new ArgumentException("The command line must be a single non-empty line", nameof(commandLine));
 
+        // This computer needs no WinRM: one elevated helper does what the remote session would.
+        var local = LocalTestRunner.IsLocalTarget(computerName);
+
         output("========================================");
-        output("Packman Remote Test (WinRM)");
+        output(local ? "Packman Test (this computer, no WinRM)" : "Packman Remote Test (WinRM)");
         output("========================================");
         output($"Target: {computerName}");
         output($"Source: {sourcePath}");
@@ -121,6 +124,23 @@ public class RemoteTestService
         if (runsLauncher && !File.Exists(Path.Combine(sourcePath, relativeApplicationPath, PsadtLayout.SetupFileName)))
             throw new FileNotFoundException(
                 $"{PsadtLayout.SetupFileName} is missing from the package. The PSADT template needs the full v4 runtime, not just the script.");
+
+        // Layout is ...\Manufacturer_AppName\Version; combine both so packages don't mix
+        // and a re-run only copies what differs.
+        var sourceDir = new DirectoryInfo(sourcePath);
+        string packageName = SanitiseFolderName(sourceDir.Parent?.Parent != null
+            ? $"{sourceDir.Parent.Name}_{sourceDir.Name}"
+            : sourceDir.Name);
+        string remotePackagePath = $@"{basePath}\{packageName}";
+
+        // Intune runs the command line from the content folder, so the task does too.
+        string workingDirectory = relativeApplicationPath.Length == 0 ? remotePackagePath : $@"{remotePackagePath}\{relativeApplicationPath}";
+        string configPath = $@"{workingDirectory}\Config\config.psd1";
+        string consoleLog = $@"{remotePackagePath}\Packman_Console.log";
+
+        if (local)
+            return await DeployLocalAsync(sourcePath, commandLine, cleanupAfterDeploy, runAsUser, output, copyProgress, ct,
+                basePath, remotePackagePath, workingDirectory, consoleLog, configPath);
 
         // ICMP is a hint only: plenty of fleets block it while WinRM is open.
         output($"Checking connectivity to {computerName}...");
@@ -159,13 +179,6 @@ public class RemoteTestService
             output($"[OK] Logged-on user: {loggedOnUser}");
         }
 
-        // Layout is ...\Manufacturer_AppName\Version; combine both so packages don't mix
-        // and a re-run only copies what differs.
-        var sourceDir = new DirectoryInfo(sourcePath);
-        string packageName = SanitiseFolderName(sourceDir.Parent?.Parent != null
-            ? $"{sourceDir.Parent.Name}_{sourceDir.Name}"
-            : sourceDir.Name);
-        string remotePackagePath = $@"{basePath}\{packageName}";
         string targetUnc = RemoteStaging.AdminShare(computerName, remotePackagePath);
 
         // The package runs as SYSTEM, so only SYSTEM and Administrators may write where it is staged.
@@ -191,11 +204,6 @@ public class RemoteTestService
         double sizeMb = copiedFiles.Sum(f => new FileInfo(f).Length) / 1048576.0;
         output($"Package size: {Math.Round(sizeMb, 2)} MB");
         output($"[OK] {copiedFiles.Length} files in sync after {Math.Round(copyTimer.Elapsed.TotalSeconds, 1)} seconds");
-
-        // Intune runs the command line from the content folder, so the task does too.
-        string workingDirectory = relativeApplicationPath.Length == 0 ? remotePackagePath : $@"{remotePackagePath}\{relativeApplicationPath}";
-        string configPath = $@"{workingDirectory}\Config\config.psd1";
-        string consoleLog = $@"{remotePackagePath}\Packman_Console.log";
 
         output("");
         output($"Registering scheduled task '{TaskName}' on target...");
@@ -272,6 +280,65 @@ public class RemoteTestService
     }
 
     /// <summary>
+    /// The same run on this computer: <see cref="LocalTestRunner"/> starts one elevated helper
+    /// (a UAC prompt) that secures the staging folder, copies the package, and runs the same
+    /// task script, so the install is still done by a SYSTEM (or logged-on user) scheduled task.
+    /// </summary>
+    private static async Task<int> DeployLocalAsync(string sourcePath, string commandLine, bool cleanupAfterDeploy, bool runAsUser,
+        Action<string> output, Action<int?>? copyProgress, CancellationToken ct,
+        string basePath, string stagedPackagePath, string workingDirectory, string consoleLog, string configPath)
+    {
+        ct.ThrowIfCancellationRequested();
+        output("Asking for administrator rights: staging the package and running it as "
+               + (runAsUser ? "the logged-on user" : "SYSTEM") + " needs them. Approve the Windows prompt to continue.");
+        output("Whatever is in the package folder when it is copied is what runs" + (runAsUser ? "." : " as SYSTEM."));
+        output($"Securing {basePath} on this computer...");
+
+        // A heartbeat each second of the wait, so the helper notices a cancelled run at once.
+        var taskScript = BuildTaskScript(runAsUser, commandLine, stagedPackagePath, workingDirectory, consoleLog, configPath,
+            eachSecond: $"'{LocalTestRunner.Heartbeat}'");
+        var helper = LocalTestRunner.BuildHelperScript(BuildSecureStagingScript(basePath), taskScript,
+            LocalTestRunner.ToUncIfMapped(sourcePath).TrimEnd('\\', '/'), stagedPackagePath, TaskName, cleanupAfterDeploy);
+
+        int exitCode = -1;
+        var sawExitCode = false;
+        try
+        {
+            await LocalTestRunner.RunAsync(helper, line =>
+            {
+                if (!line.StartsWith(ExitCodeSentinel, StringComparison.Ordinal))
+                {
+                    output(line);
+                    return;
+                }
+                exitCode = ParseExitCode(line.AsSpan(ExitCodeSentinel.Length));
+                sawExitCode = true;
+                output("");
+                output($"Exit code: {exitCode}");
+            }, ct);
+        }
+        catch (OperationCanceledException ex)
+        {
+            output(ex.Data[LocalTestRunner.HelperExitedKey] is true
+                ? $"Stopped and removed the scheduled task '{TaskName}' on this computer"
+                : $"WARNING: The elevated helper has not finished stopping. Check Task Scheduler for '{TaskName}' and the staging folder before running again.");
+            throw;
+        }
+        finally
+        {
+            copyProgress?.Invoke(null);
+        }
+
+        if (!sawExitCode)
+        {
+            output("");
+            output($"Exit code: {exitCode}");
+            output("WARNING: The monitor returned no exit code; check the PSADT log on this computer.");
+        }
+        return exitCode;
+    }
+
+    /// <summary>
     /// Registers a one-shot task that runs the command through cmd.exe from the package
     /// folder, starts it, and streams two things back through the pipeline until it ends:
     /// anything the command printed (rarely — the PSADT launcher swallows stdout) and the
@@ -279,7 +346,9 @@ public class RemoteTestService
     /// sentinel. Only the principal differs by context, and a user run also gets read
     /// access to its own package folder and write access to the console log alone.
     /// </summary>
-    internal static string BuildTaskScript(bool runAsUser, string commandLine, string packagePath, string workingDirectory, string consoleLog, string configPath)
+    /// <param name="eachSecond">A statement run on every pass of the wait loop; a local run emits its heartbeat here.</param>
+    internal static string BuildTaskScript(bool runAsUser, string commandLine, string packagePath, string workingDirectory,
+        string consoleLog, string configPath, string eachSecond = "")
     {
         // S-1-5-18 rather than the account name: the SID is locale-independent.
         // Staging is SYSTEM and Administrators only, so a user run is granted read on this
@@ -325,14 +394,26 @@ public class RemoteTestService
             if (Test-Path -LiteralPath $configPath) {
                 try {
                     $toolkit = (Import-PowerShellDataFile -LiteralPath $configPath).Toolkit
-                    # Names the config may use for expansion, in both the $env: and legacy $envX forms.
-                    $envWinDir = $env:SystemRoot; $envSystemRoot = $env:SystemRoot; $envProgramData = $env:ProgramData
-                    $envProgramFiles = $env:ProgramFiles; $envLocalAppData = $env:LOCALAPPDATA; $envAppData = $env:APPDATA
-                    $envTemp = [IO.Path]::GetTempPath().TrimEnd('\')
+                    # Names the config may use, in both the $env: and legacy $envX forms. They are
+                    # replaced as text: the value comes from the package, and expanding it as
+                    # PowerShell would run any $(...) in it with this session's admin rights.
+                    $temp = [IO.Path]::GetTempPath().TrimEnd('\')
+                    $names = [ordered]@{
+                        'SystemRoot' = $env:SystemRoot; 'WinDir' = $env:SystemRoot; 'ProgramData' = $env:ProgramData
+                        'ProgramFiles' = $env:ProgramFiles; 'LocalAppData' = $env:LOCALAPPDATA; 'AppData' = $env:APPDATA
+                        'Temp' = $temp; 'SystemDrive' = $env:SystemDrive; 'Public' = $env:PUBLIC
+                    }
                     foreach ($key in 'LogPath', 'LogPathNoAdminRights') {
                         $value = $toolkit[$key]
-                        if (-not $value) { continue }
-                        $expanded = $ExecutionContext.InvokeCommand.ExpandString($value)
+                        if (-not ($value -is [string]) -or -not $value) { continue }
+                        $expanded = $value
+                        foreach ($name in $names.Keys) {
+                            $expanded = $expanded -ireplace ('\$env:?' + $name + '(?![A-Za-z0-9_])'), "$($names[$name])".Replace('$', '$$')
+                        }
+                        if ($expanded.Contains('$') -or $expanded.Contains('`')) {
+                            "WARNING: $key in config.psd1 uses an expression Packman does not evaluate; watching the default PSADT log folders for it."
+                            continue
+                        }
                         if ($expanded -and ($logDirs -notcontains $expanded)) { $logDirs = @($expanded) + $logDirs }
                     }
                     if ($toolkit['CompressLogs']) { "WARNING: CompressLogs is on in config.psd1; PSADT writes to a temp folder and zips at the end, so no live log output is available." }
@@ -419,7 +500,7 @@ public class RemoteTestService
             }
 
             __PRINCIPAL__
-            $action = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument '/c __COMMAND__ > "__CONSOLE_LOG__" 2>&1' -WorkingDirectory $workingDirectory
+            $action = New-ScheduledTaskAction -Execute 'cmd.exe' -Argument '/s /c "__COMMAND__ > "__CONSOLE_LOG__" 2>&1"' -WorkingDirectory $workingDirectory
             Unregister-ScheduledTask -TaskName $taskName -Confirm:$false -ErrorAction SilentlyContinue
             Register-ScheduledTask -TaskName $taskName -Action $action -Principal $principal | Out-Null
             $started = (Get-Date).AddSeconds(-5)
@@ -429,6 +510,7 @@ public class RemoteTestService
             while ($elapsed -lt 3600) {
                 Start-Sleep -Seconds 1
                 $elapsed += 1
+                __EACH_SECOND__
                 Pump-Output $false
                 $state = (Get-ScheduledTask -TaskName $taskName).State
                 $result = (Get-ScheduledTaskInfo -TaskName $taskName).LastTaskResult
@@ -454,6 +536,7 @@ public class RemoteTestService
             }
             "__SENTINEL__$exitCode"
             """
+            .Replace("__EACH_SECOND__", eachSecond)
             .Replace("__PRINCIPAL__", principal)
             .Replace("__PACKAGE_DIR__", EscapeSingleQuoted(packagePath))
             .Replace("__COMMAND__", EscapeSingleQuoted(commandLine))
@@ -493,6 +576,31 @@ public class RemoteTestService
             return $true
         }
 
+        # The folders above $base matter as much as $base: whoever can rename or re-point one of
+        # them can swap the whole staging tree between this check and the SYSTEM task starting.
+        # Each must be a real directory owned by SYSTEM, Administrators or TrustedInstaller that
+        # gives no one else delete, delete-child, change-permissions or take-ownership on itself.
+        function Get-UntrustedAncestor {
+            $owners = $trusted + 'S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464'
+            $risky = [System.Security.AccessControl.FileSystemRights]'Delete, DeleteSubdirectoriesAndFiles, ChangePermissions, TakeOwnership'
+            $dir = [System.IO.Directory]::GetParent($base)
+            while ($dir) {
+                $item = Get-Item -LiteralPath $dir.FullName -Force
+                if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { return "$($dir.FullName) is a link, not a folder" }
+                $acl = Get-Acl -LiteralPath $dir.FullName
+                if ($owners -notcontains $acl.GetOwner($sidType).Value) { return "$($dir.FullName) is not owned by Administrators or SYSTEM" }
+                foreach ($rule in $acl.GetAccessRules($true, $true, $sidType)) {
+                    if ($rule.AccessControlType -ne 'Allow') { continue }
+                    # Inherit-only entries apply to children, not to this folder.
+                    if ($rule.PropagationFlags -band [System.Security.AccessControl.PropagationFlags]::InheritOnly) { continue }
+                    if ($owners -contains $rule.IdentityReference.Value) { continue }
+                    if ($rule.FileSystemRights -band $risky) { return "$($dir.FullName) can be renamed or changed by $($rule.IdentityReference.Value)" }
+                }
+                $dir = $dir.Parent
+            }
+            return $null
+        }
+
         function New-SecureBase {
             $acl = New-Object System.Security.AccessControl.DirectorySecurity
             $acl.SetOwner((New-Object System.Security.Principal.SecurityIdentifier('S-1-5-32-544')))
@@ -516,6 +624,8 @@ public class RemoteTestService
         }
 
         if (-not (Test-TrustedBase)) { throw "$base is not limited to SYSTEM and Administrators" }
+        $unsafe = Get-UntrustedAncestor
+        if ($unsafe) { throw "$base is not a safe place to stage an install that runs as SYSTEM: $unsafe. Use a folder only administrators can change, or leave Staging Folder on Target empty." }
         "[OK] $base is limited to SYSTEM and Administrators"
         """
         .Replace("__BASE__", PowerShellLiteral.SingleQuoted(basePath));
@@ -545,7 +655,7 @@ public class RemoteTestService
         // No /SEC or /COPYALL: copied files must inherit the staging folder's ACL.
         var psi = new ProcessStartInfo
         {
-            FileName = "robocopy.exe",
+            FileName = Path.Combine(Environment.SystemDirectory, "robocopy.exe"),   // never found through the current folder or PATH
             Arguments = $"\"{source.TrimEnd('\\')}\" \"{destination.TrimEnd('\\')}\" /MIR /MT:16 /J /NOOFFLOAD /R:2 /W:5 /NP /NFL /NDL /NJH",
             UseShellExecute = false,
             RedirectStandardOutput = true,

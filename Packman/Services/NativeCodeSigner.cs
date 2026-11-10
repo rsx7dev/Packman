@@ -18,9 +18,8 @@ public class NativeCodeSigner : IFileSigner
     public NativeCodeSigner(string thumbprint, string? timestampServer = null)
     {
         _thumbprint = (thumbprint ?? "").Replace(" ", "").Trim();
-        _timestampServer = string.IsNullOrWhiteSpace(timestampServer)
-            ? "http://timestamp.digicert.com"
-            : timestampServer;
+        // Never a host the packager did not name: an empty value is refused when signing.
+        _timestampServer = timestampServer?.Trim() ?? "";
     }
 
     private X509Certificate2? GetCertificate()
@@ -47,10 +46,54 @@ public class NativeCodeSigner : IFileSigner
         return null;
     }
 
-    public bool IsCertificateAvailable()
+    private const string CodeSigningEku = "1.3.6.1.5.5.7.3.3";
+    private const string AnyEku = "2.5.29.37.0";   // anyExtendedKeyUsage: Windows accepts it for code signing
+
+    public bool IsCertificateAvailable() => CertificateProblem() == null;
+
+    /// <summary>
+    /// Why the configured certificate can't sign code, or null when it can: not found, no
+    /// private key, outside its validity dates, or issued for something other than code
+    /// signing. Windows signs with such a certificate anyway and devices then reject the result.
+    /// </summary>
+    public string? CertificateProblem()
     {
         using var cert = GetCertificate();
-        return cert is { HasPrivateKey: true };
+        return CertificateProblem(cert);
+    }
+
+    private string? CertificateProblem(X509Certificate2? cert)
+    {
+        if (cert is null)
+            return string.IsNullOrEmpty(_thumbprint)
+                ? "No signing certificate is selected. Choose a code-signing certificate in Settings ▸ Code signing."
+                : $"The signing certificate {_thumbprint} is not in the CurrentUser or LocalMachine Personal store.";
+        return UsageProblem(cert);
+    }
+
+    /// <summary>Why <paramref name="cert"/> can't sign code, or null when it can. Also filters the Settings picker.</summary>
+    public static string? UsageProblem(X509Certificate2 cert)
+    {
+        if (!cert.HasPrivateKey)
+            return $"The certificate \"{Name(cert)}\" has no private key on this computer, so it cannot sign.";
+
+        var now = DateTime.Now;
+        if (now > cert.NotAfter)
+            return $"The certificate \"{Name(cert)}\" expired on {cert.NotAfter:yyyy-MM-dd}.";
+        if (now < cert.NotBefore)
+            return $"The certificate \"{Name(cert)}\" is not valid until {cert.NotBefore:yyyy-MM-dd}.";
+
+        // No EKU extension means every usage is allowed; one that lists usages must list code signing.
+        var usages = cert.Extensions.OfType<X509EnhancedKeyUsageExtension>().FirstOrDefault();
+        if (usages != null && !usages.EnhancedKeyUsages.Cast<System.Security.Cryptography.Oid>().Any(o => o.Value is CodeSigningEku or AnyEku))
+            return $"The certificate \"{Name(cert)}\" is not issued for code signing (its Enhanced Key Usage lacks Code Signing).";
+        return null;
+    }
+
+    private static string Name(X509Certificate2 cert)
+    {
+        var name = cert.GetNameInfo(X509NameType.SimpleName, false);
+        return string.IsNullOrWhiteSpace(name) ? cert.Thumbprint : name;
     }
 
     /// <summary>SHA-256 Authenticode with an RFC 3161 timestamp.</summary>
@@ -61,15 +104,8 @@ public class NativeCodeSigner : IFileSigner
             cancellationToken.ThrowIfCancellationRequested();
 
             using var cert = GetCertificate();
-            if (cert is null || !cert.HasPrivateKey)
-            {
-                return new SigningResult
-                {
-                    FilePath = filePath,
-                    Success = false,
-                    ErrorMessage = "No signing certificate available. Configure a code-signing certificate on the Settings page."
-                };
-            }
+            if (CertificateProblem(cert) is { } problem)
+                return new SigningResult { FilePath = filePath, Success = false, ErrorMessage = problem };
 
             return SignOneFile(filePath, cert);
         }, cancellationToken);
@@ -169,7 +205,8 @@ public class NativeCodeSigner : IFileSigner
             if (string.IsNullOrWhiteSpace(_timestampServer))
             {
                 result.Success = false;
-                result.ErrorMessage = "No timestamp server configured.";
+                result.ErrorMessage = "No timestamp server is set. Enter one in Settings ▸ Code signing (for example http://timestamp.digicert.com): "
+                                      + "Packman always timestamps, so a signature stays valid after the certificate expires.";
                 return result;
             }
 
@@ -196,7 +233,9 @@ public class NativeCodeSigner : IFileSigner
             {
                 result.Success = false;
                 result.HResult = hr;
-                result.ErrorMessage = HResultToMessage(hr);
+                result.ErrorMessage = IsNetworkFailure(hr)
+                    ? $"Could not reach the timestamp server {_timestampServer} (0x{hr:X8}). Check the address in Settings ▸ Code signing, the network and any proxy."
+                    : HResultToMessage(hr);
             }
         }
         catch (Exception ex)
@@ -226,6 +265,11 @@ public class NativeCodeSigner : IFileSigner
 
         return result;
     }
+
+    // FACILITY_WIN32 carrying a WinINet/WinHTTP error (12000-12199): the only network call
+    // signing makes is the timestamp request.
+    private static bool IsNetworkFailure(int hr) =>
+        (hr & unchecked((int)0xFFFF0000)) == unchecked((int)0x80070000) && (hr & 0xFFFF) is >= 12000 and <= 12199;
 
     private static string HResultToMessage(int hr)
     {

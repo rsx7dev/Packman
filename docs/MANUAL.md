@@ -63,7 +63,7 @@ Two modes:
 
 - **Interactive sign-in** (default) — press **Sign in** and complete the Microsoft prompt. With no
   **Application (Client) ID**, Packman uses the public *Microsoft Graph Command Line Tools* client,
-  which exists in virtually every tenant, so no setup is needed. That client is shared with every
+  which exists in virtually every tenant, so there is nothing to register; an administrator still consents to its Intune and group permissions once for the tenant. That client is shared with every
   Graph script in the tenant, so Settings recommends a dedicated registration while it is in use
   (see [Dedicated app registration](#dedicated-app-registration)). Set a **Tenant ID** to pin
   sign-in to one tenant, or leave it blank for `organizations`.
@@ -123,8 +123,8 @@ For interactive sign-in through your own registration instead of the shared clie
    `https://login.microsoftonline.com/common/oauth2/nativeclient` and the broker redirect URI
    `ms-appx-web://microsoft.aad.brokerplugin/<application-client-id>`. Set
    *Allow public client flows* to *Yes*.
-3. Under *API permissions ▸ Microsoft Graph ▸ Delegated*, add the scopes listed above. Granting
-   admin consent is optional: without it each user consents when a feature first needs a scope.
+3. Under *API permissions ▸ Microsoft Graph ▸ Delegated*, add the scopes listed above. An
+   administrator must grant consent for the Intune and group scopes; a user can consent only to the basic sign-in scopes.
 4. In Packman, open **Settings**, choose **Authentication** and **Interactive sign-in**, enter the
    **Application (Client) ID** and the **Tenant ID**, then press **Sign in**.
 
@@ -137,7 +137,7 @@ you@contoso.com*.
 
 ### Code signing (optional)
 
-Switch code signing to **Enabled** to Authenticode-sign the package files before the `.intunewin`
+Switch code signing to **Enabled** to Authenticode-sign the deploy script (`Invoke-AppDeployToolkit.ps1`) and every other unsigned PowerShell file in the package (not the installer payload in `Files`) before the `.intunewin`
 is built. Pick the signing certificate from the store with **Select from store** (or use
 **Enter manually**) and set a **Timestamp Server** (defaults to DigiCert). Signing runs in-process —
 no temporary PFX is written. If signing is enabled and the certificate or signing operation fails,
@@ -151,7 +151,7 @@ publishing stops before building or uploading content.
 | **PSADT Template Path** | Optional. Your own PSADT v4 folder — either the folder containing `Invoke-AppDeployToolkit.ps1` or the script path itself. Empty uses the bundled template. |
 | **IntuneWinAppUtil Path** | Optional. Full path to your own `IntuneWinAppUtil.exe`. Empty uses the bundled one. |
 | **PSADT Log Folder** | Read-only. `LogPath` from the template's `Config\config.psd1`. Suggested `/log` switches write here. Change it in the template. |
-| **Staging Folder on Target** | Optional. A local folder on Remote test targets, such as `D:\Staging`. Packman always stages in its own `Packman` subfolder there. Empty uses `C:\ProgramData`. Network paths and environment variables are refused. |
+| **Staging Folder on Target** | Optional. A local folder on Remote test targets, such as `D:\Staging`. Packman always stages in its own `Packman` subfolder there. Empty uses `C:\ProgramData`. Network paths and environment variables are refused. The folder and every folder above it must be changeable by administrators only (owned by Administrators or SYSTEM, with no delete or permission rights for anyone else); otherwise the run stops before anything is copied, because the package runs as SYSTEM from there. |
 | **Upload Logs Folder** | Optional. Where upload and update logs go, for example a share for a team audit trail. Each log names the user and computer. If the folder can't be written during a publish, the log goes to the local folder and the console says so. **Open logs folder** opens it. Empty uses `%LocalAppData%\Packman\Logs`. |
 
 Package generation is blocked until the Intune Applications Path is set.
@@ -255,15 +255,14 @@ on; **Back** steps back.
      field. If nothing matches, the type is *Unknown* and no switches are listed: Packman shows
      only what a recognised type documents, never guesses. The table lives in
      `Packman/Services/InstallerCatalog.cs`; a new installer type is a new entry there.
-   - MSI — **MSI package**: the tool that built it (WiX, InstallShield, Advanced Installer…),
-     platform, languages, install scope (from `ALLUSERS`), package code, the minimum Windows
-     Installer version and the creation date, all read from the summary stream and Property table.
-     **Installer options** lists the public properties the MSI's own dialogs set (check boxes,
+   - MSI — a warning only where the MSI disagrees with the chosen architecture or install
+     context (a different platform, a per-user MSI packaged as System, languages other than
+     English). **Installer options** lists the public properties the MSI's own dialogs set (check boxes,
      choices, folders and text boxes) with their values and default; **Add** puts `NAME=value`
      into **Install arguments**. **Features** lists the Feature table with each feature's title and
-     whether it installs by default; **Add** puts the feature into `ADDLOCAL`. Then the key
-     **MSI properties** (`ProductName`, `ProductVersion`, `Manufacturer`,
-     `ProductCode`, `UpgradeCode`, `ALLUSERS`, the reboot properties and the install directories),
+     whether it installs by default; **Add** puts the feature into `ADDLOCAL`. Then the
+     **Key properties** (`ALLUSERS`, the reboot properties and the install directories; the
+     product code and upgrade code show in **Package preview**),
      then **All properties** with a **Search MSI properties** box. Public (uppercase) properties
      have an **Add** button that puts `NAME=value` into **Install arguments**. `.mst` transforms
      beside the MSI are listed; Packman copies only the MSI, so add the `.mst` to Files and use
@@ -358,6 +357,12 @@ If the WebView2 Runtime is missing the editor is replaced by a note that points 
 
 **Remote test** stages the package on a machine and runs it there, so you see the real install
 before Intune ever sees the package. It is optional.
+
+**Testing on this computer.** Enter `localhost` (or this computer's own name) as the target and no
+WinRM is needed. Packman asks for administrator rights once per run (a Windows prompt for Windows
+PowerShell) and that elevated helper stages the package and registers the same scheduled task, so
+the install still runs as SYSTEM, or as you for a **User** run. Declining the prompt runs nothing.
+It really installs the app on your workstation; a clean test machine is the better final check.
 
 WinRM is only the transport — the install itself runs from a one-shot **scheduled task**, because a
 remote session runs as the connecting admin and would not match Intune's identity. The task runs
@@ -683,7 +688,7 @@ Known limits, so you do not go looking:
 - Windows only. There is no macOS, Linux or web build.
 - Win32 LOB apps only. The Applications list filters on `win32LobApp`; store apps, LOB MSI, web
   links and iOS/Android apps are not shown and cannot be created.
-- Packages must be PSADT v4. Both the upgrade flow and the standalone upload refuse a folder
+- Packages must be PSADT v4 (templates from 4.0 to 4.2 are supported). Both the upgrade flow and the standalone upload refuse a folder
   without `Invoke-AppDeployToolkit.ps1` / `Invoke-AppDeployToolkit.exe`; PSADT v3 packages are not
   supported.
 - You cannot upload a bare `.intunewin` or an arbitrary installer — the package must have the
@@ -723,7 +728,7 @@ Known limits, so you do not go looking:
 - The Remote test **Use this rule for publishing** button only works for the package the wizard
   generated. A package browsed from the share has no publish step to feed.
 - The remote test runs **Install** and **Uninstall** only — there is no Repair button.
-- Remote testing needs WinRM enabled on the target, firewall access, and administrative rights (the
+- Remote testing needs WinRM enabled on the target (except a `localhost` run), firewall access, and administrative rights (the
   copy goes over `C$`). The **User** context additionally needs somebody logged on.
 - Detection discovery searches for an installed executable. Packages that install no `.exe`, or
   whose executable name looks like an uninstaller/setup/helper, will not produce a rule — set one by
@@ -760,11 +765,12 @@ Known limits, so you do not go looking:
 | The app installs but Intune keeps reinstalling it | The detection rule does not match reality. Remote-test the package and use **Discover detection**, or fix the rule on the app's Deployment tab. |
 | An EXE package "succeeds" but installs nothing | The `<silent flags>` placeholder was never replaced. Open the script and put the installer's real silent switches in. |
 | The in-app editor shows a plain note instead of code | The Edge WebView2 Runtime is missing. Install it, or use **Open externally**. |
-| Remote test: *WinRM connection failed* | Run `Enable-PSRemoting -Force` on the target and allow WinRM through its firewall. |
+| Remote test: *WinRM connection failed* | Run `Enable-PSRemoting -Force` on the target and allow WinRM through its firewall. To test on this computer, enter `localhost`: that needs no WinRM. |
+| Remote test: *The administrator prompt was declined* | A `localhost` test needs administrator rights to stage the package and run it as SYSTEM. Run it again and approve the Windows prompt. |
 | Remote test: the status reads *unreachable* | The target did not answer a ping — check the name and that it is powered on. Some networks block ICMP while WinRM still works; try the run anyway. |
 | Remote test: *No user is logged on…* | A **User** context run needs somebody signed in to the target. Use **System**, or log on first. |
 | Remote test: *No matching application files found* | Detection discovery could not find the installed executable — set the detection rule by hand on the Configure step. |
-| Upload failed partway | Read the per-upload log under `%LocalAppData%\Packman\Logs\Upload\`; its path is printed at the start of the run. Packman tries to delete a known half-created app. If publication was confirmed or is uncertain it keeps the app and shows its ID, so check Intune before retrying. |
+| Upload failed partway | Read the per-upload log under `<Upload Logs Folder>\Upload\` (default `%LocalAppData%\Packman\Logs`); its path is printed at the start of the run. Packman tries to delete a known half-created app. If publication was confirmed or is uncertain it keeps the app and shows its ID, so check Intune before retrying. |
 | Group not assigned after upload | The name did not resolve to an Entra group. The log names it under *GROUP ASSIGNMENT*. |
 | Settings will not save | Packman writes to `%LocalAppData%\Packman\`; the page reports the actual error under the **Save settings** button. |
 

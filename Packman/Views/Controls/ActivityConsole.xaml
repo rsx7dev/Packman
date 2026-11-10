@@ -11,6 +11,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -36,24 +37,12 @@
             </Thumb.Template>
         </Thumb>
 
-        <!-- Header: title with counts on the left, actions on the right. -->
+        <!-- Header: title and counts on the left, pop-out on the right. The rail is 312px at
+             its narrowest, which the title, two counts and every action do not fit on one row. -->
         <DockPanel Grid.Row="1">
-            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                <Button x:Name="FilterButton" Style="{StaticResource LinkButton}" Click="Filter_Click"
-                        ToolTip="Show only warnings and errors, or every line"/>
-                <Button Style="{StaticResource LinkButton}" Click="Clear_Click" Margin="12,0,0,0" AutomationProperties.Name="Clear console">
-                    <TextBlock Text="Clear"/>
-                </Button>
-                <Button Style="{StaticResource LinkButton}" Click="Copy_Click" Margin="12,0,0,0" AutomationProperties.Name="Copy console">
-                    <StackPanel Orientation="Horizontal">
-                        <controls:LineIcon Data="{DynamicResource IconCopy}" Width="14" Height="14"/>
-                        <TextBlock Text="Copy" Margin="6,0,0,0"/>
-                    </StackPanel>
-                </Button>
-                <Button x:Name="PlaceButton" Style="{StaticResource IconButton}" Margin="6,0,-6,0" Click="Place_Click">
-                    <controls:LineIcon Data="{DynamicResource IconExternal}" Width="15" Height="15"/>
-                </Button>
-            </StackPanel>
+            <Button x:Name="PlaceButton" DockPanel.Dock="Right" Style="{StaticResource IconButton}" Margin="6,0,-6,0" Click="Place_Click">
+                <controls:LineIcon Data="{DynamicResource IconExternal}" Width="15" Height="15"/>
+            </Button>
 
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                 <Button x:Name="CollapseButton" Style="{x:Null}" Click="Collapse_Click" Cursor="Hand"
@@ -91,8 +80,23 @@
             </StackPanel>
         </DockPanel>
 
+        <!-- Actions on the lines; hidden with them. -->
+        <StackPanel x:Name="Actions" Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
+            <Button x:Name="FilterButton" Style="{StaticResource LinkButton}" Click="Filter_Click"
+                    ToolTip="Show only warnings and errors, or every line"/>
+            <Button Style="{StaticResource LinkButton}" Click="Clear_Click" Margin="14,0,0,0" AutomationProperties.Name="Clear console">
+                <TextBlock Text="Clear"/>
+            </Button>
+            <Button Style="{StaticResource LinkButton}" Click="Copy_Click" Margin="14,0,0,0" AutomationProperties.Name="Copy console">
+                <StackPanel Orientation="Horizontal">
+                    <controls:LineIcon Data="{DynamicResource IconCopy}" Width="14" Height="14"/>
+                    <TextBlock Text="Copy" Margin="6,0,0,0"/>
+                </StackPanel>
+            </Button>
+        </StackPanel>
+
         <!-- Lines. -->
-        <Border x:Name="Body" Grid.Row="2" Margin="0,8,0,0" Background="{DynamicResource Card2Brush}" BorderBrush="{DynamicResource LineBrush}"
+        <Border x:Name="Body" Grid.Row="3" Margin="0,6,0,0" Background="{DynamicResource Card2Brush}" BorderBrush="{DynamicResource LineBrush}"
                 BorderThickness="1" CornerRadius="8">
             <Grid>
                 <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
@@ -132,7 +136,7 @@
         </Border>
 
         <!-- Docked rails while the console is in its own window. -->
-        <DockPanel x:Name="PoppedOutNote" Grid.Row="2" Margin="0,8,0,0" Visibility="Collapsed">
+        <DockPanel x:Name="PoppedOutNote" Grid.Row="3" Margin="0,8,0,0" Visibility="Collapsed">
             <Button DockPanel.Dock="Right" Style="{StaticResource LinkButton}" Content="Bring it back" Click="Place_Click"/>
             <TextBlock Text="Open in its own window." Style="{StaticResource SubText}" FontSize="12.5" VerticalAlignment="Center"/>
         </DockPanel>

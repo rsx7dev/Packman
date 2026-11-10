@@ -289,18 +289,20 @@
                             <controls:WizardRail/>
                         </controls:PageFrame.Rail>
 
+                        <!-- Each scroller runs out to the sheet edge and down to the footer (the frame's
+                             32px gutter and 28px foot), so its scrollbar is not drawn over the form. -->
                         <Grid>
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,-32,-28"
                                           Visibility="{Binding Steps[0].IsCurrent, Converter={StaticResource BoolToVis}}">
-                                <views:StepGenerate/>
+                                <views:StepGenerate Margin="0,0,32,28"/>
                             </ScrollViewer>
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,-32,-28"
                                           Visibility="{Binding Steps[1].IsCurrent, Converter={StaticResource BoolToVis}}">
-                                <views:StepUpload/>
+                                <views:StepUpload Margin="0,0,32,28"/>
                             </ScrollViewer>
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" Margin="0,0,-32,-28"
                                           Visibility="{Binding Steps[2].IsCurrent, Converter={StaticResource BoolToVis}}">
-                                <views:StepReview/>
+                                <views:StepReview Margin="0,0,32,28"/>
                             </ScrollViewer>
                         </Grid>
                     </controls:PageFrame>

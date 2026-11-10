@@ -25,7 +25,8 @@ public static class PackagePreflight
         if (!File.Exists(scriptPath)) return issues;
         try
         {
-            var ast = Parser.ParseInput(File.ReadAllText(scriptPath), out _, out var errors);
+            var scriptText = File.ReadAllText(scriptPath);
+            var ast = Parser.ParseInput(scriptText, out var tokens, out var errors);
             issues.AddRange(errors.Take(3).Select(e => $"Script line {e.Extent.StartLineNumber}: {e.Message}"));
 
             // Inspect string expressions, not raw text: comments and help examples should
@@ -41,6 +42,12 @@ public static class PackagePreflight
             foreach (var phase in EmptyPhases(ast))
                 issues.Add($"The {phase} phase in the script is empty. Add the {phase.ToLowerInvariant()} command in Edit script, then save the script.");
 
+            // Without its comments: a command the packager commented out is not what runs.
+            var code = new System.Text.StringBuilder(scriptText);
+            foreach (var comment in tokens.Where(t => t.Kind == TokenKind.Comment).OrderByDescending(t => t.Extent.StartOffset))
+                code.Remove(comment.Extent.StartOffset, comment.Extent.EndOffset - comment.Extent.StartOffset);
+            issues.AddRange(InstallerIssues(PsadtScript.Parse(code.ToString()), PsadtLayout.FilesFolder(packageRoot)));
+
             // Written when the MSI's product code is not known; uninstall cannot work with it.
             var productCode = ast.FindAll(node => node is StringConstantExpressionAst literal &&
                 literal.Value.Contains(PsadtScript.ProductCodePlaceholder, StringComparison.OrdinalIgnoreCase), searchNestedScriptBlocks: true);
@@ -52,6 +59,27 @@ public static class PackagePreflight
             issues.Add($"Cannot read the deployment script: {ex.Message}");
         }
         return issues;
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex MsiCommandOnExe = new(
+        @"Start-ADTMsiProcess\b[^\r\n]*DirFiles[^\r\n]*?\.exe(?=[""'\s]|$)", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Multiline);
+    private static readonly System.Text.RegularExpressions.Regex ExeCommandOnMsi = new(
+        @"Start-ADTProcess\b[^\r\n]*DirFiles[^\r\n]*?\.msi(?=[""'\s]|$)", System.Text.RegularExpressions.RegexOptions.IgnoreCase | System.Text.RegularExpressions.RegexOptions.Multiline);
+
+    /// <summary>
+    /// A package whose script names an installer that is not in Files, or runs it with the
+    /// command for the other installer kind, deploys and fails on every device.
+    /// </summary>
+    internal static IEnumerable<string> InstallerIssues(PsadtScript script, string filesFolder)
+    {
+        foreach (var name in script.SourceFileNames)
+            if (!File.Exists(Path.Combine(filesFolder, name)))
+                yield return $"The script uses {PsadtLayout.FilesFolderName}\\{name}, but that file is not in the package. Add it, or correct the script in Edit script.";
+
+        if (MsiCommandOnExe.IsMatch(script.Content))
+            yield return "The script runs an .exe with Start-ADTMsiProcess, which is for MSI installers. Rewrite the install and uninstall commands in Edit script.";
+        if (ExeCommandOnMsi.IsMatch(script.Content))
+            yield return "The script runs an .msi with Start-ADTProcess, which is for EXE installers. Use Start-ADTMsiProcess in Edit script.";
     }
 
     /// <summary>"Install" and/or "Uninstall" when their New-Variable -Value { } block has no statements.</summary>

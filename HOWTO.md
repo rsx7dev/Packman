@@ -70,12 +70,12 @@ are gone.
 
 **Remote test** → enter a **Computer** name, then press the ping icon. Choose a **Context**
 (**System** or **User**) to match the app’s Intune install behavior and the **Deploy mode** you
-will publish with, then **Install** — it stages the package in `C:\ProgramData\Packman` (SYSTEM and Administrators only),
+will publish with, then **Install** — it stages the package in `C:\ProgramData\Packman` (or under the **Staging Folder on Target** from Settings ▸ Paths; SYSTEM and Administrators only),
 runs the same `Invoke-AppDeployToolkit.exe` command line Intune will, and streams the PSADT log live.
 Package problems such as a leftover EXE placeholder show as warnings at the top of the log, and
 **Cancel** stops a run. Check the discovered detection rule and use
 **Use this rule for publishing** to carry it into Configure for the wizard’s package. Verify
-**Uninstall** on the test device too; test devices need WinRM and admin-share access.
+**Uninstall** on the test device too; test devices need WinRM and admin-share access. No test machine? Enter `localhost` to test on this computer with one administrator prompt.
 
 → [Remote testing](docs/MANUAL.md#remote-testing)
 

@@ -46,7 +46,7 @@
                     </StackPanel>
                 </Border>
                 <!-- Store picker -->
-                <ComboBox AutomationProperties.Name="Certificate store" Margin="0,0,0,14" ItemsSource="{Binding AvailableCertificates}" SelectedItem="{Binding SelectedCodeSignCert}" Visibility="{Binding CodeSignUseStoreCert, Converter={StaticResource BoolToVis}}">
+                <ComboBox AutomationProperties.Name="Certificate store" Margin="0,0,0,14" ItemsSource="{Binding CodeSigningCertificates}" SelectedItem="{Binding SelectedCodeSignCert}" Visibility="{Binding CodeSignUseStoreCert, Converter={StaticResource BoolToVis}}">
                     <ComboBox.ItemTemplate>
                         <DataTemplate>
                             <StackPanel Margin="0,2">

@@ -52,8 +52,8 @@ Each area links to the part of the [manual](docs/MANUAL.md) that explains it.
 - Architecture (x64 / x86) and install context (System / User) are written into the script, along
   with the vendor, name, version and script date, and the install and uninstall calls: `Start-ADTMsiProcess`
   for an MSI, `Start-ADTProcess` with silent-switch placeholders for an EXE.
-- A fixed package layout per version (`Application/`, `Intune/`, `Icon/`), plus any extra folders
-  you choose. See [Package layout](docs/MANUAL.md#package-layout).
+- `Application/` and `Intune/` per version, an optional `Icon/` and any extra folders you choose,
+  under a folder name format you set (`%vendor%_%appName%` by default). See [Package layout](docs/MANUAL.md#package-layout).
 - **Upgrade** an existing package to a new version: the old package is copied forward with your
   script edits, the new installer is swapped in and the metadata refreshed. See
   [Upgrading a package](docs/MANUAL.md#upgrading-a-package-to-a-new-version).
@@ -69,7 +69,7 @@ Each area links to the part of the [manual](docs/MANUAL.md) that explains it.
 
 ### Testing
 
-- **Remote test** a package on a real machine over WinRM before anything reaches Intune, as
+- **Remote test** a package on a real machine over WinRM, or on this computer with no WinRM (enter `localhost`), before anything reaches Intune, as
   `NT AUTHORITY\SYSTEM` or in the logged-on user's session, with the same command line Intune runs and
   the PSADT log streamed live.
 - After a successful install, Packman proposes a **detection rule** from the executable that was
@@ -78,7 +78,7 @@ Each area links to the part of the [manual](docs/MANUAL.md) that explains it.
 ### Publishing
 
 - Builds the `.intunewin` with Microsoft's `IntuneWinAppUtil.exe`, optionally Authenticode-signs the
-  package files with a certificate from the Windows store, creates the Win32 app in Intune, uploads
+  PowerShell scripts with a certificate from the Windows store, creates the Win32 app in Intune, uploads
   the encrypted content and assigns your groups.
 - Detection rules (file, version, registry, MSI product code), requirements, return codes, restart
   behavior, a PSADT deploy mode picker, per-group assignment intent, optional per-package install and
@@ -113,10 +113,10 @@ Each area links to the part of the [manual](docs/MANUAL.md) that explains it.
 | **OS** | Windows (WPF, Windows certificate store, WinRM client) |
 | **Runtime** | .NET 10 Desktop Runtime — or the .NET 10 SDK to build |
 | **Editor host** | Microsoft Edge **WebView2 Runtime**, for the in-app script editor. Without it the editor falls back to opening the script in your own editor |
-| **PSADT v4 template** | Included: PSADT 4.1.8 with its runtime, in `PSADT/` beside `Packman.exe`. Set a path in Settings only to use your own |
+| **PSADT v4 template** | Included: PSADT 4.1.8 with its runtime, in `PSADT/` beside `Packman.exe`. Set a path in Settings only to use your own (PSADT 4.0 to 4.2) |
 | **Content prep tool** | Included: `IntuneWinAppUtil.exe` 1.8.7 (Microsoft Win32 Content Prep Tool), in `IntuneWinAppUtil/` beside `Packman.exe`. Set a path in Settings only to use your own |
 | **Tenant** | An active Microsoft Intune license and Microsoft Graph permissions for the selected [authentication mode](docs/MANUAL.md#authentication) |
-| **Remote test (optional)** | A test machine with WinRM enabled and reachable, and administrative rights on it (the package is staged over the `C$` admin share) |
+| **Remote test (optional)** | A test machine with WinRM enabled and reachable, and administrative rights on it (the package is staged over the `C$` admin share). Or this computer: enter `localhost`, no WinRM, one administrator prompt per run |
 
 ---
 

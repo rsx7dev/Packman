@@ -64,7 +64,7 @@
                               Text="{Binding TargetComputer, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                               IsEnabled="{Binding IsIdle}"
                               AutomationProperties.Name="Computer name"
-                              ToolTip="Name of the machine to test on. WinRM must be enabled (Enable-PSRemoting)."/>
+                              ToolTip="Name of the machine to test on. WinRM must be enabled there (Enable-PSRemoting). Enter localhost to test on this computer: no WinRM, one administrator prompt per run."/>
                     <Button Grid.Column="1" Style="{StaticResource IconButton}" Width="36" Height="36" Margin="8,0,0,0"
                             BorderBrush="{DynamicResource EdgeBrush}"
                             Command="{Binding CheckOnlineCommand}"

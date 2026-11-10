@@ -43,7 +43,7 @@ public sealed class PsadtScript
     // "$($adtSession.DirFiles)\setup.exe" as the generator writes it, plus the bare
     // "$adtSession.DirFiles\setup.exe" that hand-written scripts carry.
     private static readonly Regex DirFilesReference = new(
-        @"(?<prefix>\$\(\$adtSession\.DirFiles\)\\|\$adtSession\.DirFiles\\)(?<name>[^""'\\/:\r\n]+?\.(?:exe|msi|bat|cmd|ps1))(?=[""'\s]|$)",
+        @"(?<prefix>\$\(\$adtSession\.DirFiles\)\\|\$adtSession\.DirFiles\\)(?<name>[^""\\/:\r\n]+?\.(?:exe|msi|bat|cmd|ps1))(?=[""'\s]|$)",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly Regex UninstallLine = new(
@@ -127,7 +127,18 @@ public sealed class PsadtScript
 
     /// <summary>Writes a single-quoted value. Returns false when the key is not in the hashtable.</summary>
     public bool SetSessionValue(string key, string? value)
-        => SetSessionLiteral(key, "'" + PowerShellLiteral.SingleQuoted(value) + "'");
+        => SetSessionLiteral(key, "'" + PowerShellLiteral.SingleQuoted(OneLine(value)) + "'");
+
+    /// <summary>
+    /// A session value on one line. The entries are found line by line, so a line break inside a
+    /// value (an MSI or version-resource field can carry one) would let the next entry written
+    /// match text inside this one's string and turn data into script.
+    /// </summary>
+    private static string OneLine(string? value) =>
+        string.IsNullOrEmpty(value) ? "" : string.Concat(value.Select(c => IsLineBreakOrControl(c) ? ' ' : c));
+
+    // Control characters, plus the Unicode line and paragraph separators PowerShell also ends a line on.
+    private static bool IsLineBreakOrControl(char c) => char.IsControl(c) || c == (char)0x2028 || c == (char)0x2029;
 
     public bool SetSessionBool(string key, bool value)
         => SetSessionLiteral(key, value ? "$true" : "$false");
@@ -137,7 +148,7 @@ public sealed class PsadtScript
     /// RequireAdmin, for one). False only when the script has no $adtSession block at all.
     /// </summary>
     public bool SetOrAddSessionValue(string key, string? value)
-        => SetOrAddSessionLiteral(key, "'" + PowerShellLiteral.SingleQuoted(value) + "'");
+        => SetOrAddSessionLiteral(key, "'" + PowerShellLiteral.SingleQuoted(OneLine(value)) + "'");
 
     public bool SetOrAddSessionBool(string key, bool value)
         => SetOrAddSessionLiteral(key, value ? "$true" : "$false");
@@ -352,14 +363,18 @@ public sealed class PsadtScript
         get
         {
             var match = DirFilesReference.Match(Content);
-            return match.Success ? match.Groups["name"].Value : null;
+            return match.Success ? ReferencedName(match) : null;
         }
     }
 
     /// <summary>Every distinct file the script reaches through $adtSession.DirFiles, in order of first use.</summary>
     public IReadOnlyList<string> SourceFileNames =>
-        DirFilesReference.Matches(Content).Select(m => m.Groups["name"].Value)
+        DirFilesReference.Matches(Content).Select(ReferencedName)
             .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+    // The file name as it is on disk: the script holds it escaped for a double-quoted string
+    // ("cost `$5.exe"), and the callers compare it with, copy and delete real files.
+    private static string ReferencedName(Match match) => UnescapeDoubleQuoted(match.Groups["name"].Value);
 
     private static readonly Regex InstallHeading = new(
         @"^[ \t]*##[ \t]+(?:MSI|EXE)[ \t]+Installation[ \t]*\r?$",
@@ -379,9 +394,9 @@ public sealed class PsadtScript
 
             var heading = InstallHeading.Match(Content);
             if (heading.Success && references.FirstOrDefault(m => m.Index > heading.Index) is { } generated)
-                return generated.Groups["name"].Value;
+                return ReferencedName(generated);
 
-            var names = references.Select(m => m.Groups["name"].Value).ToList();
+            var names = references.Select(ReferencedName).ToList();
             return names.FirstOrDefault(n => n.EndsWith(".msi", StringComparison.OrdinalIgnoreCase)
                                           || n.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
                 ?? names[0];
@@ -400,7 +415,7 @@ public sealed class PsadtScript
         int count = 0;
         Content = DirFilesReference.Replace(Content, m =>
         {
-            if (!m.Groups["name"].Value.Equals(oldSourceFileName, StringComparison.OrdinalIgnoreCase))
+            if (!ReferencedName(m).Equals(oldSourceFileName, StringComparison.OrdinalIgnoreCase))
                 return m.Value;
             count++;
             return m.Groups["prefix"].Value + escaped;

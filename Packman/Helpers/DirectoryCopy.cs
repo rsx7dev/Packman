@@ -34,6 +34,9 @@ public static class DirectoryCopy
             var name = Path.GetFileName(dir);
             if (excludeTopLevelFolders.Contains(name, StringComparer.OrdinalIgnoreCase))
                 continue;
+            // A junction or symlink someone planted on the share is not part of the package:
+            // following it would copy whatever it points at into the new folder.
+            if (IsLink(dir)) continue;
             Copy(dir, Path.Combine(destination, name), ct);
         }
     }
@@ -50,9 +53,13 @@ public static class DirectoryCopy
     public static void ClearReadOnlyRecursive(string folder)
     {
         if (!Directory.Exists(folder)) return;
-        foreach (var file in Directory.EnumerateFiles(folder, "*", SearchOption.AllDirectories))
+        // Never through a junction or symlink: that would change files outside the package.
+        var options = new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint };
+        foreach (var file in Directory.EnumerateFiles(folder, "*", options))
             ClearReadOnly(file);
     }
+
+    private static bool IsLink(string path) => (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0;
 
     /// <summary>Total size in bytes of every file below <paramref name="folder"/>; 0 when it does not exist.</summary>
     public static long TotalSize(string folder)

@@ -186,7 +186,7 @@ Packman/
                   and editor session
   Views/          XAML screens and wizard steps
     Controls/     shared headings, assignment picker, return-code editor, publishing
-                  status, and six focused Settings sections
+                  status, and six focused Settings sections and the package layout editor
   Helpers/        the PSADT script editor (PsadtScript), package paths, MSI/EXE
                   metadata, icon extraction, converters
   Themes/         light/dark palettes, styles, icons

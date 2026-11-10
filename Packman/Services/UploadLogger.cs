@@ -138,6 +138,8 @@ public sealed class UploadLogger : IDisposable
         {
             try
             {
+                // Same redaction as the console: this file may sit on a share.
+                message = ActivityLog.Redact(message);
                 _writer.WriteLine(message);
                 Debug.WriteLine(message);
             }

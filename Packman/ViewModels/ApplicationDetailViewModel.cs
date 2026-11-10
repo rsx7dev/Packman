@@ -859,6 +859,11 @@ public sealed class DetectionRuleDisplay : ObservableObject
                 return "The rule needs a file or folder name.";
             if (EditNeedsValue && string.IsNullOrWhiteSpace(EditValue))
                 return "The rule needs a value to compare against.";
+            if (IsMsi && DetectionInput.NormalizeProductCode(EditPath) == null)
+                return DetectionInput.ProductCodeProblem;
+            // An MSI rule compares the product version when its check is on; a file rule when its type is "version".
+            if (EditNeedsValue && (IsMsi || EditDetectionType == "version") && !DetectionInput.IsVersion(EditValue))
+                return DetectionInput.VersionProblem;
             return null;
         }
     }
@@ -891,7 +896,8 @@ public sealed class DetectionRuleDisplay : ObservableObject
 
     public void ApplyEdit()
     {
-        Rule.Path = EditPath.Trim();
+        // The product code in the form the upload pickers send, so create and edit agree.
+        Rule.Path = IsMsi ? DetectionInput.NormalizeProductCode(EditPath) ?? EditPath.Trim() : EditPath.Trim();
         if (IsMsi)
         {
             Rule.CheckVersion = EditCheckVersion;

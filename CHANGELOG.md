@@ -23,6 +23,32 @@ All notable changes to Packman are recorded here. The format follows
 
 ### Fixed
 
+- Detection: a registry key pasted with its hive (`HKLM:\SOFTWARE\…`, `Computer\HKEY_LOCAL_MACHINE\…`)
+  is no longer prefixed with the hive a second time; MSI product codes must be GUIDs and are sent as
+  `{UPPER-CASE}`; versions must be one to four numbers; the standalone Upload page asks for the same
+  fields as the wizard and offers "not equal"; a blank version pre-fills "File exists".
+- Detection rules are marked "32-bit app on 64-bit" only for x86 packages. Every file rule used to
+  be, which sent `%ProgramFiles%` paths of 64-bit apps to Program Files (x86).
+- Upgrade repoints the script when the installer's file name has an apostrophe, and removes the
+  previous installer when its name has a `$` or a backtick.
+- Generation warns when no installer was found for the command it writes, and preflight blocks a
+  script that names a file missing from `Files` or runs an installer with the command for the
+  other kind (MSI/EXE).
+- Settings ▸ Code signing lists only certificates that can sign code, so the sign-in
+  certificate in the same store can no longer be picked by mistake.
+- Code signing signs every unsigned PowerShell file in the package (the template's Extensions
+  module was left unsigned), refuses a certificate that is expired, not yet valid, without a
+  private key or not issued for code signing, names the timestamp server when it cannot be
+  reached, and no longer falls back to DigiCert when the timestamp server is empty.
+- Security: a package's `config.psd1` is never evaluated as PowerShell by the remote-test monitor;
+  the folders above a custom staging folder must be administrator-only; line breaks in installer
+  metadata cannot inject script; the upload log file is redacted like the console; copy and
+  delete no longer follow junctions on the share.
+- Generation adds `RequireAdmin` (and any other missing `$adtSession` entry) instead of skipping
+  it; PSADT 4.2 templates dropped that entry.
+- Deleting or replacing a package clears read-only attributes first; PSADT ships read-only files,
+  which made the delete fail with "access denied".
+- Console lines keep the order they were logged in across threads.
 - An indeterminate progress bar sweeps instead of drawing as a full, static bar.
 - The font stack loads as intended: Segoe UI Variable and Cascadia Mono where Windows has them, with
   the bundled Instrument Sans and JetBrains Mono as fallbacks. A pack URI in the family list had
@@ -78,19 +104,27 @@ All notable changes to Packman are recorded here. The format follows
   scopes are requested only when the Advanced screen opens, and group features elsewhere point
   there until they are granted.
 - Settings recommends a dedicated app registration while the shared Microsoft Graph Command Line
-  Tools client is in use, and the README documents how to create one.
+  Tools client is in use, and the manual documents how to create one.
 
 ### Changed
 
+- The Settings tab **Network paths** is now **Paths**.
+- The Package layout tab no longer lists fixed **Application** and **Intune** rows; the example
+  tree shows them.
+- Package preview: the "MSI package" facts are gone, **Upgrade code** is shown, and a warning
+  appears only where the MSI disagrees with the chosen architecture or install context.
+- Script warnings from generation show on the **Package generated** card with an **Edit script**
+  link, not only in the console.
+- Preflight blocks publishing while a 4.2 template's Install or Uninstall phase is empty.
+- On wide windows the form pages stay a centred 860px column and the side rail grows from 312px
+  to 480px.
 - The title bar pill names the tenant (`Connected · contoso`) instead of *Connected · your*; an
   app registration shows its tenant domain or ID.
 - The Package step rail no longer shows the Installer / Output share / Intune connection readiness
   rows; it shows the package preview and what was read from the installer.
 - An unrecognised EXE lists no switches instead of untested guesses. A recognised EXE also shows
   the setup program's architecture and whether it is signed.
-- An MSI shows its package details (authoring tool, platform, languages, install scope, package
-  code, minimum Windows Installer, created date), the options its dialogs set and its features,
-  each with **Add**.
+- An MSI shows the options its dialogs set and its features, each with **Add**.
 - Loading another installer replaces the name, manufacturer and version the previous installer
   filled in, and keeps values typed by hand.
 - **Generate package** is disabled until the installer, name, manufacturer, version and output share
@@ -117,6 +151,29 @@ All notable changes to Packman are recorded here. The format follows
 
 ### Added
 
+- **Package folder name** in Settings ▸ Package layout: a format of `%vendor%` and `%appName%` with
+  at most one `\` (default `%vendor%_%appName%`, unchanged). The version is always its own
+  subfolder; a format with `%appVersion%`, without `%appName%`, or with unknown tokens or invalid
+  characters is refused and blocks **Save settings**. Upgrade puts the new version beside the
+  existing one whatever the format is now, and linked packages are also found under
+  `Vendor\App\Version`.
+- One-click suggestions for extra folders (Documentation, Source, Detection) and an example package
+  tree on the Package layout tab.
+- Settings ▸ Paths: **Staging Folder on Target** (a local folder on Remote test targets; Packman
+  stages in its own `Packman` subfolder there, empty uses `C:\ProgramData`), **Upload Logs Folder**
+  with **Open logs folder** (falls back to the local folder when it cannot be written, and the
+  console says so), and a read-only **PSADT Log Folder** read from the template's
+  `Config\config.psd1`.
+- PSADT 4.2 templates: the install and uninstall phases are found in
+  `New-Variable -Name Install -Value { }` blocks as well as the 4.0/4.1
+  `<Perform … tasks here>` markers, or under a `## MARK:` heading. The console logs the template's
+  PSADT version and layout.
+- Remote test on this computer: enter `localhost` (or this computer's name) and the run needs no
+  WinRM. One administrator prompt per run starts a helper that stages the package and runs the
+  same scheduled task, so the install still runs as SYSTEM or in your session.
+- Console: resize from its top edge, collapse to the header (it reopens on a warning or error),
+  warning and error counts, **Issues only**, and a pop-out into its own window. The state is kept
+  as you move between pages.
 - Bundled PSADT 4.1.8 template with its runtime (`Invoke-AppDeployToolkit.exe` and the
   `PSAppDeployToolkit` module) and Microsoft's `IntuneWinAppUtil.exe` 1.8.7, copied beside
   `Packman.exe`. Licenses are in THIRD-PARTY-NOTICES.md.

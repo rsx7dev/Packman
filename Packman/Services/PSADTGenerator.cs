@@ -212,8 +212,11 @@ public class PSADTGenerator
             warnings.Add("The template has no $adtSession block, so the application details and install context were not written. Set them in Edit script.");
 
         var msi = appInfo.PackageType == "MSI";
-        var installer = ResolveInstallerName(appInfo, PsadtLayout.FilesFolder(packagePath), msi)
-                        ?? (msi ? appInfo.Name + ".msi" : "setup.exe");
+        var found = ResolveInstallerName(appInfo, PsadtLayout.FilesFolder(packagePath), msi);
+        var installer = found ?? (msi ? appInfo.Name + ".msi" : "setup.exe");
+        if (found == null)
+            warnings.Add($"No .msi or .exe installer was found in the source, so the install command names '{installer}', " +
+                         $"which is not in the package. Add the installer to {PsadtLayout.ApplicationFolderName}\\{PsadtLayout.FilesFolderName} and correct the commands in Edit script.");
 
         if (script.InsertIntoPhase(PsadtScript.InstallSection,
                 "", msi ? "## MSI Installation" : "## EXE Installation", PsadtScript.InstallCommand(msi, installer, appInfo.InstallArguments)) == PhaseLayout.None)
