@@ -1314,7 +1314,7 @@
                                  their own, so a WebView2 never sits in a scrolled viewport. -->
                             <ScrollViewer x:Name="scroll" Grid.Row="1" Focusable="False"
                                           VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                <ContentPresenter Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
+                                <ContentPresenter x:Name="body" Content="{TemplateBinding Content}" ContentTemplate="{TemplateBinding ContentTemplate}"
                                                   Margin="32,24,32,28" MaxWidth="{TemplateBinding ContentMaxWidth}"/>
                             </ScrollViewer>
 
@@ -1370,6 +1370,9 @@
                         </DataTrigger>
                         <Trigger Property="IsBodyScrollable" Value="False">
                             <Setter TargetName="scroll" Property="VerticalScrollBarVisibility" Value="Disabled"/>
+                            <!-- A body that scrolls itself keeps its scrollbar at the sheet's edge; its
+                                 views cap and centre themselves (MaxWidth + Stretch). -->
+                            <Setter TargetName="body" Property="MaxWidth" Value="Infinity"/>
                         </Trigger>
                         <!-- Compact: the rail leaves its column and floats over the body on demand. -->
                         <Trigger Property="IsCompact" Value="True">
