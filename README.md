@@ -175,7 +175,6 @@ and publish.
 - [SECURITY.md](SECURITY.md) — how to report a vulnerability privately.
 - [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) — what is expected of everyone taking part.
 - [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) — licenses of bundled components.
-- [docs/UI-DESIGN.md](docs/UI-DESIGN.md) — the desktop UI's structure and validation.
 
 ---
 

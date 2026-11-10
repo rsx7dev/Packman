@@ -205,7 +205,7 @@ Packman/
   PSADT/          bundled PSADT v4 template (script and runtime)
   Tools/          extract-psadt-functions.py, regenerates MonacoEditor/psadt-functions.json
 tests/            file-based test programs, Python checks and the xunit project Packman.Tests
-docs/             the manual, the UI design notes and the documentation screenshots
+docs/             the manual and the documentation screenshots
 scripts/          native Windows preview utility and third-party inventory tooling
 packages/         vendored .nupkg files for restore without nuget.org
 .github/workflows/build.yml   restore, build, native previews and app startup on windows-latest

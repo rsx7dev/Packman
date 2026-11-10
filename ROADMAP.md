@@ -20,6 +20,6 @@ These are development priorities, not features currently available in the commun
 | 2 | WDAC catalog generation | Capture the relevant installation/runtime files, generate and sign a catalog, validate its coverage and export deployment evidence for App Control for Business. |
 | 3 | GitLab pipelines | Connect package source to a controlled build/test/publish pipeline with run status, artifacts and promotion of the exact tested package. |
 
-The implementation sequence establishes identity and signing before automating WDAC and pipeline publishing. The [integration design](docs/PRO-INTEGRATIONS.md) describes the contracts and release criteria.
+The implementation sequence establishes identity and signing before automating WDAC and pipeline publishing.
 
 Commercial implementations belong in a separate private codebase. They should compose the public services rather than fork the community UI or move existing community features behind a payment requirement. The public app will display capabilities it can actually execute.

@@ -164,6 +164,8 @@ All notable changes to Packman are recorded here. The format follows
 
 - Internal design drafts and review notes, and the tooling folders that generated them, ahead of
   publishing the source.
+- `docs/UI-DESIGN.md` and `docs/PRO-INTEGRATIONS.md`: design notes for work that is finished or not
+  part of the community edition. The manual and CONTRIBUTING.md cover what contributors need.
 
 ### Added
 
