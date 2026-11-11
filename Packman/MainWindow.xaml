@@ -225,7 +225,7 @@
                                         IsBodyScrollable="False"
                                         Visibility="{Binding IsWizard, Converter={StaticResource BoolToVis}}">
                         <controls:PageFrame.HeaderBottom>
-                            <!-- Stepper: numbered discs joined by a rule that fills as steps complete. -->
+                            <!-- Stepper: one card per step, saying what the step involves. -->
                             <ItemsControl ItemsSource="{Binding Steps}" ItemTemplate="{StaticResource StepperItem}" Margin="0,14" Focusable="False">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>

@@ -68,6 +68,22 @@
                     <TextBox AutomationProperties.Name="Information URL" Style="{StaticResource TextField}" Margin="0,7,0,0" local:PlaceholderText.Text="https://contoso.com/apps" Text="{Binding DefaultInformationUrl, UpdateSourceTrigger=PropertyChanged}"/>
                 </StackPanel>
             </Grid>
+            <!-- ── Publishing ─────────────────────────────────── -->
+            <Grid Margin="0,16,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Wait for Intune processing (minutes)" Style="{StaticResource FieldLabel}"/>
+                    <TextBox AutomationProperties.Name="Wait for Intune processing (minutes)" Style="{StaticResource TextField}" Margin="0,7,0,0" local:PlaceholderText.Text="10"
+                             Text="{Binding PublishWaitMinutes, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="1–120. After the upload, Intune processes the content before it accepts supersedence and group assignments. If that takes longer than this, the publish stops and lists what is still to do."/>
+                </StackPanel>
+                <TextBlock Grid.Column="2" Style="{StaticResource SubText}" FontSize="12.5" TextWrapping="Wrap" VerticalAlignment="Bottom" Margin="0,0,0,4"
+                           Text="Raise this if large packages finish uploading but their assignments are skipped. It is not sent to Intune."/>
+            </Grid>
             <!-- Divider -->
             <Border Height="1" Background="{DynamicResource LineBrush}" Margin="0,18,0,18"/>
             <!-- ── Device requirements ────────────────────────── -->

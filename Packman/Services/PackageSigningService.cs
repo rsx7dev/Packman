@@ -6,8 +6,9 @@ namespace Packman.Services;
 /// <summary>Shared signing stage for desktop publishing and future integration hosts.</summary>
 public static class PackageSigningService
 {
+    /// <param name="signed">Called with each file once it carries its signature.</param>
     /// <returns>The signed script path, or null when signing was explicitly disabled.</returns>
-    public static async Task<string?> SignAsync(string packagePath, IFileSigner? signer, CancellationToken ct = default)
+    public static async Task<string?> SignAsync(string packagePath, IFileSigner? signer, CancellationToken ct = default, Action<string>? signed = null)
     {
         ct.ThrowIfCancellationRequested();
         if (signer is null) return null;
@@ -24,6 +25,7 @@ public static class PackageSigningService
                 var reason = string.IsNullOrWhiteSpace(result.ErrorMessage) ? "The signing provider reported a failure." : result.ErrorMessage;
                 throw new InvalidOperationException($"Code signing failed. Publishing stopped: {reason}");
             }
+            signed?.Invoke(file);
         }
 
         return scriptPath;

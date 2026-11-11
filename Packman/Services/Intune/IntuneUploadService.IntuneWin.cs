@@ -20,13 +20,19 @@ public partial class IntuneUploadService
             return;
         }
 
-        Report(progress, log, 10, "Signing the deployment script...");
+        Report(progress, log, 10, "Signing the package's PowerShell files...");
         try
         {
-            var scriptPath = await PackageSigningService.SignAsync(packagePath, _signer, ct);
-            var scriptName = Path.GetFileName(scriptPath);
-            log.Success($"{scriptName} signed successfully");
-            progress?.UpdateProgress(15, $"{scriptName} signed successfully");
+            var signed = new List<string>();
+            var application = PsadtLayout.ApplicationFolder(packagePath);
+            var scriptPath = await PackageSigningService.SignAsync(packagePath, _signer, ct, file =>
+            {
+                signed.Add(file);
+                log.Info($"Signed {Path.GetRelativePath(application, file)}");
+            });
+            var summary = SignedSummary(Path.GetFileName(scriptPath) ?? PsadtLayout.ScriptName, signed.Count);
+            log.Success(summary);
+            progress?.UpdateProgress(15, summary);
         }
         catch (OperationCanceledException) { throw; }
         catch (Exception ex)
@@ -34,6 +40,28 @@ public partial class IntuneUploadService
             log.Error("Required code signing failed; publishing stopped", ex);
             throw;
         }
+    }
+
+    /// <summary>"Invoke-AppDeployToolkit.ps1 signed successfully", plus how many other files were signed with it.</summary>
+    internal static string SignedSummary(string scriptName, int fileCount) => fileCount switch
+    {
+        <= 1 => $"{scriptName} signed successfully",
+        2 => $"{scriptName} signed successfully, with 1 other PowerShell file",
+        _ => $"{scriptName} signed successfully, with {fileCount - 1} other PowerShell files",
+    };
+
+    /// <summary>
+    /// The file name Intune shows for the app. The converter calls every payload
+    /// IntunePackage.intunewin, which tells one app from another no better than nothing.
+    /// </summary>
+    internal static string PackageFileLabel(ApplicationInfo appInfo)
+    {
+        var parts = new[] { appInfo.Manufacturer, appInfo.Name, appInfo.Version }
+            .Select(part => new string((part ?? "").Trim().Select(c => Path.GetInvalidFileNameChars().Contains(c) || char.IsWhiteSpace(c) ? '_' : c).ToArray()).Trim('_', '.'))
+            .Where(part => part.Length > 0);
+        var name = string.Join("_", parts);
+        if (name.Length > 120) name = name[..120].TrimEnd('_', '.');
+        return (name.Length == 0 ? "IntunePackage" : name) + ".intunewin";
     }
 
     /// <summary>Runs IntuneWinAppUtil and returns the .intunewin it produced.</summary>
@@ -216,7 +244,7 @@ public partial class IntuneUploadService
             ["applicableArchitectures"] = "none",
             ["allowedArchitectures"] = AllowedArchitectures(appInfo.Architecture),
             ["minimumSupportedWindowsRelease"] = (requirements ?? new RequirementInfo()).MinimumSupportedWindowsRelease,
-            ["fileName"] = intuneWin.FileName,
+            ["fileName"] = PackageFileLabel(appInfo),
             ["setupFilePath"] = PsadtLayout.SetupFileName,
             ["installExperience"] = new Dictionary<string, object>
             {

@@ -37,6 +37,12 @@ public partial class IntuneUploadService
     /// <summary>Why packman.id could not be written after a successful upload; null when it was.</summary>
     public string? LinkWarning { get; private set; }
 
+    /// <summary>
+    /// How long a new upload waits for Intune to report the app as published before it gives up
+    /// on supersedence and assignments. Settings ▸ Intune defaults sets it.
+    /// </summary>
+    public TimeSpan PublishWait { get; init; } = TimeSpan.FromMinutes(AppSettings.IntuneDefaultsConfig.DefaultPublishWaitMinutes);
+
     public IntuneUploadService(Func<Task<string>> tokenProvider, string tenantId, IFileSigner? signer, string converterPath)
     {
         _graph = new GraphClient(tokenProvider);
@@ -113,13 +119,24 @@ public partial class IntuneUploadService
             committedAppId = appId;
 
             WriteLink(packagePath, appId, appInfo.DisplayName, appInfo.Version, intuneWin, log);
+            var picked = pickedGroups?.Where(g => !string.IsNullOrWhiteSpace(g.GroupId)).ToList() ?? new List<AssignedGroup>();
             Report(progress, log, 97, "Waiting for Intune to finish publishing...");
-            await WaitForApplicationPublishedAsync(appId, ct);
+            try
+            {
+                await WaitForApplicationPublishedAsync(appId, ct);
+            }
+            catch (TimeoutException)
+            {
+                // Intune only accepts relationships and assignments on a published app, so the
+                // rest of the run cannot happen. Say exactly what is still to do.
+                var message = NotPublishedInTime(PublishWait, SkippedFollowUp(appInfo, supersedence, groupAssignment, picked));
+                log.Warning(message);
+                throw new IntuneFollowUpException(appId, message);
+            }
 
             if (supersedence is { Count: > 0 })
                 await WriteSupersedenceAsync(appId, supersedence, log, ct);
 
-            var picked = pickedGroups?.Where(g => !string.IsNullOrWhiteSpace(g.GroupId)).ToList() ?? new List<AssignedGroup>();
             if (picked.Count > 0 || (groupAssignment?.HasAnyAssignment() ?? false))
             {
                 Report(progress, log, 98, "Assigning groups...");
@@ -159,9 +176,43 @@ public partial class IntuneUploadService
         }
     }
 
+    /// <summary>What a publish still had to do after the wait, one entry per thing the packager would have to do by hand.</summary>
+    internal static List<string> SkippedFollowUp(ApplicationInfo appInfo, IReadOnlyList<SupersedenceLink>? supersedence,
+        AppSettings.GroupAssignmentConfig? groupAssignment, IReadOnlyList<AssignedGroup> picked)
+    {
+        var skipped = new List<string>();
+        if (supersedence is { Count: > 0 })
+            skipped.Add(supersedence.Count == 1 ? "supersedence of 1 app" : $"supersedence of {supersedence.Count} apps");
+
+        var groups = picked.Select(g => string.IsNullOrWhiteSpace(g.GroupName) ? g.GroupId : g.GroupName).ToList();
+        if (groupAssignment != null)
+        {
+            groups.AddRange(groupAssignment.ExistingGroups.Select(g => g.GroupName).Where(n => !string.IsNullOrWhiteSpace(n)));
+            if (groupAssignment.CreateGroupPerPackage)
+                groups.Add(GroupAssignmentNamer.Build(groupAssignment.GroupNameTemplate, appInfo.Manufacturer, appInfo.Name, appInfo.Version) + " (not created)");
+            if (groupAssignment.CreateUninstallGroupPerPackage)
+                groups.Add(GroupAssignmentNamer.Build(groupAssignment.UninstallGroupNameTemplate, appInfo.Manufacturer, appInfo.Name, appInfo.Version) + " (not created)");
+        }
+        groups = groups.Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        if (groups.Count > 0)
+            skipped.Add((groups.Count == 1 ? "assignment to the group " : "assignment to the groups ") + string.Join(", ", groups));
+        return skipped;
+    }
+
+    internal static string NotPublishedInTime(TimeSpan waited, IReadOnlyList<string> skipped)
+    {
+        var minutes = waited.TotalMinutes >= 1 ? $"{waited.TotalMinutes:0} minute{(waited.TotalMinutes >= 1.5 ? "s" : "")}" : "the wait";
+        var start = $"The app and its content are in Intune, but Intune did not report it as published within {minutes}.";
+        return skipped.Count == 0
+            ? $"{start} Nothing else was left to do; check its publishing state in Intune."
+            : $"{start} Not done: {string.Join("; ", skipped)}. Once the app reads Published in Intune, add " +
+              $"{(skipped.Count == 1 ? "it" : "them")} on the app's Deployment tab. To wait longer next time, raise " +
+              "\"Wait for Intune processing\" under Settings → Intune defaults.";
+    }
+
     private async Task WaitForApplicationPublishedAsync(string appId, CancellationToken ct)
     {
-        var timeout = TimeSpan.FromMinutes(10);
+        var timeout = PublishWait;
         var deadline = DateTime.UtcNow + timeout;
         using var deadlineCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         deadlineCts.CancelAfter(timeout);
@@ -176,7 +227,7 @@ public partial class IntuneUploadService
             }
         }
         catch (OperationCanceledException) when (deadlineCts.IsCancellationRequested && !ct.IsCancellationRequested) { }
-        throw new TimeoutException("Intune has not confirmed the app is published. Check its publishing state before assigning it.");
+        throw new TimeoutException("Intune has not confirmed the app is published.");
     }
 
     /// <summary>Links the package folder to the app through Intune\packman.id. A failed write never fails the upload.</summary>

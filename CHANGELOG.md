@@ -23,6 +23,15 @@ All notable changes to Packman are recorded here. The format follows
 
 ### Fixed
 
+- When Intune is still processing a new app after the wait, the warning now lists what was not done
+  (the supersedence, each group that was not assigned, and per-package groups that were not created)
+  instead of only saying that follow-up did not finish. The wait, 10 minutes by default, is the new
+  **Wait for Intune processing** setting under Settings ▸ Intune defaults.
+- The publish log names every file it signed and says how many, instead of reporting only the
+  deployment script.
+- A new app's package file is recorded in Intune as `<vendor>_<name>_<version>.intunewin`, so apps
+  can be told apart in the admin center. Every app used to read `IntunePackage.intunewin`. Apps
+  published earlier keep their name.
 - Detection: a registry key pasted with its hive (`HKLM:\SOFTWARE\…`, `Computer\HKEY_LOCAL_MACHINE\…`)
   is no longer prefixed with the hive a second time; MSI product codes must be GUIDs and are sent as
   `{UPPER-CASE}`; versions must be one to four numbers; the standalone Upload page asks for the same
@@ -108,6 +117,9 @@ All notable changes to Packman are recorded here. The format follows
 
 ### Changed
 
+- The Create package stepper shows each step as a card with a line on what it involves
+  (*Installer and details*, *Detection, requirements, groups*, *Check, then send to Intune*);
+  the current step is filled with the accent tint and a finished one shows a tick.
 - The group members panel on an app's Deployment tab has a **Users | Devices** switch that sets both
   the member list and the search, so a search for a person no longer fills up with devices. Users
   are found by name, email, sign-in name or surname (it was display name only) and show their
@@ -164,6 +176,8 @@ All notable changes to Packman are recorded here. The format follows
 
 - Internal design drafts and review notes, and the tooling folders that generated them, ahead of
   publishing the source.
+- `docs/UI-DESIGN.md` and `docs/PRO-INTEGRATIONS.md`: design notes for work that is finished or not
+  part of the community edition. The manual and CONTRIBUTING.md cover what contributors need.
 
 ### Added
 

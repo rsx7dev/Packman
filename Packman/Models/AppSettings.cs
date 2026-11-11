@@ -146,6 +146,10 @@ public class AppSettings
         public const string DefaultRestartBehavior = "allow";
         public const int DefaultMaxRunTimeMinutes = 60;
 
+        // How long a publish waits for Intune to report the new app as published.
+        public const int DefaultPublishWaitMinutes = 10;
+        public const int MaxPublishWaitMinutes = 120;
+
         /// <summary>Graph deviceRestartBehavior values with the admin center's wording.</summary>
         public static readonly RestartBehaviorOption[] RestartBehaviors =
         [
@@ -167,6 +171,16 @@ public class AppSettings
         // Install experience sent with every Win32 app: deviceRestartBehavior and maxRunTimeInMinutes.
         public string RestartBehavior { get; set; } = DefaultRestartBehavior;
         public int MaxRunTimeMinutes { get; set; } = DefaultMaxRunTimeMinutes;
+
+        /// <summary>
+        /// Minutes a publish waits for Intune to finish processing the content before it gives
+        /// up on supersedence and assignments, which Intune only accepts on a published app.
+        /// </summary>
+        public int PublishWaitMinutes { get; set; } = DefaultPublishWaitMinutes;
+
+        /// <summary><see cref="PublishWaitMinutes"/> within its limits; a settings file can hold anything.</summary>
+        [JsonIgnore]
+        public TimeSpan PublishWait => TimeSpan.FromMinutes(Math.Clamp(PublishWaitMinutes, 1, MaxPublishWaitMinutes));
 
         // Company Portal links; sent only when set.
         public string PrivacyUrl { get; set; } = "";

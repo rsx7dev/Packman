@@ -415,9 +415,9 @@ public sealed class MainViewModel : ObservableObject
 
         Steps = new ObservableCollection<StepViewModel>
         {
-            new(GenerateStep, "Package"),
-            new(UploadStep,   "Configure"),
-            new(ReviewStep,   "Review & publish") { IsLast = true },
+            new(GenerateStep, "Package", "Installer and details"),
+            new(UploadStep,   "Configure", "Detection, requirements, groups"),
+            new(ReviewStep,   "Review & publish", "Check, then send to Intune") { IsLast = true },
         };
 
         _isNavHidden = _settingsService.Settings.NavHidden;
