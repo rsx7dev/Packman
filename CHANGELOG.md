@@ -117,6 +117,9 @@ All notable changes to Packman are recorded here. The format follows
 
 ### Changed
 
+- The Create package stepper shows each step as a card with a line on what it involves
+  (*Installer and details*, *Detection, requirements, groups*, *Check, then send to Intune*);
+  the current step is filled with the accent tint and a finished one shows a tick.
 - The group members panel on an app's Deployment tab has a **Users | Devices** switch that sets both
   the member list and the search, so a search for a person no longer fills up with devices. Users
   are found by name, email, sign-in name or surname (it was display name only) and show their
